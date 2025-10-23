@@ -1,0 +1,46 @@
+alias zshconfig="vi ~/.zshrc"
+alias aliasconfig="vi ~/.aliases"
+alias aliases="bat ~/.aliases"
+alias tmuxconfig="vi ~/.config/tmux/tmux.conf"
+
+alias q="exit"
+alias rf="rm -rf"
+alias c="clear"
+alias l='ls -lart'
+alias ..='cd ..'
+alias ...='cd ../../'
+alias ....='cd ../../../'
+alias .....='cd ../../../../'
+
+alias fman="compgen -c | fzf --height 40% --layout reverse --border --no-preview |  xargs man"
+alias ftldr="compgen -c | fzf --height 40% --layout reverse --border --no-preview |  xargs tldr"
+
+alias fcd="cd ~ && cd \$(fzf | sed 's/\/[^\/]*$//')"
+
+alias v='vim' # default Neovim config
+# alias vn='NVIM_APPNAME=nvim-neobean nvim' # NvChad
+alias fv="vim \$(fzf)"
+alias em="emacsclient -c -a 'emacs'"
+alias dmt="doom run -nw"
+
+alias yz='yazi'
+alias lz='lazygit'
+
+alias rmpkg="sudo pacman -Rsn"
+alias cleanch="sudo pacman -Scc"
+alias fixpacman="sudo rm /var/lib/pacman/db.lck"
+alias update="sudo pacman -Syu"
+alias cleanup="sudo pacman -Rsn $(pacman -Qtdq)"
+
+alias open="xdg-open"
+alias make="make -j`nproc`"
+alias ninja="ninja -j`nproc`"
+alias n="ninja"
+
+alias tb="nc termbin.com 9999"
+
+# Get the error messages from journalctl
+alias jctl="journalctl -p 3 -xb"
+
+# Recent installed packages
+alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
