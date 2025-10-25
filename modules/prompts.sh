@@ -7,18 +7,52 @@ prompt_for_user() {
   fi
   local input=""
   while true; do
-    read -rp "Enter name for the new non-root user: " input </dev/tty || { log_error "Unable to read username."; exit 1; }
+    read -rp "Enter name for the managed non-root user: " input </dev/tty || { log_error "Unable to read username."; exit 1; }
     input="$(echo "${input}" | tr -d '[:space:]')"
     if [[ -z "${input}" ]]; then
       echo "Username cannot be blank." >/dev/tty
       continue
     fi
     if [[ "${input}" == "root" ]]; then
-      echo "Do not use root for the managed account." >/dev/tty
+      cat >/dev/tty <<'EOF'
+The provisioning workflow must target a non-root account.
+Create one with:
+  sudo useradd -m -s /bin/bash <username>
+  sudo passwd <username>
+  sudo usermod -aG wheel <username>
+
+Then rerun this prompt and provide the new username.
+EOF
       continue
     fi
-    NEW_USER="${input}"
-    break
+    if [[ "${input}" == "admin" ]]; then
+      cat >/dev/tty <<'EOF'
+The default Contabo account is "admin". To rename it manually, run:
+  sudo usermod -l <newname> admin
+  sudo usermod -d /home/<newname> -m <newname>
+  sudo groupmod -n <newname> admin || true
+
+You can continue using "admin" for provisioning, or rename it first and rerun.
+EOF
+      local confirm=""
+      read -rp "Continue using admin? (yes/no): " confirm </dev/tty || { log_error "Unable to read confirmation."; exit 1; }
+      case "${confirm,,}" in
+        yes|y)
+          NEW_USER="admin"
+          break
+          ;;
+        no|n)
+          continue
+          ;;
+        *)
+          echo "Please answer yes or no." >/dev/tty
+          continue
+          ;;
+      esac
+    else
+      NEW_USER="${input}"
+      break
+    fi
   done
   log_info "Selected user: ${NEW_USER}"
 }
@@ -85,25 +119,36 @@ collect_prompt_answers() {
 }
 
 ensure_primary_user() {
-  local existing="admin"
-  local old_home="/home/${existing}"
-  local new_home="/home/${NEW_USER}"
+  if [[ "${NEW_USER}" == "root" ]]; then
+    log_error "Refusing to manage the root account. Create a dedicated user and rerun the prompts."
+    exit 1
+  fi
+  if ! id -u "${NEW_USER}" >/dev/null 2>&1; then
+    if id -u admin >/dev/null 2>&1; then
+      cat <<EOF
+User '${NEW_USER}' does not exist yet.
+Rename the default account with:
+  sudo usermod -l ${NEW_USER} admin
+  sudo usermod -d /home/${NEW_USER} -m ${NEW_USER}
+  sudo groupmod -n ${NEW_USER} admin || true
 
-  if id -u "${NEW_USER}" >/dev/null 2>&1; then
-    log_info "User ${NEW_USER} already exists."
-  elif id -u "${existing}" >/dev/null 2>&1; then
-    log_info "Renaming ${existing} to ${NEW_USER}"
-    usermod -l "${NEW_USER}" "${existing}"
-    if [[ -d "${old_home}" ]]; then
-      usermod -d "${new_home}" -m "${NEW_USER}"
+Rerun abb-setup.sh prompts after completing the rename.
+EOF
+    else
+      cat <<EOF
+User '${NEW_USER}' does not exist.
+Create it with:
+  sudo useradd -m -s /bin/bash ${NEW_USER}
+  sudo passwd ${NEW_USER}
+  sudo usermod -aG wheel ${NEW_USER}
+
+Rerun abb-setup.sh prompts afterwards.
+EOF
     fi
-    if getent group "${existing}" >/dev/null 2>&1; then
-      groupmod -n "${NEW_USER}" "${existing}" || true
-    fi
-  else
-    log_info "Creating user ${NEW_USER}"
-    useradd -m -s /bin/bash "${NEW_USER}"
-    log_warn "Password for ${NEW_USER} was not changed automatically; run 'passwd ${NEW_USER}' if needed."
+    exit 1
+  fi
+  if [[ "${NEW_USER}" == "admin" ]]; then
+    log_warn "Continuing with the default 'admin' account. Rename it later if desired."
   fi
 
   if ! id -nG "${NEW_USER}" | grep -qw wheel; then

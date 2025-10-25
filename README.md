@@ -1,10 +1,11 @@
 # ABB – Arch Bugbounty Bootstrap
 
-ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS instances. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on renaming that account, installing required tooling, and keeping the process modular.
+ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS instances. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on guiding any account rename, installing required tooling, and keeping the process modular.
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions and rename `admin` if needed.
+- Ensure git is available for cloning: `sudo pacman -S --needed git`.
+- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions and review the guidance for renaming `admin` if needed.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
@@ -13,7 +14,7 @@ Each task can be executed independently:
 
 | Task | Description |
 | ---- | ----------- |
-| `prompts` | Capture answers, optionally rename the `admin` account, ensure membership in `wheel`, and initialise tracking files. |
+| `prompts` | Capture answers, provide manual rename guidance for the `admin` account, ensure membership in `wheel`, and initialise tracking files. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, Go, Ruby, and base build tools. |
 | `utilities` | Install yay (AUR helper), tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, firewalld, fail2ban, zoxide, chromium, and supporting CLI tools. Services are enabled where appropriate. |
