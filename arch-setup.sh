@@ -27,21 +27,18 @@ source "${MODULE_DIR}/verify.sh"
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
 NEW_USER="${NEW_USER:-}"
-AUTH_METHOD="${AUTH_METHOD:-}"
-SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
 EDITOR_CHOICE="${EDITOR_CHOICE:-}"
 NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
-MULLVAD_RPM_URL="${MULLVAD_RPM_URL:-}"
 
 usage() {
   cat <<'EOF'
-Usage: rocky-setup.sh [task]
+Usage: arch-setup.sh [task]
 
 Tasks:
-  prompts     Collect setup answers, create the user, and prepare tracking files.
-  security    Apply system updates, SSH hardening, SELinux checks, optional sysctl/iptables, and intrusion detection.
+  prompts     Collect answers, rename the default admin user if needed, and prepare tracking files.
+  security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby) for the managed user.
-  utilities   Install core system utilities (firewalld, zsh, tmux, zoxide, etc.).
+  utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.

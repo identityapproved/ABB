@@ -1,25 +1,21 @@
 # shellcheck shell=bash
 
 LANGUAGE_PACKAGES=(
-  python3
-  python3-pip
-  pipx
-  golang
+  python
+  python-pipx
+  go
   ruby
-  ruby-devel
-  gcc
-  make
-  redhat-rpm-config
+  base-devel
 )
 
 install_language_runtimes() {
-  dnf_install_packages "${LANGUAGE_PACKAGES[@]}"
+  pacman_install_packages "${LANGUAGE_PACKAGES[@]}"
   if ! gem list -i bundler >/dev/null 2>&1; then
     gem install bundler
   fi
-  append_installed_tool "python3"
+  append_installed_tool "python"
   append_installed_tool "pipx"
-  append_installed_tool "golang"
+  append_installed_tool "go"
   append_installed_tool "ruby"
 
   if ! run_as_user "pipx ensurepath"; then

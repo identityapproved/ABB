@@ -23,39 +23,6 @@ prompt_for_user() {
   log_info "Selected user: ${NEW_USER}"
 }
 
-prompt_for_auth_method() {
-  local choice=""
-  if [[ -n "${AUTH_METHOD}" ]]; then
-    log_info "Using saved authentication method: ${AUTH_METHOD}"
-  else
-    while true; do
-      read -rp "Choose SSH authentication (password/ssh-key): " choice </dev/tty || { log_error "Unable to read authentication method."; exit 1; }
-      case "${choice,,}" in
-        password|p)
-          AUTH_METHOD="password"
-          break
-          ;;
-        ssh|ssh-key|key)
-          AUTH_METHOD="ssh"
-          break
-          ;;
-        *)
-          echo "Please answer password or ssh-key." >/dev/tty
-          ;;
-      esac
-    done
-  fi
-  if [[ "${AUTH_METHOD}" == "ssh" && -z "${SSH_PUBLIC_KEY}" ]]; then
-    echo "Paste the public SSH key for ${NEW_USER} (single line):" >/dev/tty
-    read -r SSH_PUBLIC_KEY </dev/tty || { log_error "Failed to read SSH public key."; exit 1; }
-    if [[ -z "${SSH_PUBLIC_KEY}" ]]; then
-      log_error "Public key cannot be empty."
-      exit 1
-    fi
-  fi
-  log_info "Authentication method: ${AUTH_METHOD}"
-}
-
 prompt_for_editor_choice() {
   local choice=""
   if [[ -n "${EDITOR_CHOICE}" ]]; then
@@ -112,34 +79,36 @@ prompt_for_hardening() {
 
 collect_prompt_answers() {
   prompt_for_user
-  prompt_for_auth_method
   prompt_for_editor_choice
   prompt_for_hardening
   record_prompt_answers
 }
 
-create_user_and_groups() {
-  local user_created=0
-  if ! id -u "${NEW_USER}" >/dev/null 2>&1; then
+ensure_primary_user() {
+  local existing="admin"
+  local old_home="/home/${existing}"
+  local new_home="/home/${NEW_USER}"
+
+  if id -u "${NEW_USER}" >/dev/null 2>&1; then
+    log_info "User ${NEW_USER} already exists."
+  elif id -u "${existing}" >/dev/null 2>&1; then
+    log_info "Renaming ${existing} to ${NEW_USER}"
+    usermod -l "${NEW_USER}" "${existing}"
+    if [[ -d "${old_home}" ]]; then
+      usermod -d "${new_home}" -m "${NEW_USER}"
+    fi
+    if getent group "${existing}" >/dev/null 2>&1; then
+      groupmod -n "${NEW_USER}" "${existing}" || true
+    fi
+  else
     log_info "Creating user ${NEW_USER}"
     useradd -m -s /bin/bash "${NEW_USER}"
-    user_created=1
-  else
-    log_info "User ${NEW_USER} already exists."
-  fi
-
-  if ((user_created)); then
-    log_info "Setting password for ${NEW_USER}"
-    passwd "${NEW_USER}"
-  else
-    log_info "Skipping password change for existing user ${NEW_USER}. Run 'passwd ${NEW_USER}' if you need to update it."
+    log_warn "Password for ${NEW_USER} was not changed automatically; run 'passwd ${NEW_USER}' if needed."
   fi
 
   if ! id -nG "${NEW_USER}" | grep -qw wheel; then
     usermod -aG wheel "${NEW_USER}"
     log_info "Added ${NEW_USER} to wheel group."
-  else
-    log_info "${NEW_USER} already in wheel group."
   fi
 
   id "${NEW_USER}"
@@ -151,6 +120,6 @@ create_user_and_groups() {
 run_task_prompts() {
   load_previous_answers
   collect_prompt_answers
-  create_user_and_groups
+  ensure_primary_user
   init_installed_tracker
 }

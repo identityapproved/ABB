@@ -37,6 +37,13 @@ install_custom_zsh_plugins() {
       fi
     fi
   done
+
+  local template_plugin="${ZSH_TEMPLATE_DIR}/plugins/zsh-aur-install"
+  local template_target="${zsh_custom}/plugins/zsh-aur-install"
+  if [[ -d "${template_plugin}" && ! -d "${template_target}" ]]; then
+    cp -r "${template_plugin}" "${template_target}"
+    chown -R "${NEW_USER}:${NEW_USER}" "${template_target}"
+  fi
 }
 
 configure_shells_and_editors() {
@@ -55,6 +62,10 @@ configure_shells_and_editors() {
     chown "${NEW_USER}:${NEW_USER}" "${user_home}/.zshrc"
   else
     log_warn "Missing Zsh template at ${ZSHRC_TEMPLATE}"
+  fi
+
+  if command_exists zsh; then
+    chsh -s /usr/bin/zsh "${NEW_USER}" || log_warn "Unable to set zsh as default shell for ${NEW_USER}"
   fi
 
   if [[ -f "${ALIASES_TEMPLATE}" ]]; then

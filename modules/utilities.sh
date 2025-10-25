@@ -1,55 +1,78 @@
 # shellcheck shell=bash
 
 SYSTEM_PACKAGES=(
+  base-devel
+  git
+  tree
+  tealdeer
+  ripgrep
+  fd
+  zsh
+  fzf
+  bat
+  htop
+  iftop
+  tmux
+  vim
+  neovim
   firewalld
   fail2ban
-  zsh
-  tmux
-  vim-enhanced
-  neovim
-  fzf
-  ripgrep
-  fd-find
-  git
-  bat
-  chromium
-  nmap
-  jq
+  zoxide
   curl
   wget
   unzip
   tar
-  bind-utils
-  net-tools
-  policycoreutils
-  policycoreutils-python-utils
-  dnf-plugins-core
-  zoxide
+  nmap
+  jq
+  chromium
 )
 
+ensure_yay() {
+  if command_exists yay; then
+    append_installed_tool "yay"
+    return
+  fi
+
+  pacman_install_packages base-devel git
+  local tmpdir
+  if ! tmpdir="$(run_as_user 'mktemp -d')"; then
+    log_error "Failed to create temporary directory for yay build."
+    return
+  fi
+  tmpdir="${tmpdir//$'\n'/}"
+  if [[ -z "${tmpdir}" ]]; then
+    log_error "Temporary directory path for yay build is empty."
+    return
+  fi
+  if ! run_as_user "$(printf 'cd %q && git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
+    log_error "Failed to clone yay AUR repository."
+    return
+  fi
+  if run_as_user "$(printf 'cd %q/yay && makepkg -si --noconfirm' "${tmpdir}")"; then
+    append_installed_tool "yay"
+    log_info "Installed yay AUR helper."
+  else
+    log_warn "Failed to build/install yay."
+  fi
+  run_as_user "$(printf 'rm -rf %q' "${tmpdir}")"
+}
+
 install_mullvad() {
-  if rpm -q mullvad-vpn >/dev/null 2>&1; then
+  if pacman -Qi mullvad-vpn >/dev/null 2>&1; then
     log_info "mullvad-vpn already installed."
     append_installed_tool "mullvad-vpn"
     return
   fi
-  if [[ -z "${MULLVAD_RPM_URL}" ]]; then
-    log_warn "MULLVAD_RPM_URL not provided; skipping Mullvad installation."
+  if ! command_exists yay; then
+    log_warn "yay is not installed; skipping Mullvad installation."
     return
   fi
-  local tmpdir
-  tmpdir="$(mktemp -d)"
-  if curl -fsSL "${MULLVAD_RPM_URL}" -o "${tmpdir}/mullvad.rpm"; then
-    if dnf install -y "${tmpdir}/mullvad.rpm"; then
-      append_installed_tool "mullvad-vpn"
-      systemctl enable --now mullvad-daemon >/dev/null 2>&1 || log_warn "Unable to enable mullvad-daemon."
-    else
-      log_warn "Failed to install Mullvad from ${MULLVAD_RPM_URL}"
-    fi
+  if run_as_user "yay -S --noconfirm mullvad-vpn"; then
+    append_installed_tool "mullvad-vpn"
+    systemctl enable --now mullvad-daemon >/dev/null 2>&1 || log_warn "Unable to enable mullvad-daemon."
   else
-    log_warn "Unable to download Mullvad package from ${MULLVAD_RPM_URL}"
+    log_warn "Failed to install Mullvad VPN via yay."
   fi
-  rm -rf "${tmpdir}"
 }
 
 ensure_fnm() {
@@ -68,13 +91,11 @@ ensure_fnm() {
 }
 
 install_system_utilities() {
-  dnf_install_packages "${SYSTEM_PACKAGES[@]}"
+  pacman_install_packages "${SYSTEM_PACKAGES[@]}"
+  ensure_yay
   systemctl enable --now firewalld >/dev/null 2>&1 || log_warn "Failed to enable firewalld."
   systemctl enable --now fail2ban >/dev/null 2>&1 || log_warn "Failed to enable fail2ban."
 
-  if command_exists fdfind && ! command_exists fd; then
-    ln -sf "$(command -v fdfind)" /usr/local/bin/fd
-  fi
   install_mullvad
   ensure_fnm
 
@@ -86,12 +107,16 @@ install_system_utilities() {
   append_installed_tool "vim"
   append_installed_tool "fzf"
   append_installed_tool "ripgrep"
-  append_installed_tool "fd-find"
+  append_installed_tool "fd"
   append_installed_tool "git"
   append_installed_tool "bat"
   append_installed_tool "chromium"
   append_installed_tool "nmap"
   append_installed_tool "zoxide"
+  append_installed_tool "tree"
+  append_installed_tool "tealdeer"
+  append_installed_tool "htop"
+  append_installed_tool "iftop"
 }
 
 run_task_utilities() {

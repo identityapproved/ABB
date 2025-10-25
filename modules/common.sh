@@ -3,9 +3,7 @@
 readonly LOG_FILE_DEFAULT="/var/log/vps-setup.log"
 readonly ANSWERS_FILE="/var/lib/vps-setup/answers.env"
 readonly TOOL_BASE_DIR="/opt/vps-tools"
-readonly SSH_CONFIG="/etc/ssh/sshd_config"
-readonly SSH_CONFIG_BACKUP="${SSH_CONFIG}.bak"
-readonly SYSCTL_FILE="/etc/sysctl.d/99-rocky-hardening.conf"
+readonly SYSCTL_FILE="/etc/sysctl.d/99-arch-hardening.conf"
 readonly RC_LOCAL="/etc/rc.local"
 readonly TEMPLATES_DIR="${REPO_ROOT}/dots"
 readonly ZSH_TEMPLATE_DIR="${TEMPLATES_DIR}/zsh"
@@ -43,19 +41,19 @@ ensure_log_targets() {
   exec > >(tee -a "${LOG_FILE}") 2> >(tee -a "${LOG_FILE}" >&2)
 }
 
-dnf_install_packages() {
+pacman_install_packages() {
   local packages=("$@")
   local to_install=()
   local pkg
   for pkg in "${packages[@]}"; do
-    if [[ -n "${pkg}" ]] && ! rpm -q "${pkg}" >/dev/null 2>&1; then
+    if [[ -n "${pkg}" ]] && ! pacman -Qi "${pkg}" >/dev/null 2>&1; then
       to_install+=("${pkg}")
     fi
   done
   if ((${#to_install[@]})); then
     log_info "Installing packages: ${to_install[*]}"
-    if ! dnf install -y "${to_install[@]}"; then
-      log_error "dnf install failed for: ${to_install[*]}"
+    if ! pacman --noconfirm -Sy --needed "${to_install[@]}"; then
+      log_error "pacman install failed for: ${to_install[*]}"
       exit 1
     fi
   else
@@ -99,8 +97,6 @@ record_prompt_answers() {
   mkdir -p "$(dirname "${ANSWERS_FILE}")"
   {
     printf 'NEW_USER=%q\n' "${NEW_USER}"
-    printf 'AUTH_METHOD=%q\n' "${AUTH_METHOD}"
-    printf 'SSH_PUBLIC_KEY=%q\n' "${SSH_PUBLIC_KEY}"
     printf 'EDITOR_CHOICE=%q\n' "${EDITOR_CHOICE}"
     printf 'NEEDS_PENTEST_HARDENING=%q\n' "${NEEDS_PENTEST_HARDENING}"
   } > "${ANSWERS_FILE}"
@@ -128,13 +124,11 @@ ensure_user_context() {
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${AUTH_METHOD}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 ]]; then
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 
-  if ! id -u "${NEW_USER}" >/dev/null 2>&1; then
-    create_user_and_groups
-  fi
+  ensure_primary_user
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
   if [[ -z "${user_home}" ]]; then

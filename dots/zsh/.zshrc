@@ -43,7 +43,7 @@ COMPLETION_WAITING_DOTS="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-[[ -z "${plugins[*]}" ]] && plugins=(git fzf extract gitignore pip python docker docker-compose zsh-vi-mode cd-ls zsh-git-fzf alias-tips ufw themes fzf-alias zsh-history-substring-search zsh-syntax-highlighting zsh-autosuggestions dnf firewalld mosh)
+[[ -z "${plugins[*]}" ]] && plugins=(git fzf extract gitignore pip python docker docker-compose zsh-vi-mode cd-ls zsh-git-fzf alias-tips ufw themes fzf-alias zsh-history-substring-search zsh-syntax-highlighting zsh-autosuggestions archlinux zsh-aur-install)
 
 source $ZSH/oh-my-zsh.sh
 source $HOME/.aliases
@@ -83,7 +83,9 @@ export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 # [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-eval "$(zoxide init --cmd cd zsh)"
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init --cmd cd zsh)"
+fi
 
 # FZF
 export FZF_BASE=/usr/share/fzf
@@ -93,8 +95,6 @@ export FZF_DEFAULT_OPTS='--reverse --preview="bat {}" --info=inline --color=fg:#
 [[ -e "/usr/share/fzf/key-bindings.zsh" ]] \
   && source "/usr/share/fzf/key-bindings.zsh"
 
-export ZSH_WAKATIME_PROJECT_DETECTION=true
-
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # bat 
 
@@ -102,5 +102,7 @@ export ZSH_WAKATIME_PROJECT_DETECTION=true
 export MANPAGER="sh -c 'awk '\''{ gsub(/\x1B\[[0-9;]*m/, \"\", \$0); gsub(/.\x08/, \"\", \$0); print }'\'' | bat -p -lman'"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# node fnm 
-eval "$(fnm env --use-on-cd --shell zsh)"
+# node fnm
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
