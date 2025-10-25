@@ -1,6 +1,6 @@
-# Arch VPS Provisioning Playbook
+# ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). Replace the legacy Rocky scripts with an Arch-first workflow. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `arch-setup.sh` must accept `prompts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; rename that account when a different name is requested.
@@ -25,7 +25,7 @@ sudo pacman -Syu --noconfirm
 
 ## 4. SSH & Hardening
 - Do **not** modify SSH keys or `sshd_config`; Contabo manages them.
-- Provide an optional network hardening step (sysctl + iptables) that mirrors the old Rocky logic, but only on request. Skip vpntables if iptables/nftables are absent.
+- Provide an optional network hardening step (sysctl + iptables) and offer it only on request. Skip vpntables if iptables/nftables are absent.
 
 ## 5. Logging & Tracking
 - Log all stdout/stderr to `/var/log/vps-setup.log` using `tee` while still echoing key status messages.
@@ -51,7 +51,7 @@ sudo pacman -Syu --noconfirm
 
 ## 8. System Utilities
 - Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `git`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`.
-- Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates—many overlap with the old Rocky list.
+- Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Include optional extras when requested: `mullvad-vpn` via AUR, etc.
 
 ## 9. Tool Catalogue
@@ -81,7 +81,7 @@ sudo pacman -Syu --noconfirm
 ## 11. README
 - Create an emoji-free README summarizing:
   - Arch prerequisites and the pre-existing `admin` account rename.
-  - Modular tasks and how to run them (`./arch-setup.sh prompts`, etc.).
+  - Modular tasks and how to run them (`./abb-setup.sh prompts`, etc.).
   - Installed languages, yay usage, system utilities, and recon tooling.
   - Log file location and rerun guidance.
 

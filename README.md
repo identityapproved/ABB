@@ -1,11 +1,11 @@
-# Arch VPS Provisioning Toolkit
+# ABB – Arch Bugbounty Bootstrap
 
-This repository replaces the legacy Rocky Linux automation with an Arch Linux–first setup flow. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on renaming that account, installing required tooling, and keeping the process modular.
+ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS instances. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on renaming that account, installing required tooling, and keeping the process modular.
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./arch-setup.sh prompts` to answer the interactive questions and rename `admin` if needed.
-- Execute individual tasks (see below) or run the entire workflow with `./arch-setup.sh all`.
+- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions and rename `admin` if needed.
+- Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
 ## Modular Tasks

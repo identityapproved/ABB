@@ -32,7 +32,7 @@ NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 
 usage() {
   cat <<'EOF'
-Usage: arch-setup.sh [task]
+Usage: abb-setup.sh [task]
 
 Tasks:
   prompts     Collect answers, rename the default admin user if needed, and prepare tracking files.
