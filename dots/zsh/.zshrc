@@ -14,7 +14,7 @@ ZSH_THEME="random"
 # fi
 
 # Path to your oh-my-zsh installation.
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.local/pipx/bin:$HOME/go/bin:$PATH"
 export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
 
 zstyle ':omz:update' mode auto      # update automatically without asking

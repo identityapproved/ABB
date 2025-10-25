@@ -2,6 +2,8 @@
 
 Use this playbook to rewrite the legacy `install.sh`, `bounty-vps.sh`, and `additional.tools` automation for Rocky Linux 9.6 (Blue Onyx). Keep the process interactive where requested, install language runtimes before dependent tools, and prefer modern package sources (DNF, pipx, go install, rpm releases) over the Ubuntu/Kali steps in the original scripts.
 
+Expose each provisioning category as a reusable task. The main runner (`rocky-setup.sh`) must accept subcommands such as `prompts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, and `verify`, while `all` maintains the full end-to-end flow.
+
 ## 1. Interactive Prompts
 - Ask for the non-root username to create. Abort if the answer is empty or `root`.
 - Ask whether to authenticate with SSH keys or passwords. If keys are chosen, prompt for the public key and confirm SSH access before disabling passwords.
@@ -102,7 +104,7 @@ pipx --version
 - Install bundler with `gem install bundler`, then run project-specific `bundle install` inside each tool directory.
 
 ### 9.4 Additional Runtimes
-- `sudo dnf install -y awscli` (required by the old scripts).
+- Note any cloud-specific CLIs separately; the legacy AWS CLI install was removed.
 - Offer optional installs for Node.js (`sudo dnf module install nodejs:18`) or Rust (`curl https://sh.rustup.rs -sSf | sh`) when new tools demand them. Document the choice in the log.
 
 ## 10. Tool Catalogue & Installation Notes
@@ -117,14 +119,13 @@ Separate the tooling into system utilities, language managers, and bug-bounty/ha
 
 ### 10.2 Programming Language Helpers
 - pipx-managed: waymore, xnLinkFinder, urless, xnldorker (install via `pipx install git+https://github.com/...` and capture versions in `installed-tools.txt`).
-- pdtm (ProjectDiscovery Tool Manager) to manage PD binaries (`pipx install pdtm` and use it for `subfinder`, `httpx`, `dnsx`, `mapcidr`, `chaos`, `nuclei`, `notify`, `katana`, `shuffledns`).
+- pdtm (ProjectDiscovery Tool Manager) to manage PD binaries (`pipx install pdtm` and use it to install `subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, and `katana`). Keep the ProjectDiscovery paths consistent with the new user’s `PATH`.
 
 ### 10.3 Go Binaries (from `bounty-vps.sh`)
 - Install with `go install ...@latest` under the new user so the binaries land in `${HOME}/go/bin`. Key tools include:
-  - ProjectDiscovery: subfinder, katana, dnsx, shuffledns, mapcidr, chaos, interactsh-client, nuclei, notify, cent.
-  - Recon helpers: anew, assetfinder, waybackurls, hakrawler, puredns, gau, socialhunter, subzy, getJS, crobat, gowitness, httpx, httprobe, gospider, ffuf, gobuster, qsreplace.
+  - Recon helpers: anew, assetfinder, waybackurls, hakrawler, puredns, gau, socialhunter, subzy, getJS, crobat, gowitness, httprobe, gospider, ffuf, gobuster, qsreplace.
   - XSS & parameter tools: Gxss, bxss, kxss, dalfox, Tok, parameters, Jeeves, gal er (galer), quickcert, anti-burl, unfurl, fff, gron.
-  - Misc: github-subdomains, amass, chaos-client, gotator, cero, cf-check, otx-url, mrco24-* utilities, gowitness.
+  - Misc: github-subdomains, gotator, cero, cf-check, otx-url, mrco24-* utilities, gowitness.
 - Replace duplicate install entries (e.g., `shuffledns` listed twice) and log skipped duplicates.
 
 ### 10.4 Git-Based & Python Tools (from `install.sh`)
@@ -133,7 +134,7 @@ Separate the tooling into system utilities, language managers, and bug-bounty/ha
 - wpscan requires Ruby bundler; configure an update command and capture the installed version.
 
 ### 10.5 Additional Packages
-- Install `awscli` (already covered), `nmap`, `chromium`, and any extra wordlists or dependencies needed by the cloned tools.
+- Install `nmap`, `chromium`, and any extra wordlists or dependencies needed by the cloned tools.
 - Document tools that no longer make sense on Rocky (e.g., Kali repositories); mark them as removed and delete the legacy sections from the old scripts after migrating functionality.
 
 ## 11. Shells, Editors & Dotfiles
