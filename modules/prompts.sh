@@ -26,29 +26,8 @@ EOF
       continue
     fi
     if [[ "${input}" == "admin" ]]; then
-      cat >/dev/tty <<'EOF'
-The default Contabo account is "admin". To rename it manually, run:
-  sudo usermod -l <newname> admin
-  sudo usermod -d /home/<newname> -m <newname>
-  sudo groupmod -n <newname> admin || true
-
-You can continue using "admin" for provisioning, or rename it first and rerun.
-EOF
-      local confirm=""
-      read -rp "Continue using admin? (yes/no): " confirm </dev/tty || { log_error "Unable to read confirmation."; exit 1; }
-      case "${confirm,,}" in
-        yes|y)
-          NEW_USER="admin"
-          break
-          ;;
-        no|n)
-          continue
-          ;;
-        *)
-          echo "Please answer yes or no." >/dev/tty
-          continue
-          ;;
-      esac
+      echo "Select a new account name different from 'admin'." >/dev/tty
+      continue
     else
       NEW_USER="${input}"
       break
@@ -118,53 +97,8 @@ collect_prompt_answers() {
   record_prompt_answers
 }
 
-ensure_primary_user() {
-  if [[ "${NEW_USER}" == "root" ]]; then
-    log_error "Refusing to manage the root account. Create a dedicated user and rerun the prompts."
-    exit 1
-  fi
-  if ! id -u "${NEW_USER}" >/dev/null 2>&1; then
-    if id -u admin >/dev/null 2>&1; then
-      cat <<EOF
-User '${NEW_USER}' does not exist yet.
-Rename the default account with:
-  sudo usermod -l ${NEW_USER} admin
-  sudo usermod -d /home/${NEW_USER} -m ${NEW_USER}
-  sudo groupmod -n ${NEW_USER} admin || true
-
-Rerun abb-setup.sh prompts after completing the rename.
-EOF
-    else
-      cat <<EOF
-User '${NEW_USER}' does not exist.
-Create it with:
-  sudo useradd -m -s /bin/bash ${NEW_USER}
-  sudo passwd ${NEW_USER}
-  sudo usermod -aG wheel ${NEW_USER}
-
-Rerun abb-setup.sh prompts afterwards.
-EOF
-    fi
-    exit 1
-  fi
-  if [[ "${NEW_USER}" == "admin" ]]; then
-    log_warn "Continuing with the default 'admin' account. Rename it later if desired."
-  fi
-
-  if ! id -nG "${NEW_USER}" | grep -qw wheel; then
-    usermod -aG wheel "${NEW_USER}"
-    log_info "Added ${NEW_USER} to wheel group."
-  fi
-
-  id "${NEW_USER}"
-  if [[ "${SUDO_USER:-root}" == "root" ]]; then
-    log_warn "Provisioning is running as root. Switch to ${NEW_USER} for daily operations."
-  fi
-}
-
 run_task_prompts() {
   load_previous_answers
   collect_prompt_answers
-  ensure_primary_user
-  init_installed_tracker
+  log_info "Prompt data captured for user ${NEW_USER}. Run 'abb-setup.sh accounts' to provision the account if needed."
 }

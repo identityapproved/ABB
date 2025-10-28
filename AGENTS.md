@@ -1,19 +1,30 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## 1. Interactive Prompts
-- Ask for the target username. The VPS image ships with `admin`; rename that account when a different name is requested.
+- Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
-- When the user provides a new name, run:
+- When a new managed username is requested, provision it with:
   ```bash
-  sudo usermod -l "${NEW_USER}" admin
-  sudo usermod -d "/home/${NEW_USER}" -m "${NEW_USER}"
-  sudo groupmod -n "${NEW_USER}" admin || true
+  sudo useradd -m -s /bin/bash "${NEW_USER}"
+  sudo passwd "${NEW_USER}"
+  sudo usermod -aG wheel "${NEW_USER}"
+  sudo sed -i 's/^[[:space:]]*#\s*\(%wheel ALL=(ALL:ALL) ALL\)/\1/' /etc/sudoers
+  sudo mkdir -p "/home/${NEW_USER}/.ssh"
+  sudo cp /home/admin/.ssh/authorized_keys "/home/${NEW_USER}/.ssh/"
+  sudo chown -R "${NEW_USER}:${NEW_USER}" "/home/${NEW_USER}/.ssh"
+  sudo chmod 700 "/home/${NEW_USER}/.ssh"
+  sudo chmod 600 "/home/${NEW_USER}/.ssh/authorized_keys"
+  ```
+- Suggest reconnecting via SSH as `${NEW_USER}`, relocating the ABB repository under their home, and then offer to remove the legacy `admin` account:
+  ```bash
+  sudo deluser --remove-home admin || true
+  sudo userdel -r admin
   ```
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
@@ -80,7 +91,7 @@ sudo pacman -Syu --noconfirm
 
 ## 11. README
 - Create an emoji-free README summarizing:
-  - Arch prerequisites and the pre-existing `admin` account rename.
+  - Arch prerequisites and the workflow for migrating away from the pre-existing `admin` account.
   - Modular tasks and how to run them (`./abb-setup.sh prompts`, etc.).
   - Installed languages, yay usage, system utilities, and recon tooling.
   - Log file location and rerun guidance.

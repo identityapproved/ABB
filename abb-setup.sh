@@ -11,6 +11,8 @@ readonly MODULE_DIR="${SCRIPT_DIR}/modules"
 source "${MODULE_DIR}/common.sh"
 # shellcheck source=modules/prompts.sh
 source "${MODULE_DIR}/prompts.sh"
+# shellcheck source=modules/accounts.sh
+source "${MODULE_DIR}/accounts.sh"
 # shellcheck source=modules/security.sh
 source "${MODULE_DIR}/security.sh"
 # shellcheck source=modules/languages.sh
@@ -35,7 +37,8 @@ usage() {
 Usage: abb-setup.sh [task]
 
 Tasks:
-  prompts     Collect answers, rename the default admin user if needed, and prepare tracking files.
+  prompts     Collect answers for the managed user, editor preference, and optional hardening flags.
+  accounts    Create the managed user, copy SSH keys, enable sudo, and optionally retire the admin account.
   security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
@@ -51,6 +54,7 @@ EOF
 
 run_task_all() {
   run_task_prompts
+  run_task_accounts
   run_task_security
   run_task_languages
   run_task_utilities
@@ -72,6 +76,10 @@ main() {
     prompts)
       log_info "Running prompts task"
       run_task_prompts
+      ;;
+    accounts)
+      log_info "Running accounts task"
+      run_task_accounts
       ;;
     security)
       log_info "Running security task"
