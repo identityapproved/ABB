@@ -81,8 +81,15 @@ ensure_git_repo() {
 }
 
 run_as_user() {
-  local cmd="$1"
-  runuser -l "${NEW_USER}" -- bash -lc "${cmd}"
+  local cmd="$1" user_home
+  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if command_exists setpriv; then
+    setpriv --reuid="${NEW_USER}" --regid="${NEW_USER}" --init-groups \
+      /usr/bin/env -i HOME="${user_home}" SHELL=/bin/bash PATH="/usr/local/bin:/usr/bin:/bin" \
+      /bin/bash -lc "${cmd}"
+  else
+    runuser -l "${NEW_USER}" -- bash -lc "${cmd}"
+  fi
 }
 
 load_previous_answers() {

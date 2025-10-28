@@ -38,13 +38,15 @@ install_yay_helper() {
     log_error "Failed to create temporary directory for package manager build."
     exit 1
   fi
-  chown "${NEW_USER}:${NEW_USER}" "${tmpdir}"
-  if ! run_as_user "$(printf 'cd %q && git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
+  chown -R "${NEW_USER}:${NEW_USER}" "${tmpdir}"
+  if ! run_as_user "$(printf 'cd %q && /usr/bin/git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
     log_error "Cloning yay AUR repository failed."
     rm -rf "${tmpdir}"
     exit 1
   fi
-  if run_as_user "$(printf 'cd %q/yay && makepkg -si --noconfirm' "${tmpdir}")"; then
+  local build_cmd
+  build_cmd=$(printf 'cd %q/yay && /usr/bin/env PATH="/usr/bin:/bin:/usr/local/bin:$PATH" HOME="$HOME" makepkg -si --noconfirm' "${tmpdir}")
+  if run_as_user "${build_cmd}"; then
     log_info "Installed yay."
     append_installed_tool "yay"
   else
