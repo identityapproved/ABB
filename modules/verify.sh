@@ -17,6 +17,12 @@ final_verification() {
     log_warn "Configured package manager '${PACKAGE_MANAGER:-unset}' not detected on PATH."
   fi
 
+  if run_as_user "command -v pdtm" >/dev/null 2>&1; then
+    run_as_user "pdtm --version" >/dev/null 2>&1 || log_warn "pdtm version check failed."
+  else
+    log_warn "pdtm not detected for ${NEW_USER}."
+  fi
+
   if command_exists mullvad; then
     run_as_user "mullvad --version" >/dev/null 2>&1 || log_warn "Mullvad CLI installed but version check failed."
   else
@@ -34,6 +40,16 @@ final_verification() {
 
   run_as_user "command -v go >/dev/null 2>&1 && go version" || log_warn "Go runtime not found for ${NEW_USER}"
   run_as_user "pipx list" || log_warn "pipx list failed."
+
+  local pd_missing=()
+  for tool in ${PDTM_TOOLS[*]}; do
+    if ! run_as_user "[[ -x \$HOME/.local/bin/${tool} ]]" >/dev/null 2>&1; then
+      pd_missing+=("${tool}")
+    fi
+  done
+  if ((${#pd_missing[@]})); then
+    log_warn "ProjectDiscovery binaries missing from ~/.local/bin: ${pd_missing[*]}"
+  fi
 
   if [[ -f "${INSTALLED_TRACK_FILE}" ]]; then
     log_info "Installed tools recorded in ${INSTALLED_TRACK_FILE}"

@@ -70,7 +70,7 @@ sudo pacman -Syu --noconfirm
 
 ## 9. Tool Catalogue
 ### 9.1 pipx & ProjectDiscovery
-- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, reconFTW, JSHawk, Sublist3r, dirsearch, sqlmap, JSParser, knockpy, asnlookup.
+- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, reconFTW, Sublist3r, dirsearch, sqlmap, knockpy, asnlookup.
 - Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
 
 ### 9.2 Go Tools
@@ -82,7 +82,7 @@ sudo pacman -Syu --noconfirm
 
 ### 9.3 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist), Aquatone from release binaries, etc.
+- Tools: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), JSParser (ship a wrapper under `/usr/local/bin/jsparser`), Aquatone from release binaries, etc.
 
 ## 10. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.
@@ -90,7 +90,7 @@ sudo pacman -Syu --noconfirm
 - Editors:
   - `vim`: copy `dots/vim/.vimrc`.
   - `neovim`: clone LazyVim starter with `git clone https://github.com/LazyVim/starter ~/.config/nvim` and run `nvim --headless '+Lazy! sync' +qa`.
-- Copy the tmux config to `~/.tmux.conf`.
+- Copy the tmux config to `~/.config/tmux/tmux.conf` and bootstrap TPM if missing.
 
 ## 11. README
 - Create an emoji-free README summarizing:
