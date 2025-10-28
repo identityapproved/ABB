@@ -1,79 +1,136 @@
 # shellcheck shell=bash
 
+SUPPORTED_HELPERS=(pacaur pikaur yay aura paru aurman)
+
+declare -A HELPER_AUR_PACKAGES=(
+  [pacaur]=pacaur
+  [pikaur]=pikaur
+  [yay]=yay
+  [paru]=paru-bin
+  [aura]=aura-bin
+  [aurman]=aurman
+)
+
+helper_supported() {
+  local helper="$1" candidate
+  for candidate in "${SUPPORTED_HELPERS[@]}"; do
+    if [[ "${candidate}" == "${helper}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 prompt_for_package_manager() {
   if [[ -n "${PACKAGE_MANAGER}" ]]; then
     log_info "Using stored package manager: ${PACKAGE_MANAGER}"
     return
   fi
-  local choice=""
+
+  local choice="" options="pacaur/pikaur/yay/aura/paru/aurman"
   while true; do
-    read -rp "Select AUR helper to install (yay): " choice </dev/tty || { log_error "Unable to read package manager selection."; exit 1; }
+    read -rp "Select AUR helper to install (${options}, default yay): " choice </dev/tty || { log_error "Unable to read package manager selection."; exit 1; }
     choice="$(echo "${choice}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-    case "${choice}" in
-      ""|yay)
-        PACKAGE_MANAGER="yay"
-        break
-        ;;
-      *)
-        echo "Unsupported choice. Available option: yay." >/dev/tty
-        ;;
-    esac
+    [[ -z "${choice}" ]] && choice="yay"
+    if helper_supported "${choice}"; then
+      PACKAGE_MANAGER="${choice}"
+      break
+    fi
+    echo "Unsupported choice. Valid options: ${options}." >/dev/tty
   done
   log_info "Selected package manager: ${PACKAGE_MANAGER}"
 }
 
-install_yay_helper() {
-  if command_exists yay; then
-    log_info "yay already installed."
-    append_installed_tool "yay"
-    return
-  fi
-  if ! command_exists git; then
-    log_error "git is required to install yay. Install git and rerun 'abb-setup.sh package-manager'."
+install_aur_helper() {
+  local helper="$1"
+  local aur_pkg="${HELPER_AUR_PACKAGES[${helper}]:-}"
+
+  if [[ -z "${helper}" || -z "${aur_pkg}" ]]; then
+    log_error "Helper '${helper}' is not supported."
     exit 1
   fi
+
+  if command_exists "${helper}"; then
+    log_info "${helper} already installed."
+    append_installed_tool "${helper}"
+    return
+  fi
+
+  if ! command_exists git; then
+    log_error "git is required to build ${helper}. Install git and rerun 'abb-setup.sh package-manager'."
+    exit 1
+  fi
+
   pacman_install_packages base-devel
-  local tmpdir
+
+  local tmpdir clone_cmd build_cmd
   if ! tmpdir="$(mktemp -d)"; then
     log_error "Failed to create temporary directory for package manager build."
     exit 1
   fi
   chown -R "${NEW_USER}:${NEW_USER}" "${tmpdir}"
-  if ! run_as_user "$(printf 'cd %q && /usr/bin/git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
-    log_error "Cloning yay AUR repository failed."
+
+  clone_cmd=$(printf 'cd %q && /usr/bin/git clone %q %q' "${tmpdir}" "https://aur.archlinux.org/${aur_pkg}.git" "${tmpdir}/${aur_pkg}")
+  if ! run_as_user "${clone_cmd}"; then
+    log_error "Cloning ${aur_pkg} AUR repository failed."
     rm -rf "${tmpdir}"
     exit 1
   fi
-  local build_cmd
-  build_cmd=$(printf 'cd %q/yay && /usr/bin/env PATH="/usr/bin:/bin:/usr/local/bin:$PATH" HOME="$HOME" makepkg -si --noconfirm' "${tmpdir}")
+
+  build_cmd=$(printf 'cd %q && /usr/bin/env PATH="/usr/bin:/bin:/usr/local/bin:$PATH" HOME="$HOME" makepkg -si --noconfirm --needed' "${tmpdir}/${aur_pkg}")
   if run_as_user "${build_cmd}"; then
-    log_info "Installed yay."
-    append_installed_tool "yay"
+    log_info "Installed ${helper}."
+    append_installed_tool "${helper}"
   else
-    log_error "Failed to build/install yay."
+    log_error "Failed to build/install ${helper}."
     rm -rf "${tmpdir}"
     exit 1
   fi
+
   rm -rf "${tmpdir}"
 }
 
-ensure_package_manager_ready() {
+aur_helper_install() {
+  local package="$1" cmd=""
+  if [[ -z "${package}" ]]; then
+    return 1
+  fi
+
   case "${PACKAGE_MANAGER}" in
-    yay)
-      if ! command_exists yay; then
-        log_error "Configured package manager 'yay' not found. Run 'abb-setup.sh package-manager' first."
-        exit 1
-      fi
+    yay|paru|pikaur)
+      cmd=$(printf '%s -S --noconfirm --needed %q' "${PACKAGE_MANAGER}" "${package}")
       ;;
-    "")
-      log_error "Package manager not configured yet. Run 'abb-setup.sh package-manager' first."
-      exit 1
+    pacaur|aurman)
+      cmd=$(printf '%s -S --noconfirm --noedit %q' "${PACKAGE_MANAGER}" "${package}")
+      ;;
+    aura)
+      cmd=$(printf 'aura -A --noconfirm %q' "${package}")
       ;;
     *)
       log_error "Unsupported package manager '${PACKAGE_MANAGER}'."
-      exit 1
-      ;;
+      return 1
   esac
+
+  if run_as_user "${cmd}"; then
+    return 0
+  fi
+  log_warn "Failed to install ${package} via ${PACKAGE_MANAGER}."
+  return 1
+}
+
+ensure_package_manager_ready() {
+  if [[ -z "${PACKAGE_MANAGER}" ]]; then
+    log_error "Package manager not configured yet. Run 'abb-setup.sh package-manager' first."
+    exit 1
+  fi
+  if ! helper_supported "${PACKAGE_MANAGER}"; then
+    log_error "Unsupported package manager '${PACKAGE_MANAGER}'."
+    exit 1
+  fi
+  if ! command_exists "${PACKAGE_MANAGER}"; then
+    log_error "Configured package manager '${PACKAGE_MANAGER}' not found. Run 'abb-setup.sh package-manager' first."
+    exit 1
+  fi
 }
 
 run_task_package_manager() {
@@ -82,17 +139,10 @@ run_task_package_manager() {
     log_error "Run 'abb-setup.sh prompts' and 'abb-setup.sh accounts' before configuring the package manager."
     exit 1
   fi
+
   ensure_user_context
   prompt_for_package_manager
-  case "${PACKAGE_MANAGER}" in
-    yay)
-      install_yay_helper
-      ;;
-    *)
-      log_error "Unsupported package manager '${PACKAGE_MANAGER}'."
-      exit 1
-      ;;
-  esac
+  install_aur_helper "${PACKAGE_MANAGER}"
   record_prompt_answers
   log_info "Package manager '${PACKAGE_MANAGER}' ready."
 }

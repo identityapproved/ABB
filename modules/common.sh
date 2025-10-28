@@ -107,6 +107,7 @@ record_prompt_answers() {
     printf 'EDITOR_CHOICE=%q\n' "${EDITOR_CHOICE}"
     printf 'NEEDS_PENTEST_HARDENING=%q\n' "${NEEDS_PENTEST_HARDENING}"
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
+    printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
@@ -127,12 +128,15 @@ init_installed_tracker() {
 }
 
 ensure_user_context() {
-  local user_home needs_flag_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 ]]; then
+  if [[ -z "${NODE_MANAGER}" ]]; then
+    node_manager_missing=1
+  fi
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 

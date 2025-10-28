@@ -86,11 +86,9 @@ install_optional_package() {
     log_info "Installed ${pkg} via pacman."
     return 0
   fi
-  if command_exists yay && [[ "${PACKAGE_MANAGER}" == "yay" ]]; then
-    if run_as_user "yay -S --noconfirm ${pkg}"; then
-      log_info "Installed ${pkg} via yay."
-      return 0
-    fi
+  if aur_helper_install "${pkg}"; then
+    log_info "Installed ${pkg} via ${PACKAGE_MANAGER}."
+    return 0
   fi
   log_warn "Unable to install ${pkg}. Continuing without it."
   return 1

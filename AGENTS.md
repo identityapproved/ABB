@@ -1,11 +1,12 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
+- Ask which Node version manager to deploy (`nvm` or `fnm`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -29,13 +30,14 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
-- After reconnecting as the managed user, install and cache the preferred AUR helper (default: `yay`) and persist the choice so future runs skip reinstallation:
+- After reconnecting as the managed user, install and cache the preferred AUR helper (choices: `yay`, `paru`, `pacaur`, `pikaur`, `aura`, `aurman`) and persist the choice so future runs skip reinstallation:
   ```bash
   sudo pacman --needed --noconfirm -S base-devel
   sudo -u "${NEW_USER}" bash -lc '
     tmp=$(mktemp -d)
-    git clone https://aur.archlinux.org/yay.git "$tmp/yay"
-    cd "$tmp/yay" && makepkg -si --noconfirm
+    helper_pkg="<aur-package-name>" # yay, paru-bin, pacaur, etc.
+    git clone "https://aur.archlinux.org/${helper_pkg}.git" "$tmp/${helper_pkg}"
+    cd "$tmp/${helper_pkg}" && makepkg -si --noconfirm --needed
   '
   ```
 - Store the helper selection in `/var/lib/vps-setup/answers.env` so subsequent tasks rely on it instead of reinstalling.
@@ -61,9 +63,10 @@ sudo pacman -Syu --noconfirm
 - Run `pipx ensurepath` for the managed user; record versions for logs.
 
 ## 8. System Utilities
-- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`.
+- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`, `wireguard-tools`.
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
-- Include optional extras when requested: `mullvad-vpn` via AUR, etc.
+- Include optional extras when requested: `mullvad-vpn-bin` via the configured AUR helper, etc.
+- Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
 ## 9. Tool Catalogue
 ### 9.1 pipx & ProjectDiscovery

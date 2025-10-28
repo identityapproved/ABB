@@ -90,10 +90,32 @@ prompt_for_hardening() {
   log_info "Pentest hardening: ${NEEDS_PENTEST_HARDENING}"
 }
 
+prompt_for_node_manager() {
+  local choice=""
+  if [[ -n "${NODE_MANAGER}" ]]; then
+    log_info "Node manager selection: ${NODE_MANAGER}"
+    return
+  fi
+  while true; do
+    read -rp "Select Node version manager (nvm/fnm): " choice </dev/tty || { log_error "Unable to read Node manager choice."; exit 1; }
+    case "${choice,,}" in
+      nvm|fnm)
+        NODE_MANAGER="${choice,,}"
+        break
+        ;;
+      *)
+        echo "Please answer nvm or fnm." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Node manager selection: ${NODE_MANAGER}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
   prompt_for_hardening
+  prompt_for_node_manager
   record_prompt_answers
 }
 

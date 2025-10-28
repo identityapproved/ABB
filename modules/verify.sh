@@ -4,16 +4,33 @@ final_verification() {
   log_info "Verification summary:"
 
   if command_exists pacman; then
-    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop >/dev/null 2>&1; then
+    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop wireguard-tools >/dev/null 2>&1; then
       log_warn "One or more core packages are missing. Review pacman output above."
     fi
   fi
 
-  if command_exists yay; then
-    run_as_user "yay --version" || log_warn "yay is installed but version check failed."
+  if [[ -n "${PACKAGE_MANAGER}" ]] && command_exists "${PACKAGE_MANAGER}"; then
+    if ! run_as_user "${PACKAGE_MANAGER} --version" >/dev/null 2>&1; then
+      run_as_user "${PACKAGE_MANAGER} -V" >/dev/null 2>&1 || log_warn "${PACKAGE_MANAGER} version check failed."
+    fi
   else
-    log_warn "yay not detected on PATH."
+    log_warn "Configured package manager '${PACKAGE_MANAGER:-unset}' not detected on PATH."
   fi
+
+  if command_exists mullvad; then
+    run_as_user "mullvad --version" >/dev/null 2>&1 || log_warn "Mullvad CLI installed but version check failed."
+  else
+    log_warn "Mullvad CLI not detected. Run 'abb-setup.sh utilities' to install mullvad-vpn-bin."
+  fi
+
+  case "${NODE_MANAGER}" in
+    fnm)
+      run_as_user "command -v fnm" >/dev/null 2>&1 || log_warn "fnm not detected despite selection."
+      ;;
+    nvm)
+      run_as_user "[[ -s ~/.nvm/nvm.sh ]]" >/dev/null 2>&1 || log_warn "nvm directory not found for ${NEW_USER}."
+      ;;
+  esac
 
   run_as_user "command -v go >/dev/null 2>&1 && go version" || log_warn "Go runtime not found for ${NEW_USER}"
   run_as_user "pipx list" || log_warn "pipx list failed."

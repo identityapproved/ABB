@@ -8,9 +8,9 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag).
+- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`).
 - Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user; rerun it from that account to remove `admin`, then move the ABB repo under the new home.
-- After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper.
+- After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
@@ -22,23 +22,21 @@ Each task can be executed independently:
 | ---- | ----------- |
 | `prompts` | Capture answers for the managed user, editor preference, and hardening toggle; cache responses in `/var/lib/vps-setup/answers.env`. |
 | `accounts` | Create the managed user, ensure wheel access, copy SSH credentials from `admin`, prompt for password, and offer to remove `admin` after switching. |
-| `package-manager` | Install the selected AUR helper once (stored in `/var/lib/vps-setup/answers.env`) so future tasks can rely on it. |
+| `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, Go, Ruby, and base build tools. |
-| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, firewalld, fail2ban, zoxide, chromium, etc.) using the configured package manager where needed. |
+| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, and bootstrap the chosen Node manager (`nvm` or `fnm`). |
 | `tools` | Use pipx for recon utilities, pdtm for ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers, and clone git-based tooling into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
-| `verify` | Run post-install checks (`pacman -Q` for key packages, `yay --version`, `pipx list`, `go version`) and point to log locations. |
+| `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
 
 ## Highlights
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
 - **No SSH tweaks:** Contabo already provisions keys; the script leaves `sshd_config` untouched while still offering optional sysctl/iptables hardening on demand.
-- **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, and guarded `fnm`/LazyVim hooks.
+- **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, and guarded Node manager/LazyVim hooks.
 
 ## Rerun Guidance
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.
 - If kernel or core packages update, reboot and rerun `verify` to confirm paths and versions.
-- Use `yay -Syu` between provisioning runs to keep AUR packages in sync.
-
-Happy Arching (¬‿¬)
+- Use your configured AUR helper (e.g., `yay -Syu`) between provisioning runs to keep AUR packages in sync.
