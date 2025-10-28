@@ -34,14 +34,14 @@ install_yay_helper() {
   fi
   pacman_install_packages base-devel
   local tmpdir
-  if ! tmpdir="$(run_as_user 'mktemp -d')"; then
+  if ! tmpdir="$(mktemp -d)"; then
     log_error "Failed to create temporary directory for package manager build."
     exit 1
   fi
-  tmpdir="${tmpdir//$'\n'/}"
+  chown "${NEW_USER}:${NEW_USER}" "${tmpdir}"
   if ! run_as_user "$(printf 'cd %q && git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
     log_error "Cloning yay AUR repository failed."
-    run_as_user "$(printf 'rm -rf %q' "${tmpdir}")"
+    rm -rf "${tmpdir}"
     exit 1
   fi
   if run_as_user "$(printf 'cd %q/yay && makepkg -si --noconfirm' "${tmpdir}")"; then
@@ -49,10 +49,10 @@ install_yay_helper() {
     append_installed_tool "yay"
   else
     log_error "Failed to build/install yay."
-    run_as_user "$(printf 'rm -rf %q' "${tmpdir}")"
+    rm -rf "${tmpdir}"
     exit 1
   fi
-  run_as_user "$(printf 'rm -rf %q' "${tmpdir}")"
+  rm -rf "${tmpdir}"
 }
 
 ensure_package_manager_ready() {
