@@ -99,6 +99,7 @@ record_prompt_answers() {
     printf 'NEW_USER=%q\n' "${NEW_USER}"
     printf 'EDITOR_CHOICE=%q\n' "${EDITOR_CHOICE}"
     printf 'NEEDS_PENTEST_HARDENING=%q\n' "${NEEDS_PENTEST_HARDENING}"
+    printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
@@ -128,7 +129,7 @@ ensure_user_context() {
     collect_prompt_answers
   fi
 
-  ensure_primary_user
+  verify_managed_user_ready
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
   if [[ -z "${user_home}" ]]; then

@@ -27,5 +27,6 @@ install_language_runtimes() {
 
 run_task_languages() {
   ensure_user_context
+  ensure_package_manager_ready
   install_language_runtimes
 }

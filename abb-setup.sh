@@ -13,6 +13,8 @@ source "${MODULE_DIR}/common.sh"
 source "${MODULE_DIR}/prompts.sh"
 # shellcheck source=modules/accounts.sh
 source "${MODULE_DIR}/accounts.sh"
+# shellcheck source=modules/pkgmgr.sh
+source "${MODULE_DIR}/pkgmgr.sh"
 # shellcheck source=modules/security.sh
 source "${MODULE_DIR}/security.sh"
 # shellcheck source=modules/languages.sh
@@ -31,6 +33,7 @@ INSTALLED_TRACK_FILE=""
 NEW_USER="${NEW_USER:-}"
 EDITOR_CHOICE="${EDITOR_CHOICE:-}"
 NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
+PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 
 usage() {
   cat <<'EOF'
@@ -39,6 +42,7 @@ Usage: abb-setup.sh [task]
 Tasks:
   prompts     Collect answers for the managed user, editor preference, and optional hardening flags.
   accounts    Create the managed user, copy SSH keys, enable sudo, and optionally retire the admin account.
+  package-manager Install and record the preferred AUR helper before continuing with provisioning.
   security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
@@ -55,6 +59,7 @@ EOF
 run_task_all() {
   run_task_prompts
   run_task_accounts
+  run_task_package_manager
   run_task_security
   run_task_languages
   run_task_utilities
@@ -80,6 +85,10 @@ main() {
     accounts)
       log_info "Running accounts task"
       run_task_accounts
+      ;;
+    package-manager)
+      log_info "Running package manager task"
+      run_task_package_manager
       ;;
     security)
       log_info "Running security task"

@@ -45,35 +45,27 @@ ensure_wheel_group() {
 }
 
 enable_wheel_sudoers() {
-  local tmp_file=""
-  if ! grep -Eq '^[[:space:]]*#?[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
-    log_warn "Wheel sudoers stanza not found in /etc/sudoers; skipping automatic edit."
-    return
-  fi
   if grep -Eq '^[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
-    log_info "Wheel sudoers entry already enabled."
+    log_info "Wheel sudoers entry already enabled in /etc/sudoers."
     return
   fi
+  local tmp_file
   tmp_file="$(mktemp)"
   cp /etc/sudoers "${tmp_file}"
-  awk '
-    BEGIN {done=0}
-    {
-      if (!done && $0 ~ /^[[:space:]]*#?[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL/) {
-        sub(/^([[:space:]]*)#\s*/, "\\1");
-        done=1;
-      }
-      print
-    }
-  ' "${tmp_file}" > "${tmp_file}.new"
-  if visudo -cf "${tmp_file}.new"; then
-    cat "${tmp_file}.new" > /etc/sudoers
-    chmod 0440 /etc/sudoers
-    log_info "Enabled wheel sudoers entry."
-  else
-    log_error "visudo validation failed; preserving existing /etc/sudoers."
+  if ! LC_ALL=C sed -i 's/^[[:space:]]*#\s*\(%wheel ALL=(ALL:ALL) ALL\)/\1/' "${tmp_file}"; then
+    log_error "Failed to update wheel entry in temporary sudoers copy."
+    rm -f "${tmp_file}"
+    return
   fi
-  rm -f "${tmp_file}" "${tmp_file}.new"
+  LC_ALL=C sed -i 's/^[[:space:]]*\\1%wheel/%wheel/' "${tmp_file}"
+  if visudo -cf "${tmp_file}"; then
+    cat "${tmp_file}" > /etc/sudoers
+    chmod 0440 /etc/sudoers
+    log_info "Enabled wheel sudoers entry in /etc/sudoers."
+  else
+    log_error "visudo validation failed; wheel entry not enabled."
+  fi
+  rm -f "${tmp_file}"
 }
 
 copy_authorized_keys_from_admin() {
@@ -125,6 +117,17 @@ ensure_primary_user() {
   ensure_wheel_group
   enable_wheel_sudoers
   copy_authorized_keys_from_admin
+}
+
+verify_managed_user_ready() {
+  if [[ -z "${NEW_USER}" ]]; then
+    log_error "Managed username is empty. Run 'abb-setup.sh prompts' first."
+    exit 1
+  fi
+  if ! id -u "${NEW_USER}" >/dev/null 2>&1; then
+    log_error "User ${NEW_USER} is not present. Run 'abb-setup.sh accounts' to create it."
+    exit 1
+  fi
 }
 
 suggest_login_transfer() {
@@ -189,6 +192,15 @@ run_task_accounts() {
   fi
   ensure_primary_user
   init_installed_tracker
-  suggest_login_transfer
   remove_admin_account
+  record_prompt_answers
+  if [[ "${SUDO_USER:-}" != "${NEW_USER}" ]]; then
+    suggest_login_transfer
+    log_info "Exiting so you can reconnect as ${NEW_USER}."
+    exit 0
+  fi
+  if id -u admin >/dev/null 2>&1; then
+    log_info "The 'admin' account is still present. Rerun this task after logging in as ${NEW_USER} to remove it."
+  fi
+  log_info "Managed account ${NEW_USER} is ready."
 }

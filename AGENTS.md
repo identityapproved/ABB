@@ -1,6 +1,6 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, `yay` for AUR installs, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
@@ -28,40 +28,40 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   ```
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
-## 3. System Updates
-```bash
-sudo pacman -Syu --noconfirm
-```
-- Reboot if the kernel updates. Re-run the script afterwards (state is cached).
-
-## 4. SSH & Hardening
-- Do **not** modify SSH keys or `sshd_config`; Contabo manages them.
-- Provide an optional network hardening step (sysctl + iptables) and offer it only on request. Skip vpntables if iptables/nftables are absent.
-
-## 5. Logging & Tracking
-- Log all stdout/stderr to `/var/log/vps-setup.log` using `tee` while still echoing key status messages.
-- Maintain `~${NEW_USER}/installed-tools.txt`, appending each tool once it is installed and detected on `PATH`.
-
-## 6. Language Runtimes (install before tools)
-- Python & pipx: `sudo pacman --needed --noconfirm -S python python-pipx`
-- Go: `sudo pacman --needed --noconfirm -S go`
-- Ruby & build deps: `sudo pacman --needed --noconfirm -S ruby base-devel`
-- Run `pipx ensurepath` for the managed user; record versions for logs.
-
-## 7. Yay Bootstrap
-- Install `yay` immediately after prompts:
+## 3. Package Manager
+- After reconnecting as the managed user, install and cache the preferred AUR helper (default: `yay`) and persist the choice so future runs skip reinstallation:
   ```bash
-  sudo pacman --needed --noconfirm -S base-devel git
+  sudo pacman --needed --noconfirm -S base-devel
   sudo -u "${NEW_USER}" bash -lc '
     tmp=$(mktemp -d)
     git clone https://aur.archlinux.org/yay.git "$tmp/yay"
     cd "$tmp/yay" && makepkg -si --noconfirm
   '
   ```
-- Once `yay` exists, use it for AUR tools that lack official packages.
+- Store the helper selection in `/var/lib/vps-setup/answers.env` so subsequent tasks rely on it instead of reinstalling.
+
+## 4. System Updates
+```bash
+sudo pacman -Syu --noconfirm
+```
+- Reboot if the kernel updates. Re-run the script afterwards (state is cached).
+
+## 5. SSH & Hardening
+- Do **not** modify SSH keys or `sshd_config`; Contabo manages them.
+- Provide an optional network hardening step (sysctl + iptables) and offer it only on request. Skip vpntables if iptables/nftables are absent.
+
+## 6. Logging & Tracking
+- Log all stdout/stderr to `/var/log/vps-setup.log` using `tee` while still echoing key status messages.
+- Maintain `~${NEW_USER}/installed-tools.txt`, appending each tool once it is installed and detected on `PATH`.
+
+## 7. Language Runtimes (install before tools)
+- Python & pipx: `sudo pacman --needed --noconfirm -S python python-pipx`
+- Go: `sudo pacman --needed --noconfirm -S go`
+- Ruby & build deps: `sudo pacman --needed --noconfirm -S ruby base-devel`
+- Run `pipx ensurepath` for the managed user; record versions for logs.
 
 ## 8. System Utilities
-- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `git`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`.
+- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`.
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Include optional extras when requested: `mullvad-vpn` via AUR, etc.
 

@@ -26,5 +26,6 @@ final_verification() {
 
 run_task_verify() {
   ensure_user_context
+  ensure_package_manager_ready
   final_verification
 }

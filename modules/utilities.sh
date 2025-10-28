@@ -1,8 +1,6 @@
 # shellcheck shell=bash
 
 SYSTEM_PACKAGES=(
-  base-devel
-  git
   tree
   tealdeer
   ripgrep
@@ -27,44 +25,14 @@ SYSTEM_PACKAGES=(
   chromium
 )
 
-ensure_yay() {
-  if command_exists yay; then
-    append_installed_tool "yay"
-    return
-  fi
-
-  pacman_install_packages base-devel git
-  local tmpdir
-  if ! tmpdir="$(run_as_user 'mktemp -d')"; then
-    log_error "Failed to create temporary directory for yay build."
-    return
-  fi
-  tmpdir="${tmpdir//$'\n'/}"
-  if [[ -z "${tmpdir}" ]]; then
-    log_error "Temporary directory path for yay build is empty."
-    return
-  fi
-  if ! run_as_user "$(printf 'cd %q && git clone https://aur.archlinux.org/yay.git' "${tmpdir}")"; then
-    log_error "Failed to clone yay AUR repository."
-    return
-  fi
-  if run_as_user "$(printf 'cd %q/yay && makepkg -si --noconfirm' "${tmpdir}")"; then
-    append_installed_tool "yay"
-    log_info "Installed yay AUR helper."
-  else
-    log_warn "Failed to build/install yay."
-  fi
-  run_as_user "$(printf 'rm -rf %q' "${tmpdir}")"
-}
-
 install_mullvad() {
   if pacman -Qi mullvad-vpn >/dev/null 2>&1; then
     log_info "mullvad-vpn already installed."
     append_installed_tool "mullvad-vpn"
     return
   fi
-  if ! command_exists yay; then
-    log_warn "yay is not installed; skipping Mullvad installation."
+  if ! command_exists yay || [[ "${PACKAGE_MANAGER}" != "yay" ]]; then
+    log_warn "Configured package manager does not support Mullvad installation."
     return
   fi
   if run_as_user "yay -S --noconfirm mullvad-vpn"; then
@@ -91,8 +59,8 @@ ensure_fnm() {
 }
 
 install_system_utilities() {
+  ensure_package_manager_ready
   pacman_install_packages "${SYSTEM_PACKAGES[@]}"
-  ensure_yay
   systemctl enable --now firewalld >/dev/null 2>&1 || log_warn "Failed to enable firewalld."
   systemctl enable --now fail2ban >/dev/null 2>&1 || log_warn "Failed to enable fail2ban."
 
@@ -108,7 +76,6 @@ install_system_utilities() {
   append_installed_tool "fzf"
   append_installed_tool "ripgrep"
   append_installed_tool "fd"
-  append_installed_tool "git"
   append_installed_tool "bat"
   append_installed_tool "chromium"
   append_installed_tool "nmap"

@@ -76,28 +76,65 @@ EOF
   fi
 }
 
-setup_intrusion_detection() {
-  pacman_install_packages aide rkhunter
-  if [[ ! -f /var/lib/aide/aide.db.gz ]]; then
-    if aide --init; then
-      mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
-    else
-      log_warn "aide --init failed."
+install_optional_package() {
+  local pkg="$1"
+  if pacman -Qi "${pkg}" >/dev/null 2>&1; then
+    log_info "Package ${pkg} already installed."
+    return 0
+  fi
+  if pacman --noconfirm -Sy --needed "${pkg}"; then
+    log_info "Installed ${pkg} via pacman."
+    return 0
+  fi
+  if command_exists yay && [[ "${PACKAGE_MANAGER}" == "yay" ]]; then
+    if run_as_user "yay -S --noconfirm ${pkg}"; then
+      log_info "Installed ${pkg} via yay."
+      return 0
     fi
   fi
-  rkhunter --update || log_warn "rkhunter update failed."
-  rkhunter --checkall --sk --nocolors || log_warn "rkhunter check reported issues. Review /var/log/rkhunter.log."
+  log_warn "Unable to install ${pkg}. Continuing without it."
+  return 1
+}
+
+setup_intrusion_detection() {
+  local aide_installed=0 rkhunter_installed=0
+  if install_optional_package aide; then
+    aide_installed=1
+  fi
+  if install_optional_package rkhunter; then
+    rkhunter_installed=1
+  fi
+
+  if ((aide_installed)) && command_exists aide; then
+    if [[ ! -f /var/lib/aide/aide.db.gz ]]; then
+      if aide --init; then
+        mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+      else
+        log_warn "aide --init failed."
+      fi
+    fi
+    append_installed_tool "aide"
+  else
+    log_warn "AIDE unavailable; file integrity scanning skipped."
+  fi
+
+  if ((rkhunter_installed)) && command_exists rkhunter; then
+    rkhunter --update || log_warn "rkhunter update failed."
+    rkhunter --checkall --sk --nocolors || log_warn "rkhunter check reported issues. Review /var/log/rkhunter.log."
+    append_installed_tool "rkhunter"
+  else
+    log_warn "rkhunter unavailable; rootkit scanning skipped."
+  fi
 
   if [[ ! -f /etc/sudoers.d/90-logging ]]; then
     echo 'Defaults logfile="/var/log/sudo.log",log_input,log_output' > /etc/sudoers.d/90-logging
     chmod 0440 /etc/sudoers.d/90-logging
   fi
-  append_installed_tool "aide"
-  append_installed_tool "rkhunter"
 }
 
 run_task_security() {
   ensure_user_context
+  ensure_package_manager_ready
   ensure_system_updates
   verify_selinux
   apply_optional_hardening

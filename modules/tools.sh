@@ -164,6 +164,7 @@ install_git_python_tools() {
 
 run_task_tools() {
   ensure_user_context
+  ensure_package_manager_ready
   install_language_helpers
   install_go_tools
   install_git_python_tools

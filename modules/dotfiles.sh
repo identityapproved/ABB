@@ -105,5 +105,6 @@ configure_shells_and_editors() {
 
 run_task_dotfiles() {
   ensure_user_context
+  ensure_package_manager_ready
   configure_shells_and_editors
 }
