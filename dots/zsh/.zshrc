@@ -15,6 +15,7 @@ ZSH_THEME="random"
 
 # Path to your oh-my-zsh installation.
 export PATH="$HOME/.local/bin:$HOME/.local/pipx/bin:$HOME/go/bin:$PATH"
+export ZSH="$HOME/.oh-my-zsh"
 export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
 
 zstyle ':omz:update' mode auto      # update automatically without asking
@@ -45,7 +46,9 @@ COMPLETION_WAITING_DOTS="true"
 # Add wisely, as too many plugins slow down shell startup.
 [[ -z "${plugins[*]}" ]] && plugins=(git fzf extract gitignore pip python docker docker-compose zsh-vi-mode cd-ls zsh-git-fzf alias-tips ufw themes fzf-alias zsh-history-substring-search zsh-syntax-highlighting zsh-autosuggestions archlinux zsh-aur-install)
 
-source $ZSH/oh-my-zsh.sh
+if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
+  source "$ZSH/oh-my-zsh.sh"
+fi
 source $HOME/.aliases
 
 # User configuration
@@ -105,4 +108,12 @@ export MANPAGER="sh -c 'awk '\''{ gsub(/\x1B\[[0-9;]*m/, \"\", \$0); gsub(/.\x08
 # node fnm
 if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env --use-on-cd --shell zsh)"
+fi
+
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  export NVM_DIR="$HOME/.nvm"
+  source "$NVM_DIR/nvm.sh"
+  if [[ -s "$NVM_DIR/bash_completion" ]]; then
+    source "$NVM_DIR/bash_completion"
+  fi
 fi
