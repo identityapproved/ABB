@@ -74,8 +74,9 @@ configure_shells_and_editors() {
   fi
 
   if [[ -f "${TMUX_TEMPLATE}" ]]; then
-    install -m 0644 "${TMUX_TEMPLATE}" "${user_home}/.tmux.conf"
-    chown "${NEW_USER}:${NEW_USER}" "${user_home}/.tmux.conf"
+    run_as_user "$(printf 'mkdir -p %q' "${user_home}/.config/tmux")"
+    install -m 0644 "${TMUX_TEMPLATE}" "${user_home}/.config/tmux/tmux.conf"
+    chown "${NEW_USER}:${NEW_USER}" "${user_home}/.config/tmux/tmux.conf"
   fi
 
   if [[ "${EDITOR_CHOICE}" == "vim" || "${EDITOR_CHOICE}" == "both" ]]; then
