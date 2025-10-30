@@ -11,6 +11,10 @@ declare -A HELPER_AUR_PACKAGES=(
   [aurman]=aurman
 )
 
+declare -A HELPER_AUR_FALLBACKS=(
+  [yay]=yay-git
+)
+
 helper_supported() {
   local helper="$1" candidate
   for candidate in "${SUPPORTED_HELPERS[@]}"; do
@@ -44,10 +48,18 @@ prompt_for_package_manager() {
 install_aur_helper() {
   local helper="$1"
   local aur_pkg="${HELPER_AUR_PACKAGES[${helper}]:-}"
+  local fallback_pkg="${HELPER_AUR_FALLBACKS[${helper}]:-}"
+  local candidates=()
+  local pkg repo_dir success=0
 
   if [[ -z "${helper}" || -z "${aur_pkg}" ]]; then
     log_error "Helper '${helper}' is not supported."
     exit 1
+  fi
+
+  candidates+=("${aur_pkg}")
+  if [[ -n "${fallback_pkg}" ]]; then
+    candidates+=("${fallback_pkg}")
   fi
 
   if command_exists "${helper}"; then
@@ -69,21 +81,29 @@ install_aur_helper() {
     exit 1
   fi
   chown -R "${NEW_USER}:${NEW_USER}" "${tmpdir}"
+  for pkg in "${candidates[@]}"; do
+    repo_dir="${tmpdir}/${pkg}"
+    rm -rf "${repo_dir}"
+    log_info "Preparing ${helper} using AUR package ${pkg}."
+    clone_cmd=$(printf 'cd %q && /usr/bin/git clone --depth 1 %q %q' "${tmpdir}" "https://aur.archlinux.org/${pkg}.git" "${repo_dir}")
+    if ! run_as_user "${clone_cmd}"; then
+      log_warn "Cloning ${pkg} AUR repository failed."
+      continue
+    fi
 
-  clone_cmd=$(printf 'cd %q && /usr/bin/git clone %q %q' "${tmpdir}" "https://aur.archlinux.org/${aur_pkg}.git" "${tmpdir}/${aur_pkg}")
-  if ! run_as_user "${clone_cmd}"; then
-    log_error "Cloning ${aur_pkg} AUR repository failed."
-    rm -rf "${tmpdir}"
-    exit 1
-  fi
+    build_cmd=$(printf 'cd %q && /usr/bin/env PATH="/usr/bin:/bin:/usr/local/bin:$PATH" HOME="$HOME" makepkg -si --noconfirm --needed' "${repo_dir}")
+    if run_as_user "${build_cmd}"; then
+      log_info "Installed ${helper} via ${pkg}."
+      append_installed_tool "${helper}"
+      success=1
+      break
+    fi
+    log_warn "Failed to build/install ${helper} from ${pkg}."
+  done
 
-  build_cmd=$(printf 'cd %q && /usr/bin/env PATH="/usr/bin:/bin:/usr/local/bin:$PATH" HOME="$HOME" makepkg -si --noconfirm --needed' "${tmpdir}/${aur_pkg}")
-  if run_as_user "${build_cmd}"; then
-    log_info "Installed ${helper}."
-    append_installed_tool "${helper}"
-  else
-    log_error "Failed to build/install ${helper}."
+  if ((success == 0)); then
     rm -rf "${tmpdir}"
+    log_error "Unable to install ${helper}; all AUR package candidates failed."
     exit 1
   fi
 
