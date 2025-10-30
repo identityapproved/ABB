@@ -27,6 +27,8 @@ source "${MODULE_DIR}/tools.sh"
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
 source "${MODULE_DIR}/verify.sh"
+# shellcheck source=modules/optional.sh
+source "${MODULE_DIR}/optional.sh"
 
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
@@ -35,6 +37,7 @@ EDITOR_CHOICE="${EDITOR_CHOICE:-}"
 NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 NODE_MANAGER="${NODE_MANAGER:-}"
+VPN_BYPASS_MODE="${VPN_BYPASS_MODE:-}"
 
 usage() {
   cat <<'EOF'
@@ -50,6 +53,7 @@ Tasks:
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
+  optional    Configure optional VPN bypass helpers (Mullvad split tunnel or iptables route).
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -67,6 +71,7 @@ run_task_all() {
   run_task_tools
   run_task_dotfiles
   run_task_verify
+  run_task_optional
 }
 
 main() {
@@ -114,6 +119,10 @@ main() {
     verify)
       log_info "Running verification task"
       run_task_verify
+      ;;
+    optional)
+      log_info "Running optional VPN bypass task"
+      run_task_optional
       ;;
     all)
       log_info "Running full provisioning workflow"

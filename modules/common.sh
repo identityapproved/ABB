@@ -108,6 +108,7 @@ record_prompt_answers() {
     printf 'NEEDS_PENTEST_HARDENING=%q\n' "${NEEDS_PENTEST_HARDENING}"
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
     printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
+    printf 'VPN_BYPASS_MODE=%q\n' "${VPN_BYPASS_MODE}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
