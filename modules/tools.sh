@@ -55,7 +55,7 @@ GO_TOOLS=(
   github.com/Josue87/gotator@latest
   github.com/glebarez/cero@latest
   github.com/dwisiswant0/galer@latest
-  github.com/c3l3si4n/quickcert/cmd/quickcert@latest
+  github.com/c3l3si4n/quickcert@HEAD
   github.com/sensepost/gowitness@latest
   github.com/tomnomnom/httprobe@latest
   github.com/jaeles-project/gospider@latest
@@ -69,7 +69,7 @@ GO_TOOLS=(
   github.com/hahwul/dalfox/v2@latest
   github.com/Emoe/kxss@latest
   github.com/KathanP19/Gxss@latest
-  github.com/ethicalhackingplayground/bxss/cmd/bxss@latest
+  github.com/ethicalhackingplayground/bxss/v2/cmd/bxss@latest
   github.com/ferreiraklet/Jeeves@latest
   github.com/mrco24/time-sql@latest
   github.com/mrco24/mrco24-error-sql@latest
@@ -153,8 +153,11 @@ install_go_tools() {
     tool="${module%@*}"
     tool_name="${tool##*/}"
     case "${module}" in
-      github.com/c3l3si4n/quickcert/cmd/quickcert@latest)
+      github.com/c3l3si4n/quickcert@HEAD)
         go_cmd=$(printf 'GOSUMDB=off GONOSUMDB=github.com/c3l3si4n/quickcert GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install %q' "${module}")
+        ;;
+      github.com/ethicalhackingplayground/bxss/v2/cmd/bxss@latest)
+        go_cmd=$(printf 'GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install -v %q' "${module}")
         ;;
       *)
         go_cmd=$(printf 'GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install %q' "${module}")
@@ -207,7 +210,7 @@ ensure_wordlist_workspace() {
 }
 
 install_git_python_tools() {
-  local tool repo dest
+  local tool repo dest jsparser_setup_cmd jshawk_link_cmd
   install -d -m 0755 "${TOOL_BASE_DIR}"
   for tool in "${!GIT_TOOLS[@]}"; do
     repo="${GIT_TOOLS[$tool]}"
@@ -232,10 +235,18 @@ install_git_python_tools() {
           ensure_wordlist_workspace
           ;;
         JSParser)
+          run_as_user "python3 -m pip install --user safeurl tornado jsbeautifier" || log_warn "Failed to install JSParser Python dependencies."
+          jsparser_setup_cmd=$(printf 'cd %q && python3 setup.py install --user' "${dest}")
+          run_as_user "${jsparser_setup_cmd}" || log_warn "python3 setup.py install failed for JSParser."
           install_jsparser_wrapper
           append_installed_tool "JSParser"
           ;;
         JSHawk)
+          run_as_user "mkdir -p ~/.local/bin" || true
+          if [[ -f "${dest}/JSHawk.py" ]]; then
+            jshawk_link_cmd=$(printf 'ln -sf %q ~/.local/bin/jshawk' "${dest}/JSHawk.py")
+            run_as_user "${jshawk_link_cmd}" || log_warn "Failed to link JSHawk into ~/.local/bin."
+          fi
           install_jshawk_wrapper
           append_installed_tool "JSHawk"
           ;;
@@ -252,6 +263,133 @@ install_git_python_tools() {
   done
 }
 
+write_tool_overview() {
+  local user_home overview_file tmp_file package_manager_display node_manager_display
+  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=()
+  local module tool_name
+
+  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if [[ -z "${user_home}" ]]; then
+    log_warn "Unable to determine home directory for ${NEW_USER}; skipping tool overview."
+    return
+  fi
+
+  overview_file="${user_home}/ABB-tool-overview.txt"
+  tmp_file="$(mktemp)" || { log_warn "Failed to allocate temp file for tool overview."; return; }
+
+  package_manager_display="${PACKAGE_MANAGER:-not configured}"
+  node_manager_display="${NODE_MANAGER:-not selected}"
+
+  for module in "${!PIPX_APPS[@]}"; do
+    pipx_keys+=("${module}")
+  done
+  if ((${#pipx_keys[@]})); then
+    IFS=$'\n' pipx_sorted=($(printf '%s\n' "${pipx_keys[@]}" | sort))
+    unset IFS
+  fi
+
+  if ((${#PDTM_TOOLS[@]})); then
+    IFS=$'\n' pd_sorted=($(printf '%s\n' "${PDTM_TOOLS[@]}" | sort))
+    unset IFS
+  fi
+
+  declare -A go_seen=()
+  for module in "${GO_TOOLS[@]}"; do
+    tool_name="${module%@*}"
+    tool_name="${tool_name##*/}"
+    if [[ -n "${tool_name}" && -z "${go_seen[${tool_name}]}" ]]; then
+      go_seen["${tool_name}"]=1
+      go_names+=("${tool_name}")
+    fi
+  done
+  if ((${#go_names[@]})); then
+    IFS=$'\n' go_sorted=($(printf '%s\n' "${go_names[@]}" | sort))
+    unset IFS
+  fi
+  unset go_seen
+
+  if ((${#SYSTEM_PACKAGES[@]})); then
+    IFS=$'\n' system_sorted=($(printf '%s\n' "${SYSTEM_PACKAGES[@]}" | sort))
+    unset IFS
+  fi
+
+  {
+    printf "Arch Bugbounty Bootstrap Tool Overview\n"
+    printf "=======================================\n\n"
+    printf "Managed user: %s\n" "${NEW_USER}"
+    printf "Package manager: %s\n" "${package_manager_display}"
+    printf "Node manager: %s\n" "${node_manager_display}\n\n"
+
+    printf "System Utilities (pacman)\n"
+    printf "-------------------------\n"
+    if ((${#system_sorted[@]})); then
+      for module in "${system_sorted[@]}"; do
+        printf " - %s\n" "${module}"
+      done
+    else
+      printf " - (none recorded)\n"
+    fi
+    printf "\n"
+
+    printf "Language Runtimes\n"
+    printf "-----------------\n"
+    printf " - Python  (pacman: python, python-pipx)\n"
+    printf " - Go      (pacman: go)\n"
+    printf " - Ruby    (pacman: ruby, base-devel)\n\n"
+
+    printf "pipx Applications\n"
+    printf "-----------------\n"
+    if ((${#pipx_sorted[@]})); then
+      for module in "${pipx_sorted[@]}"; do
+        printf " - %s\n" "${module}"
+      done
+    else
+      printf " - (none installed)\n"
+    fi
+    printf "\n"
+
+    printf "ProjectDiscovery (pdtm)\n"
+    printf "-----------------------\n"
+    if ((${#pd_sorted[@]})); then
+      for module in "${pd_sorted[@]}"; do
+        printf " - %s\n" "${module}"
+      done
+    else
+      printf " - (none installed)\n"
+    fi
+    printf "\n"
+
+    printf "Go-Based Utilities\n"
+    printf "------------------\n"
+    if ((${#go_sorted[@]})); then
+      for module in "${go_sorted[@]}"; do
+        printf " - %s\n" "${module}"
+      done
+    else
+      printf " - (none installed)\n"
+    fi
+    printf "\n"
+
+    printf "Git / Binary Tools\n"
+    printf "------------------\n"
+    for module in "${!GIT_TOOLS[@]}"; do
+      printf " - %s\n" "${module}"
+    done
+    printf "\n"
+
+    printf "Tracking Files\n"
+    printf "--------------\n"
+    printf " - %s/installed-tools.txt (one tool per line)\n" "${user_home}"
+    printf " - %s (this summary)\n" "${overview_file}"
+    printf " - /var/log/vps-setup.log (provisioning log)\n"
+  } > "${tmp_file}"
+
+  install -m 0644 "${tmp_file}" "${overview_file}"
+  chown "${NEW_USER}:${NEW_USER}" "${overview_file}" || true
+  rm -f "${tmp_file}"
+  log_info "Wrote tool overview to ${overview_file}."
+}
+
 run_task_tools() {
   ensure_user_context
   ensure_package_manager_ready
@@ -259,4 +397,5 @@ run_task_tools() {
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
+  write_tool_overview
 }

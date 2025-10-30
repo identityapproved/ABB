@@ -23,6 +23,8 @@ SYSTEM_PACKAGES=(
   nmap
   jq
   wireguard-tools
+  podman
+  rsync
 )
 
 install_mullvad() {
@@ -112,6 +114,8 @@ install_system_utilities() {
   append_installed_tool "htop"
   append_installed_tool "iftop"
   append_installed_tool "wireguard-tools"
+  append_installed_tool "podman"
+  append_installed_tool "rsync"
 }
 
 run_task_utilities() {

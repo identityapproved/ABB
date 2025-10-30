@@ -99,6 +99,31 @@ copy_authorized_keys_from_admin() {
   chmod 0600 "${target_home}/.ssh/authorized_keys"
 }
 
+sync_repo_to_user_home() {
+  local user_home dest
+  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if [[ -z "${user_home}" ]]; then
+    log_warn "Unable to determine home directory for ${NEW_USER}; skipping ABB repo clone."
+    return
+  fi
+  dest="${user_home}/ABB"
+  if [[ -d "${dest}" ]]; then
+    log_info "ABB repository already present at ${dest}."
+    return
+  fi
+  if ! command_exists git; then
+    log_warn "git not available; copy the ABB repository to ${dest} manually."
+    return
+  fi
+  log_info "Cloning ABB repository into ${dest}."
+  if git clone --recursive "${REPO_ROOT}" "${dest}" >/dev/null 2>&1; then
+    chown -R "${NEW_USER}:${NEW_USER}" "${dest}" || log_warn "Failed to adjust ownership for ${dest}."
+    log_info "ABB repository copied to ${dest}."
+  else
+    log_warn "Cloning ABB into ${dest} failed; copy it manually."
+  fi
+}
+
 ensure_primary_user() {
   if [[ -z "${NEW_USER}" ]]; then
     log_error "Managed username is empty. Re-run prompts first."
@@ -117,6 +142,7 @@ ensure_primary_user() {
   ensure_wheel_group
   enable_wheel_sudoers
   copy_authorized_keys_from_admin
+  sync_repo_to_user_home
 }
 
 verify_managed_user_ready() {
