@@ -23,8 +23,9 @@ SYSTEM_PACKAGES=(
   nmap
   jq
   wireguard-tools
-  podman
   rsync
+  yazi
+  lazygit
 )
 
 install_mullvad() {
@@ -88,6 +89,37 @@ ensure_node_manager() {
   esac
 }
 
+install_container_engine() {
+  case "${CONTAINER_ENGINE}" in
+    docker)
+      pacman_install_packages docker lazydocker
+      if getent group docker >/dev/null 2>&1; then
+        if usermod -aG docker "${NEW_USER}" >/dev/null 2>&1; then
+          log_info "Added ${NEW_USER} to docker group."
+        else
+          log_warn "Failed to add ${NEW_USER} to docker group."
+        fi
+      else
+        log_warn "docker group not found; ensure it exists to grant non-root access."
+      fi
+      systemctl enable --now docker.service >/dev/null 2>&1 || log_warn "Failed to enable docker.service."
+      append_installed_tool "docker"
+      append_installed_tool "lazydocker"
+      ;;
+    podman)
+      pacman_install_packages podman
+      systemctl enable --now podman.socket >/dev/null 2>&1 || log_warn "Failed to enable podman.socket."
+      append_installed_tool "podman"
+      ;;
+    none)
+      log_info "Container engine installation skipped."
+      ;;
+    *)
+      log_warn "Unknown container engine preference '${CONTAINER_ENGINE}'; skipping container setup."
+      ;;
+  esac
+}
+
 install_system_utilities() {
   ensure_package_manager_ready
   pacman_install_packages "${SYSTEM_PACKAGES[@]}"
@@ -96,6 +128,7 @@ install_system_utilities() {
 
   install_mullvad
   ensure_node_manager
+  install_container_engine
 
   append_installed_tool "firewalld"
   append_installed_tool "fail2ban"
@@ -114,8 +147,9 @@ install_system_utilities() {
   append_installed_tool "htop"
   append_installed_tool "iftop"
   append_installed_tool "wireguard-tools"
-  append_installed_tool "podman"
   append_installed_tool "rsync"
+  append_installed_tool "yazi"
+  append_installed_tool "lazygit"
 }
 
 run_task_utilities() {

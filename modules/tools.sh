@@ -318,7 +318,8 @@ write_tool_overview() {
     printf "=======================================\n\n"
     printf "Managed user: %s\n" "${NEW_USER}"
     printf "Package manager: %s\n" "${package_manager_display}"
-    printf "Node manager: %s\n" "${node_manager_display}\n\n"
+    printf "Node manager: %s\n" "${node_manager_display}"
+    printf "Container engine: %s\n\n" "${CONTAINER_ENGINE:-not selected}"
 
     printf "System Utilities (pacman)\n"
     printf "-------------------------\n"

@@ -111,11 +111,37 @@ prompt_for_node_manager() {
   log_info "Node manager selection: ${NODE_MANAGER}"
 }
 
+prompt_for_container_engine() {
+  local choice=""
+  if [[ -n "${CONTAINER_ENGINE}" ]]; then
+    log_info "Container engine preference: ${CONTAINER_ENGINE}"
+    return
+  fi
+  while true; do
+    read -rp "Install which container engine (docker/podman/none): " choice </dev/tty || { log_error "Unable to read container engine choice."; exit 1; }
+    case "${choice,,}" in
+      docker|podman)
+        CONTAINER_ENGINE="${choice,,}"
+        break
+        ;;
+      none|skip)
+        CONTAINER_ENGINE="none"
+        break
+        ;;
+      *)
+        echo "Please answer docker, podman, or none." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Container engine selection: ${CONTAINER_ENGINE}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
   prompt_for_hardening
   prompt_for_node_manager
+  prompt_for_container_engine
   record_prompt_answers
 }
 

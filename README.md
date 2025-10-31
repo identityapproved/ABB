@@ -8,7 +8,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`).
+- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`).
 - Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user; rerun it from that account to remove `admin`, then move the ABB repo under the new home.
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
@@ -26,7 +26,7 @@ Each task can be executed independently:
 | `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, Go, Ruby, and base build tools. |
-| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, and bootstrap the chosen Node manager (`nvm` or `fnm`). |
+| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
 | `tools` | Use pipx for recon utilities, install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers, and clone git-based tooling (JSParser/JSHawk wrappers included) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
@@ -40,6 +40,7 @@ Each task can be executed independently:
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`, and `~/wordlists/custom` is created for your own mutations.
 - **VPN bypass choices:** The optional task can wire up Mullvad split tunneling (including your chosen AUR helper) or an iptables-based route table so SSH sessions survive VPN activation.
+- **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access.
 
 ## Rerun Guidance
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.
