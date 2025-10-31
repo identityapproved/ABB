@@ -19,34 +19,17 @@ alias ftldr="compgen -c | fzf --height 40% --layout reverse --border --no-previe
 alias fcd="cd ~ && cd \$(fzf | sed 's/\/[^\/]*$//')"
 
 alias v='nvim' # default Neovim config
-# alias vn='NVIM_APPNAME=nvim-neobean nvim' # NvChad
 alias fv="nvim \$(fzf)"
 alias em="emacsclient -c -a 'emacs'"
 alias dmt="doom run -nw"
 
 alias yz='yazi'
 alias lz='lazygit'
-alias tl='task list'
-alias t='trans'
-
-alias mpvpl='find . -type d | fzf | xargs -I{} find "{}" -type f | sort -V | mpv --playlist=-'
-
-alias fbook='find ~/* -type d \( -name "books" \) -exec find {} -type f \( -name "*.pdf" -o -name "*.epub" -o -name "*.mobi" -o -name "*.cbz" -o -name "*.cbr" \) \; | fzf --height 40% --layout reverse --border --no-preview | xargs -r -I {} sh -c "zathura \"{}\" &"'
 
 alias rmpkg="sudo pacman -Rsn"
 alias cleanch="sudo pacman -Scc"
 alias fixpacman="sudo rm /var/lib/pacman/db.lck"
-alias update="sudo pacman -Syu"
-alias cleanup="sudo pacman -Rsn $(pacman -Qtdq)"
 
-alias wlpn="wpaperctl next"
-
-# CachyOS aliases
-# Set personal aliases, overriding those provided by oh-my-zsh libs,
-# plugins, and themes. Aliases can be placed here, though oh-my-zsh
-# users are encouraged to define aliases within the ZSH_CUSTOM folder.
-
-#alias open="xdg-open"
 alias make="make -j`nproc`"
 alias ninja="ninja -j`nproc`"
 alias n="ninja"
@@ -58,41 +41,3 @@ alias jctl="journalctl -p 3 -xb"
 
 # Recent installed packages
 alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
-
-# ____________________________________________________________________________
-
-# Function to mount /dev/sdd1 to /home/$USER/drives/transcend
-mount_transcend() {
-    local mount_point="/home/$USER/drives/transcend"
-    local device="/dev/sdd1"
-
-    # Check if the device exists
-    if [[ ! -e "$device" ]]; then
-        echo "Error: $device not found."
-        return 1
-    fi
-
-    # Create mount point directory if it doesn't exist
-    if [[ ! -d "$mount_point" ]]; then
-        echo "Creating mount point directory: $mount_point"
-        mkdir -p "$mount_point"
-    fi
-
-    # Check if already mounted
-    if mountpoint -q "$mount_point"; then
-        echo "$mount_point is already mounted."
-        return 0
-    fi
-
-    # Mount the device
-    echo "Mounting $device to $mount_point"
-    sudo mount "$device" "$mount_point"
-
-    # Verify mount
-    if mountpoint -q "$mount_point"; then
-        echo "Successfully mounted $device to $mount_point"
-    else
-        echo "Failed to mount $device to $mount_point"
-        return 1
-    fi
-}
