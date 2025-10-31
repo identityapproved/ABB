@@ -2,6 +2,7 @@
 
 LANGUAGE_PACKAGES=(
   python
+  python-pip
   python-pipx
   go
   ruby
@@ -17,6 +18,11 @@ install_language_runtimes() {
   append_installed_tool "pipx"
   append_installed_tool "go"
   append_installed_tool "ruby"
+
+  if ! run_as_user "python3 -m ensurepip --upgrade"; then
+    log_warn "python3 ensurepip failed for ${NEW_USER}"
+  fi
+  run_as_user "python3 -m pip install --user --upgrade pip setuptools wheel" || log_warn "Failed to upgrade pip/setuptools for ${NEW_USER}"
 
   if ! run_as_user "pipx ensurepath"; then
     log_warn "pipx ensurepath failed for ${NEW_USER}"

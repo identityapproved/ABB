@@ -5,12 +5,9 @@ declare -A PIPX_APPS=(
   [xnLinkFinder]='git+https://github.com/xnl-h4ck3r/xnLinkFinder.git'
   [urless]='git+https://github.com/xnl-h4ck3r/urless.git'
   [xnldorker]='git+https://github.com/xnl-h4ck3r/xnldorker.git'
-  [reconFTW]='git+https://github.com/six2dez/reconftw.git'
   [Sublist3r]='sublist3r'
   [dirsearch]='dirsearch'
   [sqlmap]='sqlmap'
-  [knockpy]='knockpy'
-  [asnlookup]='asnlookup'
 )
 
 declare -A PIPX_EXTRA_ARGS=(
@@ -18,7 +15,6 @@ declare -A PIPX_EXTRA_ARGS=(
   [xnLinkFinder]='--include-deps'
   [urless]='--include-deps'
   [xnldorker]='--include-deps'
-  [reconFTW]='--include-deps'
 )
 
 PDTM_TOOLS=(
@@ -90,7 +86,10 @@ declare -A GIT_TOOLS=(
   [massdns]='https://github.com/blechschmidt/massdns.git'
   [SecLists]='https://github.com/danielmiessler/SecLists.git'
   [JSParser]='https://github.com/nahamsec/JSParser.git'
-  [JSHawk]='https://github.com/utkusen/JSHawk.git'
+  [reconftw]='https://github.com/six2dez/reconftw.git'
+  [knock]='https://github.com/guelfoweb/knock.git'
+  [Asnlookup]='https://github.com/yassineaboukir/Asnlookup.git'
+  [JSHawk]='https://github.com/Mah3Sec/JSHawk.git'
 )
 
 install_pdtm() {
@@ -210,7 +209,7 @@ ensure_wordlist_workspace() {
 }
 
 install_git_python_tools() {
-  local tool repo dest jsparser_setup_cmd jshawk_link_cmd
+  local tool repo dest jsparser_setup_cmd jshawk_link_cmd recon_install_cmd knock_install_cmd asn_install_cmd
   install -d -m 0755 "${TOOL_BASE_DIR}"
   for tool in "${!GIT_TOOLS[@]}"; do
     repo="${GIT_TOOLS[$tool]}"
@@ -244,11 +243,79 @@ install_git_python_tools() {
         JSHawk)
           run_as_user "mkdir -p ~/.local/bin" || true
           if [[ -f "${dest}/JSHawk.py" ]]; then
-            jshawk_link_cmd=$(printf 'ln -sf %q ~/.local/bin/jshawk' "${dest}/JSHawk.py")
-            run_as_user "${jshawk_link_cmd}" || log_warn "Failed to link JSHawk into ~/.local/bin."
+            jshawk_link_cmd=$(printf 'ln -sf %q ~/.local/bin/jshawk.py' "${dest}/JSHawk.py")
+            run_as_user "${jshawk_link_cmd}" || log_warn "Failed to link JSHawk python entrypoint."
           fi
-          install_jshawk_wrapper
+          if [[ -f "${dest}/JSHawk.sh" ]]; then
+            install -m 0755 "${dest}/JSHawk.sh" /usr/local/bin/jshawk || log_warn "Failed to install JSHawk.sh wrapper."
+          else
+            install_jshawk_wrapper
+          fi
           append_installed_tool "JSHawk"
+          ;;
+        reconftw)
+          chmod +x "${dest}/install.sh" "${dest}/reconftw.sh" 2>/dev/null || true
+          if [[ -x "${dest}/install.sh" ]]; then
+            recon_install_cmd=$(printf 'cd %q && ./install.sh' "${dest}")
+            if run_as_user "${recon_install_cmd}"; then
+              if [[ -x "${dest}/reconftw.sh" ]]; then
+                cat > /usr/local/bin/reconftw <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/vps-tools/reconftw
+./reconftw.sh "$@"
+EOF
+                chmod 0755 /usr/local/bin/reconftw
+                append_installed_tool "reconftw"
+                log_info "ReconFTW available locally. Docker alternative: docker pull six2dez/reconftw:main"
+              else
+                log_warn "ReconFTW script not found. Check /opt/vps-tools/reconftw/reconftw.sh"
+              fi
+            else
+              log_warn "ReconFTW install script failed. Review /opt/vps-tools/reconftw/install.sh manually."
+            fi
+          else
+            log_warn "ReconFTW install.sh missing; skipping automated setup."
+          fi
+          ;;
+        knock)
+          knock_install_cmd=$(printf 'cd %q && python3 -m pip install --user -r requirements.txt && python3 -m pip install --user .' "${dest}")
+          if run_as_user "${knock_install_cmd}"; then
+            local knock_entry="${dest}/knockpy.py"
+            if [[ ! -f "${knock_entry}" && -f "${dest}/knockpy/knockpy.py" ]]; then
+              knock_entry="${dest}/knockpy/knockpy.py"
+            fi
+            if [[ -f "${knock_entry}" ]]; then
+              cat > /usr/local/bin/knockpy <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+python3 ${knock_entry} "\$@"
+EOF
+              chmod 0755 /usr/local/bin/knockpy
+              append_installed_tool "knockpy"
+            else
+              log_warn "knockpy entry script not found in ${dest}."
+            fi
+          else
+            log_warn "Failed to install knockpy via pip."
+          fi
+          ;;
+        Asnlookup)
+          asn_install_cmd=$(printf 'cd %q && python3 -m pip install --user -r requirements.txt' "${dest}")
+          if ! run_as_user "${asn_install_cmd}"; then
+            log_warn "Failed to install Asnlookup requirements."
+          fi
+          if [[ -f "${dest}/asnlookup.py" ]]; then
+            cat > /usr/local/bin/asnlookup <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+python3 /opt/vps-tools/Asnlookup/asnlookup.py "$@"
+EOF
+            chmod 0755 /usr/local/bin/asnlookup
+            append_installed_tool "asnlookup"
+          else
+            log_warn "Asnlookup entrypoint not found; wrapper not created."
+          fi
           ;;
         lazyrecon)
           chmod +x "${dest}/lazyrecon.sh" || true
@@ -297,7 +364,7 @@ write_tool_overview() {
   for module in "${GO_TOOLS[@]}"; do
     tool_name="${module%@*}"
     tool_name="${tool_name##*/}"
-    if [[ -n "${tool_name}" && -z "${go_seen[${tool_name}]}" ]]; then
+    if [[ -n "${tool_name}" && -z "${go_seen[${tool_name}]:-}" ]]; then
       go_seen["${tool_name}"]=1
       go_names+=("${tool_name}")
     fi

@@ -25,9 +25,9 @@ Each task can be executed independently:
 | `accounts` | Create the managed user, ensure wheel access, copy SSH credentials from `admin`, prompt for password, and offer to remove `admin` after switching. |
 | `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
-| `languages` | Install Python, pipx, Go, Ruby, and base build tools. |
+| `languages` | Install Python (with pip), pipx, Go, Ruby, and base build tools. |
 | `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
-| `tools` | Use pipx for recon utilities, install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers, and clone git-based tooling (JSParser/JSHawk wrappers included) into `/opt/vps-tools`. |
+| `tools` | Use pipx for recon utilities, install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers, and clone git-based tooling (JSParser/JSHawk wrappers, ReconFTW installer, knockpy/Asnlookup) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
 | `optional` | Configure VPN bypass helpers at the end of provisioning: Mullvad split tunneling (adds your package manager helper alongside pacman) or iptables policy routing to keep SSH reachable. |

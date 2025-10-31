@@ -93,6 +93,7 @@ install_container_engine() {
   case "${CONTAINER_ENGINE}" in
     docker)
       pacman_install_packages docker lazydocker
+      groupadd -f docker >/dev/null 2>&1 || true
       if getent group docker >/dev/null 2>&1; then
         if usermod -aG docker "${NEW_USER}" >/dev/null 2>&1; then
           log_info "Added ${NEW_USER} to docker group."
@@ -102,7 +103,22 @@ install_container_engine() {
       else
         log_warn "docker group not found; ensure it exists to grant non-root access."
       fi
-      systemctl enable --now docker.service >/dev/null 2>&1 || log_warn "Failed to enable docker.service."
+      if systemctl list-unit-files docker.service >/dev/null 2>&1; then
+        if systemctl enable --now docker.service >/dev/null 2>&1; then
+          log_info "docker.service enabled."
+        else
+          log_warn "Failed to enable docker.service; attempting to enable docker.socket instead."
+        fi
+      fi
+      if ! systemctl is-active docker.service >/dev/null 2>&1; then
+        if systemctl list-unit-files docker.socket >/dev/null 2>&1; then
+          if systemctl enable --now docker.socket >/dev/null 2>&1; then
+            log_info "docker.socket enabled for on-demand daemon startup."
+          else
+            log_warn "Failed to enable docker.socket. Start Docker manually when needed."
+          fi
+        fi
+      fi
       append_installed_tool "docker"
       append_installed_tool "lazydocker"
       ;;
