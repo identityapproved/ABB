@@ -110,19 +110,9 @@ install_pdtm() {
 
 install_projectdiscovery_tools() {
   install_pdtm
-  if ! run_as_user "command -v pdtm >/dev/null 2>&1"; then
-    log_warn "pdtm not found; ProjectDiscovery tool installs skipped."
-    return
+  if run_as_user "command -v pdtm >/dev/null 2>&1"; then
+    log_info "pdtm installed. Use 'pdtm install --force <tool>' after sourcing ~/.bashrc to pull ProjectDiscovery binaries."
   fi
-  for app in "${PDTM_TOOLS[@]}"; do
-    local cmd
-    cmd=$(printf 'PDTM_BIN_DIR="$HOME/.local/bin" pdtm install --force %q' "${app}")
-    if run_as_user "${cmd}"; then
-      append_installed_tool "${app}"
-    else
-      log_warn "pdtm install failed for ${app}"
-    fi
-  done
 }
 
 install_language_helpers() {
@@ -320,75 +310,75 @@ write_tool_overview() {
   fi
 
   {
-    printf "Arch Bugbounty Bootstrap Tool Overview\n"
-    printf "=======================================\n\n"
-    printf "Managed user: %s\n" "${NEW_USER}"
-    printf "Package manager: %s\n" "${package_manager_display}"
-    printf "Node manager: %s\n" "${node_manager_display}"
-    printf "Container engine: %s\n\n" "${CONTAINER_ENGINE:-not selected}"
+    printf '%s\n' "Arch Bugbounty Bootstrap Tool Overview"
+    printf '%s\n\n' "======================================="
+    printf 'Managed user: %s\n' "${NEW_USER}"
+    printf 'Package manager: %s\n' "${package_manager_display}"
+    printf 'Node manager: %s\n' "${node_manager_display}"
+    printf 'Container engine: %s\n\n' "${CONTAINER_ENGINE:-not selected}"
 
-    printf "System Utilities (pacman)\n"
-    printf "-------------------------\n"
+    printf '%s\n' "System Utilities (pacman)"
+    printf '%s\n' "-------------------------"
     if ((${#system_sorted[@]})); then
       for module in "${system_sorted[@]}"; do
-        printf " - %s\n" "${module}"
+        printf ' - %s\n' "${module}"
       done
     else
-      printf " - (none recorded)\n"
+      printf '%s\n' " - (none recorded)"
     fi
-    printf "\n"
+    printf '\n'
 
-    printf "Language Runtimes\n"
-    printf "-----------------\n"
-    printf " - Python  (pacman: python, python-pipx)\n"
-    printf " - Go      (pacman: go)\n"
-    printf " - Ruby    (pacman: ruby, base-devel)\n\n"
+    printf '%s\n' "Language Runtimes"
+    printf '%s\n' "-----------------"
+    printf '%s\n' " - Python  (pacman: python, python-pipx, python-setuptools)"
+    printf '%s\n' " - Go      (pacman: go)"
+    printf '%s\n\n' " - Ruby    (pacman: ruby, base-devel)"
 
-    printf "pipx Applications\n"
-    printf "-----------------\n"
+    printf '%s\n' "pipx Applications"
+    printf '%s\n' "-----------------"
     if ((${#pipx_sorted[@]})); then
       for module in "${pipx_sorted[@]}"; do
-        printf " - %s\n" "${module}"
+        printf ' - %s\n' "${module}"
       done
     else
-      printf " - (none installed)\n"
+      printf '%s\n' " - (none installed)"
     fi
-    printf "\n"
+    printf '\n'
 
-    printf "ProjectDiscovery (pdtm)\n"
-    printf "-----------------------\n"
+    printf '%s\n' "ProjectDiscovery (pdtm)"
+    printf '%s\n' "-----------------------"
     if ((${#pd_sorted[@]})); then
       for module in "${pd_sorted[@]}"; do
-        printf " - %s\n" "${module}"
+        printf ' - %s\n' "${module}"
       done
     else
-      printf " - (none installed)\n"
+      printf '%s\n' " - (none installed)"
     fi
-    printf "\n"
+    printf '\n'
 
-    printf "Go-Based Utilities\n"
-    printf "------------------\n"
+    printf '%s\n' "Go-Based Utilities"
+    printf '%s\n' "------------------"
     if ((${#go_sorted[@]})); then
       for module in "${go_sorted[@]}"; do
-        printf " - %s\n" "${module}"
+        printf ' - %s\n' "${module}"
       done
     else
-      printf " - (none installed)\n"
+      printf '%s\n' " - (none installed)"
     fi
-    printf "\n"
+    printf '\n'
 
-    printf "Git / Binary Tools\n"
-    printf "------------------\n"
+    printf '%s\n' "Git / Binary Tools"
+    printf '%s\n' "------------------"
     for module in "${!GIT_TOOLS[@]}"; do
-      printf " - %s\n" "${module}"
+      printf ' - %s\n' "${module}"
     done
-    printf "\n"
+    printf '\n'
 
-    printf "Tracking Files\n"
-    printf "--------------\n"
-    printf " - %s/installed-tools.txt (one tool per line)\n" "${user_home}"
-    printf " - %s (this summary)\n" "${overview_file}"
-    printf " - /var/log/vps-setup.log (provisioning log)\n"
+    printf '%s\n' "Tracking Files"
+    printf '%s\n' "--------------"
+    printf ' - %s/installed-tools.txt (one tool per line)\n' "${user_home}"
+    printf ' - %s (this summary)\n' "${overview_file}"
+    printf '%s\n' " - /var/log/vps-setup.log (provisioning log)"
   } > "${tmp_file}"
 
   install -m 0644 "${tmp_file}" "${overview_file}"

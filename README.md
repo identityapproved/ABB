@@ -14,6 +14,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW and Asnlookup.
 - Finish with `./abb-setup.sh optional` (automatically included in `all`) if you want Mullvad split tunneling or an iptables route that preserves SSH during VPN use.
+- Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
