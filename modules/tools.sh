@@ -8,6 +8,7 @@ declare -A PIPX_APPS=(
   [Sublist3r]='sublist3r'
   [dirsearch]='dirsearch'
   [sqlmap]='sqlmap'
+  [knockpy]='git+https://github.com/guelfoweb/knock.git'
 )
 
 declare -A PIPX_EXTRA_ARGS=(
@@ -15,6 +16,7 @@ declare -A PIPX_EXTRA_ARGS=(
   [xnLinkFinder]='--include-deps'
   [urless]='--include-deps'
   [xnldorker]='--include-deps'
+  [knockpy]='--include-deps'
 )
 
 PDTM_TOOLS=(
@@ -86,10 +88,6 @@ declare -A GIT_TOOLS=(
   [massdns]='https://github.com/blechschmidt/massdns.git'
   [SecLists]='https://github.com/danielmiessler/SecLists.git'
   [JSParser]='https://github.com/nahamsec/JSParser.git'
-  [reconftw]='https://github.com/six2dez/reconftw.git'
-  [knock]='https://github.com/guelfoweb/knock.git'
-  [Asnlookup]='https://github.com/yassineaboukir/Asnlookup.git'
-  [JSHawk]='https://github.com/Mah3Sec/JSHawk.git'
 )
 
 install_pdtm() {
@@ -170,29 +168,24 @@ install_go_tools() {
   done
 }
 
+ensure_jsparser_env() {
+  if run_as_user "pipx list --short | grep -Eq '^jsparser '"; then
+    return 0
+  fi
+  local install_cmd='pipx install --force --include-deps git+https://github.com/nahamsec/JSParser.git'
+  if run_as_user "${install_cmd}"; then
+    return 0
+  fi
+  log_warn "pipx installation failed for JSParser."
+  return 1
+}
+
 install_jsparser_wrapper() {
   local wrapper="/usr/local/bin/jsparser"
   cat > "${wrapper}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-python3 /opt/vps-tools/JSParser/JSParser.py "$@"
-EOF
-  chmod 0755 "${wrapper}"
-}
-
-install_jshawk_wrapper() {
-  local wrapper="/usr/local/bin/jshawk"
-  cat > "${wrapper}" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-repo="/opt/vps-tools/JSHawk"
-for entry in "JSHawk.py" "jshawk.py" "jshawK.py"; do
-  if [[ -f "${repo}/${entry}" ]]; then
-    exec python3 "${repo}/${entry}" "$@"
-  fi
-done
-echo "JSHawk entry point not found in ${repo}" >&2
-exit 1
+exec pipx run jsparser "$@"
 EOF
   chmod 0755 "${wrapper}"
 }
@@ -208,8 +201,27 @@ ensure_wordlist_workspace() {
   fi
 }
 
+install_jshawk_release() {
+  local url="https://github.com/Mah3Sec/JSHawk/releases/latest/download/JSHawk.sh"
+  local dest="${TOOL_BASE_DIR}/JSHawk"
+  if [[ -x /usr/local/bin/jshawk ]]; then
+    append_installed_tool "JSHawk"
+    log_info "JSHawk wrapper already present; skipping download."
+    return
+  fi
+  install -d -m 0755 "${dest}"
+  if curl -fsSL "${url}" -o "${dest}/JSHawk.sh"; then
+    chmod 0755 "${dest}/JSHawk.sh"
+    install -m 0755 "${dest}/JSHawk.sh" /usr/local/bin/jshawk
+    append_installed_tool "JSHawk"
+    log_info "Installed JSHawk shell wrapper from release archive."
+  else
+    log_warn "Failed to download JSHawk release script."
+  fi
+}
+
 install_git_python_tools() {
-  local tool repo dest jsparser_setup_cmd jshawk_link_cmd recon_install_cmd knock_install_cmd asn_install_cmd
+  local tool repo dest
   install -d -m 0755 "${TOOL_BASE_DIR}"
   for tool in "${!GIT_TOOLS[@]}"; do
     repo="${GIT_TOOLS[$tool]}"
@@ -234,87 +246,11 @@ install_git_python_tools() {
           ensure_wordlist_workspace
           ;;
         JSParser)
-          run_as_user "python3 -m pip install --user safeurl tornado jsbeautifier" || log_warn "Failed to install JSParser Python dependencies."
-          jsparser_setup_cmd=$(printf 'cd %q && python3 setup.py install --user' "${dest}")
-          run_as_user "${jsparser_setup_cmd}" || log_warn "python3 setup.py install failed for JSParser."
-          install_jsparser_wrapper
-          append_installed_tool "JSParser"
-          ;;
-        JSHawk)
-          run_as_user "mkdir -p ~/.local/bin" || true
-          if [[ -f "${dest}/JSHawk.py" ]]; then
-            jshawk_link_cmd=$(printf 'ln -sf %q ~/.local/bin/jshawk.py' "${dest}/JSHawk.py")
-            run_as_user "${jshawk_link_cmd}" || log_warn "Failed to link JSHawk python entrypoint."
-          fi
-          if [[ -f "${dest}/JSHawk.sh" ]]; then
-            install -m 0755 "${dest}/JSHawk.sh" /usr/local/bin/jshawk || log_warn "Failed to install JSHawk.sh wrapper."
+          if ensure_jsparser_env; then
+            install_jsparser_wrapper
+            append_installed_tool "JSParser"
           else
-            install_jshawk_wrapper
-          fi
-          append_installed_tool "JSHawk"
-          ;;
-        reconftw)
-          chmod +x "${dest}/install.sh" "${dest}/reconftw.sh" 2>/dev/null || true
-          if [[ -x "${dest}/install.sh" ]]; then
-            recon_install_cmd=$(printf 'cd %q && ./install.sh' "${dest}")
-            if run_as_user "${recon_install_cmd}"; then
-              if [[ -x "${dest}/reconftw.sh" ]]; then
-                cat > /usr/local/bin/reconftw <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-cd /opt/vps-tools/reconftw
-./reconftw.sh "$@"
-EOF
-                chmod 0755 /usr/local/bin/reconftw
-                append_installed_tool "reconftw"
-                log_info "ReconFTW available locally. Docker alternative: docker pull six2dez/reconftw:main"
-              else
-                log_warn "ReconFTW script not found. Check /opt/vps-tools/reconftw/reconftw.sh"
-              fi
-            else
-              log_warn "ReconFTW install script failed. Review /opt/vps-tools/reconftw/install.sh manually."
-            fi
-          else
-            log_warn "ReconFTW install.sh missing; skipping automated setup."
-          fi
-          ;;
-        knock)
-          knock_install_cmd=$(printf 'cd %q && python3 -m pip install --user -r requirements.txt && python3 -m pip install --user .' "${dest}")
-          if run_as_user "${knock_install_cmd}"; then
-            local knock_entry="${dest}/knockpy.py"
-            if [[ ! -f "${knock_entry}" && -f "${dest}/knockpy/knockpy.py" ]]; then
-              knock_entry="${dest}/knockpy/knockpy.py"
-            fi
-            if [[ -f "${knock_entry}" ]]; then
-              cat > /usr/local/bin/knockpy <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-python3 ${knock_entry} "\$@"
-EOF
-              chmod 0755 /usr/local/bin/knockpy
-              append_installed_tool "knockpy"
-            else
-              log_warn "knockpy entry script not found in ${dest}."
-            fi
-          else
-            log_warn "Failed to install knockpy via pip."
-          fi
-          ;;
-        Asnlookup)
-          asn_install_cmd=$(printf 'cd %q && python3 -m pip install --user -r requirements.txt' "${dest}")
-          if ! run_as_user "${asn_install_cmd}"; then
-            log_warn "Failed to install Asnlookup requirements."
-          fi
-          if [[ -f "${dest}/asnlookup.py" ]]; then
-            cat > /usr/local/bin/asnlookup <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-python3 /opt/vps-tools/Asnlookup/asnlookup.py "$@"
-EOF
-            chmod 0755 /usr/local/bin/asnlookup
-            append_installed_tool "asnlookup"
-          else
-            log_warn "Asnlookup entrypoint not found; wrapper not created."
+            log_warn "JSParser wrapper not installed due to pipx failure."
           fi
           ;;
         lazyrecon)
@@ -465,5 +401,6 @@ run_task_tools() {
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
+  install_jshawk_release
   write_tool_overview
 }

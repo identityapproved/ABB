@@ -57,7 +57,7 @@ sudo pacman -Syu --noconfirm
 - Maintain `~${NEW_USER}/installed-tools.txt`, appending each tool once it is installed and detected on `PATH`.
 
 ## 7. Language Runtimes (install before tools)
-- Python & pipx: `sudo pacman --needed --noconfirm -S python python-pipx`
+- Python & pipx: `sudo pacman --needed --noconfirm -S python python-pipx python-setuptools`
 - Go: `sudo pacman --needed --noconfirm -S go`
 - Ruby & build deps: `sudo pacman --needed --noconfirm -S ruby base-devel`
 - Run `pipx ensurepath` for the managed user; record versions for logs.
@@ -70,7 +70,7 @@ sudo pacman -Syu --noconfirm
 
 ## 9. Tool Catalogue
 ### 9.1 pipx & ProjectDiscovery
-- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, reconFTW, Sublist3r, dirsearch, sqlmap, knockpy, asnlookup.
+- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy.
 - Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
 
 ### 9.2 Go Tools
@@ -82,7 +82,10 @@ sudo pacman -Syu --noconfirm
 
 ### 9.3 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), JSParser (ship a wrapper under `/usr/local/bin/jsparser`), Aquatone from release binaries, etc.
+- Tools: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), Aquatone from release binaries, etc.
+
+### 9.4 Docker Helpers
+- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`) and Asnlookup (build from the repository Dockerfile) that execute the containers via `/usr/local/bin/reconftw` and `/usr/local/bin/asnlookup`.
 
 ## 10. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.

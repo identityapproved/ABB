@@ -29,6 +29,8 @@ source "${MODULE_DIR}/dotfiles.sh"
 source "${MODULE_DIR}/verify.sh"
 # shellcheck source=modules/optional.sh
 source "${MODULE_DIR}/optional.sh"
+# shellcheck source=modules/docker_tools.sh
+source "${MODULE_DIR}/docker_tools.sh"
 
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
@@ -54,6 +56,7 @@ Tasks:
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
+  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup) when Docker is the chosen engine.
   optional    Configure optional VPN bypass helpers (Mullvad split tunnel or iptables route).
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
@@ -72,6 +75,7 @@ run_task_all() {
   run_task_tools
   run_task_dotfiles
   run_task_verify
+  run_task_docker_tools
   run_task_optional
 }
 
@@ -120,6 +124,10 @@ main() {
     verify)
       log_info "Running verification task"
       run_task_verify
+      ;;
+    docker-tools)
+      log_info "Running docker tools task"
+      run_task_docker_tools
       ;;
     optional)
       log_info "Running optional VPN bypass task"
