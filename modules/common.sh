@@ -18,6 +18,35 @@ log_error() { printf '[%s] ERROR: %s\n' "$(date --iso-8601=seconds)" "$*" >&2; }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+systemd_available() {
+  if ! command_exists systemctl; then
+    return 1
+  fi
+  systemctl list-unit-files >/dev/null 2>&1
+}
+
+enable_unit() {
+  local unit="$1" description="${2:-$1}"
+  if ! systemd_available; then
+    log_warn "systemd not detected; skipping enablement for ${description}."
+    return 1
+  fi
+  if ! systemctl list-unit-files "${unit}" >/dev/null 2>&1; then
+    log_warn "Unit ${unit} not found; unable to enable ${description}."
+    return 1
+  fi
+  if systemctl is-enabled "${unit}" >/dev/null 2>&1 && systemctl is-active "${unit}" >/dev/null 2>&1; then
+    log_info "${description} already enabled."
+    return 0
+  fi
+  if systemctl enable --now "${unit}" >/dev/null 2>&1; then
+    log_info "Enabled ${description}."
+    return 0
+  fi
+  log_warn "Failed to enable ${description}; review system logs for details."
+  return 1
+}
+
 append_installed_tool() {
   local tool="$1"
   [[ -z "${INSTALLED_TRACK_FILE}" || -z "${tool}" ]] && return 0

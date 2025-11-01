@@ -40,7 +40,7 @@ install_mullvad() {
     if command_exists mullvad; then
       run_as_user "mullvad --version" >/dev/null 2>&1 || true
     fi
-    systemctl enable --now mullvad-daemon >/dev/null 2>&1 || log_warn "Unable to enable mullvad-daemon."
+    enable_unit "mullvad-daemon.service" "Mullvad daemon" || true
   else
     log_warn "Failed to install Mullvad VPN via ${PACKAGE_MANAGER}."
   fi
@@ -103,20 +103,9 @@ install_container_engine() {
       else
         log_warn "docker group not found; ensure it exists to grant non-root access."
       fi
-      if systemctl list-unit-files docker.service >/dev/null 2>&1; then
-        if systemctl enable --now docker.service >/dev/null 2>&1; then
-          log_info "docker.service enabled."
-        else
-          log_warn "Failed to enable docker.service; attempting to enable docker.socket instead."
-        fi
-      fi
-      if ! systemctl is-active docker.service >/dev/null 2>&1; then
-        if systemctl list-unit-files docker.socket >/dev/null 2>&1; then
-          if systemctl enable --now docker.socket >/dev/null 2>&1; then
-            log_info "docker.socket enabled for on-demand daemon startup."
-          else
-            log_warn "Failed to enable docker.socket. Start Docker manually when needed."
-          fi
+      if ! enable_unit "docker.service" "Docker service"; then
+        if ! enable_unit "docker.socket" "Docker socket"; then
+          log_warn "Docker will need to be started manually when required."
         fi
       fi
       append_installed_tool "docker"
@@ -124,7 +113,7 @@ install_container_engine() {
       ;;
     podman)
       pacman_install_packages podman
-      systemctl enable --now podman.socket >/dev/null 2>&1 || log_warn "Failed to enable podman.socket."
+      enable_unit "podman.socket" "Podman socket" || true
       append_installed_tool "podman"
       ;;
     none)
@@ -139,8 +128,8 @@ install_container_engine() {
 install_system_utilities() {
   ensure_package_manager_ready
   pacman_install_packages "${SYSTEM_PACKAGES[@]}"
-  systemctl enable --now firewalld >/dev/null 2>&1 || log_warn "Failed to enable firewalld."
-  systemctl enable --now fail2ban >/dev/null 2>&1 || log_warn "Failed to enable fail2ban."
+  enable_unit "firewalld.service" "firewalld" || true
+  enable_unit "fail2ban.service" "fail2ban" || true
 
   install_mullvad
   ensure_node_manager

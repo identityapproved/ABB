@@ -51,13 +51,20 @@ configure_mullvad_bypass() {
     return 1
   fi
 
-  systemctl enable --now mullvad-daemon.service >/dev/null 2>&1 || {
-    log_error "Unable to enable mullvad-daemon.service."
+  if ! enable_unit "mullvad-daemon.service" "Mullvad daemon"; then
+    log_error "Unable to enable Mullvad daemon. Ensure the service is available and running."
     return 1
-  }
+  fi
+
+  local status_output=""
+  status_output="$(mullvad status 2>/dev/null || true)"
+  if grep -qi "not logged in" <<<"${status_output}"; then
+    log_error "Mullvad CLI reports it is not logged in. Run 'mullvad account login <account-code>' and rerun the optional task."
+    return 1
+  fi
 
   if ! mullvad split-tunnel set on >/dev/null 2>&1; then
-    log_error "Failed to enable Mullvad split tunneling."
+    log_error "Failed to enable Mullvad split tunneling. Ensure your account permits split-tunnel and rerun after 'mullvad account login <account-code>'."
     return 1
   fi
 
@@ -137,7 +144,7 @@ configure_iptables_bypass() {
 
   mkdir -p /etc/iptables
   if iptables-save > /etc/iptables/iptables.rules; then
-    systemctl enable --now iptables.service >/dev/null 2>&1 || log_warn "iptables.service could not be enabled."
+    enable_unit "iptables.service" "iptables persistence" || true
   else
     log_warn "Unable to persist iptables rules to /etc/iptables/iptables.rules."
   fi
@@ -161,8 +168,12 @@ WantedBy=multi-user.target
 EOF
 
   chmod 0644 "${service_file}"
-  systemctl daemon-reload
-  systemctl enable --now ssh-vpn-bypass.service >/dev/null 2>&1 || log_warn "Failed to enable ssh-vpn-bypass.service."
+  if systemd_available; then
+    systemctl daemon-reload >/dev/null 2>&1 || log_warn "systemctl daemon-reload failed."
+  else
+    log_warn "systemd not detected; skipping daemon-reload for ssh-vpn-bypass."
+  fi
+  enable_unit "ssh-vpn-bypass.service" "ssh-vpn-bypass service" || true
 
   log_info "iptables-based SSH bypass configured. Verify with 'ip rule show' and 'ip route show table 128'."
   return 0
