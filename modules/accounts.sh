@@ -159,10 +159,8 @@ verify_managed_user_ready() {
 suggest_login_transfer() {
   cat <<EOF
 Next steps:
-  - Connect as ${NEW_USER} via SSH (e.g., ssh ${NEW_USER}@<host>).
-  - Move or clone this ABB repository into /home/${NEW_USER}/ABB for day-to-day use.
-
-After logging in as ${NEW_USER}, rerun 'sudo ./abb-setup.sh accounts' to retire the 'admin' account.
+  - Reconnect as ${NEW_USER} via SSH (for example: ssh ${NEW_USER}@<host>).
+  - After reconnecting, run 'sudo ./abb-setup.sh accounts' to continue with provisioning.
 EOF
 }
 

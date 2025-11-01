@@ -85,10 +85,10 @@ run_as_user() {
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
   if command_exists setpriv; then
     setpriv --reuid="${NEW_USER}" --regid="${NEW_USER}" --init-groups \
-      /usr/bin/env -i HOME="${user_home}" SHELL=/bin/bash PATH="/usr/local/bin:/usr/bin:/bin" \
+      /usr/bin/env -i HOME="${user_home}" SHELL=/bin/bash PATH="/usr/local/bin:/usr/bin:/bin:${user_home}/.local/bin:${user_home}/.pdtm/go/bin" \
       /bin/bash -lc "${cmd}"
   else
-    runuser -l "${NEW_USER}" -- bash -lc "${cmd}"
+    runuser -l "${NEW_USER}" -- env PATH="/usr/local/bin:/usr/bin:/bin:${user_home}/.local/bin:${user_home}/.pdtm/go/bin" bash -lc "${cmd}"
   fi
 }
 

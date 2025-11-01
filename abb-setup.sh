@@ -65,6 +65,15 @@ Each task reads cached answers from /var/lib/vps-setup/answers.env and will prom
 EOF
 }
 
+show_next_steps() {
+  local next_file="${REPO_ROOT}/NEXT_STEPS.md"
+  if [[ -f "${next_file}" ]]; then
+    printf '\n=== Next Steps Reference ===\n'
+    cat "${next_file}"
+    printf '\n'
+  fi
+}
+
 run_task_all() {
   run_task_prompts
   run_task_accounts
@@ -145,6 +154,9 @@ main() {
   esac
 
   log_info "Task '${task}' completed."
+  if [[ "${task}" == "all" || "${task}" == "docker-tools" ]]; then
+    show_next_steps
+  fi
 }
 
 main "$@"

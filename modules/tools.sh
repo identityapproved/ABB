@@ -202,21 +202,24 @@ ensure_wordlist_workspace() {
 }
 
 install_jshawk_release() {
-  local url="https://github.com/Mah3Sec/JSHawk/releases/latest/download/JSHawk.sh"
-  local dest="${TOOL_BASE_DIR}/JSHawk"
+  local repo="https://github.com/Mah3Sec/JSHawk.git"
+  local repo_dir="${TOOL_BASE_DIR}/JSHawk"
   if [[ -x /usr/local/bin/jshawk ]]; then
     append_installed_tool "JSHawk"
-    log_info "JSHawk wrapper already present; skipping download."
+    log_info "JSHawk wrapper already present; skipping update."
     return
   fi
-  install -d -m 0755 "${dest}"
-  if curl -fsSL "${url}" -o "${dest}/JSHawk.sh"; then
-    chmod 0755 "${dest}/JSHawk.sh"
-    install -m 0755 "${dest}/JSHawk.sh" /usr/local/bin/jshawk
-    append_installed_tool "JSHawk"
-    log_info "Installed JSHawk shell wrapper from release archive."
+  if ensure_git_repo "${repo}" "${repo_dir}"; then
+    if [[ -f "${repo_dir}/JSHawk.sh" ]]; then
+      chmod 0755 "${repo_dir}/JSHawk.sh" || log_warn "Failed to mark JSHawk.sh executable."
+      install -m 0755 "${repo_dir}/JSHawk.sh" /usr/local/bin/jshawk
+      append_installed_tool "JSHawk"
+      log_info "Installed JSHawk shell wrapper from development repository."
+    else
+      log_warn "JSHawk.sh not found in cloned repository."
+    fi
   else
-    log_warn "Failed to download JSHawk release script."
+    log_warn "Unable to clone JSHawk repository."
   fi
 }
 
