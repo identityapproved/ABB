@@ -13,7 +13,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW and Asnlookup.
-- Finish with `./abb-setup.sh optional` (automatically included in `all`) if you want Mullvad split tunneling or an iptables route that preserves SSH during VPN use.
+- Finish with `./abb-setup.sh vpn-bypass` (automatically included in `all`) if you want an iptables policy route that preserves SSH reachability while a VPN is active.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
@@ -33,7 +33,7 @@ Each task can be executed independently:
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
 | `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile) when Docker is the chosen container engine. |
-| `optional` | Configure VPN bypass helpers at the end of provisioning: Mullvad split tunneling (adds your package manager helper alongside pacman) or iptables policy routing to keep SSH reachable. |
+| `vpn-bypass` | Configure an iptables-based policy route so SSH traffic remains outside the VPN tunnel. |
 
 ## Highlights
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
@@ -42,7 +42,7 @@ Each task can be executed independently:
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, and guarded Node manager/LazyVim hooks.
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`, and `~/wordlists/custom` is created for your own mutations.
-- **VPN bypass choices:** The optional task can wire up Mullvad split tunneling (including your chosen AUR helper) or an iptables-based route table so SSH sessions survive VPN activation.
+- **VPN bypass:** The `vpn-bypass` task offers a reusable iptables policy route so SSH sessions survive VPN activation.
 - **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW/Asnlookup wrappers when Docker is present.
 - **Release-friendly tools:** JSParser installs through pipx while keeping a local checkout, and the latest JSHawk release script is downloaded directly into `/usr/local/bin/jshawk`.
 

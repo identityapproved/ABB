@@ -27,8 +27,8 @@ source "${MODULE_DIR}/tools.sh"
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
 source "${MODULE_DIR}/verify.sh"
-# shellcheck source=modules/optional.sh
-source "${MODULE_DIR}/optional.sh"
+# shellcheck source=modules/vpn_bypass.sh
+source "${MODULE_DIR}/vpn_bypass.sh"
 # shellcheck source=modules/docker_tools.sh
 source "${MODULE_DIR}/docker_tools.sh"
 
@@ -57,7 +57,7 @@ Tasks:
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
   docker-tools Install Docker-based utilities (ReconFTW, Asnlookup) when Docker is the chosen engine.
-  optional    Configure optional VPN bypass helpers (Mullvad split tunnel or iptables route).
+  vpn-bypass  Configure iptables-based VPN/SSH bypass rules.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -85,7 +85,7 @@ run_task_all() {
   run_task_dotfiles
   run_task_verify
   run_task_docker_tools
-  run_task_optional
+  run_task_vpn_bypass
 }
 
 main() {
@@ -138,9 +138,9 @@ main() {
       log_info "Running docker tools task"
       run_task_docker_tools
       ;;
-    optional)
-      log_info "Running optional VPN bypass task"
-      run_task_optional
+    vpn-bypass)
+      log_info "Running vpn-bypass task"
+      run_task_vpn_bypass
       ;;
     all)
       log_info "Running full provisioning workflow"

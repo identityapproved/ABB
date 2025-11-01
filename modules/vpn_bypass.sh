@@ -21,85 +21,20 @@ prompt_for_vpn_bypass_mode() {
   fi
 
   while [[ -z "${VPN_BYPASS_MODE}" ]]; do
-    read -rp "Select VPN bypass approach (mullvad/iptables/skip): " choice </dev/tty || { log_error "Unable to read VPN bypass selection."; exit 1; }
+    read -rp "Enable iptables-based SSH/VPN bypass? (yes/no): " choice </dev/tty || { log_error "Unable to read VPN bypass selection."; exit 1; }
     case "${choice,,}" in
-      mullvad)
-        VPN_BYPASS_MODE="mullvad"
-        ;;
-      iptables)
+      yes|y)
         VPN_BYPASS_MODE="iptables"
         ;;
-      skip|none)
+      no|n|skip|none)
         VPN_BYPASS_MODE="none"
         ;;
       *)
-        echo "Valid options: mullvad, iptables, or skip." >/dev/tty
+        echo "Please answer yes or no." >/dev/tty
         ;;
     esac
   done
   log_info "VPN bypass mode set to ${VPN_BYPASS_MODE}"
-}
-
-configure_mullvad_bypass() {
-  local -a candidates=("/usr/bin/sshd" "/usr/bin/ssh" "/usr/bin/pacman")
-  local helper_path=""
-  local entry=""
-  declare -A seen=()
-
-  if ! command_exists mullvad; then
-    log_error "Mullvad CLI not detected. Run 'abb-setup.sh utilities' (with Mullvad enabled) before selecting this mode."
-    return 1
-  fi
-
-  if ! enable_unit "mullvad-daemon.service" "Mullvad daemon"; then
-    log_error "Unable to enable Mullvad daemon. Ensure the service is available and running."
-    return 1
-  fi
-
-  local status_output=""
-  status_output="$(mullvad status 2>/dev/null || true)"
-  if grep -qi "not logged in" <<<"${status_output}"; then
-    log_error "Mullvad CLI reports it is not logged in. Run 'mullvad account login <account-code>' and rerun the optional task."
-    return 1
-  fi
-
-  if ! mullvad split-tunnel set on >/dev/null 2>&1; then
-    log_error "Failed to enable Mullvad split tunneling. Ensure your account permits split-tunnel and rerun after 'mullvad account login <account-code>'."
-    return 1
-  fi
-
-  if [[ -n "${PACKAGE_MANAGER}" ]]; then
-    helper_path="$(command -v "${PACKAGE_MANAGER}" 2>/dev/null || true)"
-    if [[ -n "${helper_path}" ]]; then
-      candidates+=("${helper_path}")
-    fi
-  fi
-
-  for entry in "${candidates[@]}"; do
-    [[ ! -e "${entry}" ]] && continue
-    if [[ -z "${seen[${entry}]}" ]]; then
-      if mullvad split-tunnel add "${entry}" >/dev/null 2>&1; then
-        log_info "Excluded ${entry} from Mullvad tunnel."
-      else
-        log_warn "Could not exclude ${entry}; it may already be configured."
-      fi
-      seen["${entry}"]=1
-    fi
-  done
-
-  mullvad split-tunnel list || log_warn "Unable to list Mullvad split-tunnel configuration."
-  if mullvad connect >/dev/null 2>&1; then
-    log_info "Mullvad VPN connected."
-  else
-    log_warn "Unable to connect to Mullvad automatically. Run 'mullvad login' and 'mullvad connect' manually if required."
-  fi
-  if mullvad status >/dev/null 2>&1; then
-    log_info "Mullvad status: $(mullvad status 2>/dev/null | head -n1)"
-  else
-    log_warn "Mullvad daemon responsive but not connected; authenticate with 'mullvad login' if required."
-  fi
-  log_info "Mullvad SSH bypass configuration completed."
-  return 0
 }
 
 configure_iptables_bypass() {
@@ -179,17 +114,12 @@ EOF
   return 0
 }
 
-run_task_optional() {
+run_task_vpn_bypass() {
   load_previous_answers
   prompt_for_vpn_bypass_mode
   record_prompt_answers
 
   case "${VPN_BYPASS_MODE}" in
-    mullvad)
-      if ! configure_mullvad_bypass; then
-        log_error "Mullvad bypass configuration failed."
-      fi
-      ;;
     iptables)
       if ! configure_iptables_bypass; then
         log_error "iptables bypass configuration failed."
