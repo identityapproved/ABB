@@ -13,7 +13,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW and Asnlookup.
-- Finish with `./abb-setup.sh vpn-bypass` (automatically included in `all`) if you want an iptables policy route that preserves SSH reachability while a VPN is active.
+- After `./abb-setup.sh utilities` completes, inspect the generated WireGuard profiles, add any required Mullvad account details via the `mullvad-wg.sh` prompts, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
@@ -28,13 +28,11 @@ Each task can be executed independently:
 | `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, setuptools, Go, Ruby, and base build tools. |
-| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
+| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools/openresolv, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, bootstrap the chosen Node manager (`nvm` or `fnm`), configure the selected container engine (`docker` + `lazydocker` or `podman`), and automate Mullvad WireGuard provisioning. |
 | `tools` | Use pipx for recon utilities (waymore, Sublist3r, dnsvalidator, webscreenshot, etc.), install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, trufflehog, fuzzuli, and more), manage pacman recon packages (`amass`, `masscan`, `feroxbuster`), and clone/git-sync tooling and wordlists (massdns, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
 | `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile, CeWL image wrapper) when Docker is the chosen container engine. |
-| `vpn-bypass` | Configure an iptables-based policy route so SSH traffic remains outside the VPN tunnel. |
-
 ## Highlights
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
@@ -42,7 +40,7 @@ Each task can be executed independently:
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, and guarded Node manager/LazyVim hooks.
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`; the tools stage also syncs the cent repository and fetches permutations/resolvers lists alongside `~/wordlists/custom` for personal mutations.
-- **VPN bypass:** The `vpn-bypass` task offers a reusable iptables policy route so SSH sessions survive VPN activation.
+- **WireGuard ready:** Utilities install `wireguard-tools`/`openresolv`, run `mullvad-wg.sh`, patch WireGuard configs to keep SSH on the main table, and drop the Mullvad CLI helper in `~/bin`.
 - **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW, Asnlookup, and CeWL wrappers when Docker is present.
 - **Release-friendly tools:** JSParser installs through pipx while keeping a local checkout, and the latest JSHawk release script is downloaded directly into `/usr/local/bin/jshawk`.
 

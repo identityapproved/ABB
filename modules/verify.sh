@@ -4,7 +4,7 @@ final_verification() {
   log_info "Verification summary:"
 
   if command_exists pacman; then
-    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop wireguard-tools >/dev/null 2>&1; then
+    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
       log_warn "One or more core packages are missing. Review pacman output above."
     fi
   fi
@@ -23,10 +23,10 @@ final_verification() {
     log_warn "pdtm not detected for ${NEW_USER}."
   fi
 
-  if command_exists mullvad; then
-    run_as_user "mullvad --version" >/dev/null 2>&1 || log_warn "Mullvad CLI installed but version check failed."
+  if run_as_user "command -v mull >/dev/null 2>&1"; then
+    run_as_user "mull --help" >/dev/null 2>&1 || log_warn "Mullvad CLI (mull) responds unexpectedly."
   else
-    log_warn "Mullvad CLI not detected. Run 'abb-setup.sh utilities' to install mullvad-vpn-bin."
+    log_warn "Mullvad CLI wrapper 'mull' not detected. Re-run 'abb-setup.sh utilities' after reviewing the WireGuard setup logs."
   fi
 
   case "${NODE_MANAGER}" in

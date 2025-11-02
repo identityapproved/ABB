@@ -1,6 +1,6 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, `docker-tools`, `vpn-bypass`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, `docker-tools`, and `all`.
 
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
@@ -70,8 +70,10 @@ sudo pacman -Syu --noconfirm
 
 ## 8. System Utilities
 - Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`, `wireguard-tools`.
+- Ensure `openresolv` is also installed so WireGuard can manage DNS resolvers.
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
-- Include optional extras when requested: `mullvad-vpn-bin` via the configured AUR helper, etc.
+- Replace legacy Mullvad VPN packages by verifying the kernel is ≥5.11, downloading and executing `mullvad-wg.sh`, adding SSH-preserving policy routing to every `/etc/wireguard/*.conf`, cloning `Mullvad-CLI`, and symlinking its `mull` helper into `~/bin` (making sure `export PATH="$HOME/bin:$PATH"` lives in `.bashrc`/`.zshrc`).
+- After configuration, advise the operator to connect with `sudo wg-quick up <profile>` and verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
 ## 9. Tool Catalogue
@@ -88,7 +90,7 @@ sudo pacman -Syu --noconfirm
 
 ### 9.3 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc.
+- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
 
 ### 9.4 Docker Helpers
 - When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), and CeWL (pull `ghcr.io/digininja/cewl:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, and `/usr/local/bin/cewl` that run the respective containers and mount the current working directory (or a user-specified path).

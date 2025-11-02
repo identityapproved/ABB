@@ -138,7 +138,6 @@ record_prompt_answers() {
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
     printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
-    printf 'VPN_BYPASS_MODE=%q\n' "${VPN_BYPASS_MODE}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
