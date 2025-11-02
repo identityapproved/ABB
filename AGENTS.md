@@ -76,22 +76,25 @@ sudo pacman -Syu --noconfirm
 
 ## 9. Tool Catalogue
 ### 9.1 pipx & ProjectDiscovery
-- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy.
+- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy, dnsvalidator, webscreenshot.
 - Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
 
 ### 9.2 Go Tools
 - Use `go install ...@latest` for the remaining recon utilities:
-  - Recon: anew, assetfinder, waybackurls, hakrawler, puredns, gau, socialhunter, subzy, getJS, crobat, gowitness, httprobe, gospider, ffuf, gobuster, qsreplace.
-  - XSS & parameters: Gxss, bxss, kxss, dalfox, Tok, parameters, Jeeves, galer, quickcert, anti-burl, unfurl, fff, gron.
-  - Misc: github-subdomains, gotator, cero, cf-check, otx-url, mrco24-* binaries.
+  - Recon: anew, assetfinder, gau, gauplus, waybackurls, hakrawler, hakrevdns, ipcdn, puredns, socialhunter, subzy, getJS, crobat, gotator, gowitness, httprobe, gospider, ffuf, gobuster, qsreplace, meg, s3scanner.
+  - XSS & parameters: Gxss, bxss, kxss, dalfox, Tok, parameters, Jeeves, galer, quickcert, fuzzuli, anti-burl, unfurl, fff, gron.
+  - Misc: github-subdomains, exclude-cdn, dirdar, cero, cf-check, otx-url, trufflehog, mrco24-* binaries.
 - Deduplicate anything already managed by `pdtm`.
 
 ### 9.3 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), Aquatone from release binaries, etc.
+- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc.
 
 ### 9.4 Docker Helpers
-- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`) and Asnlookup (build from the repository Dockerfile) that execute the containers via `/usr/local/bin/reconftw` and `/usr/local/bin/asnlookup`.
+- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), and CeWL (pull `ghcr.io/digininja/cewl:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, and `/usr/local/bin/cewl` that run the respective containers and mount the current working directory (or a user-specified path).
+
+### 9.5 Pacman Recon Packages
+- Install `amass`, `masscan`, and `feroxbuster` via `pacman --needed --noconfirm` so the binaries stay system-managed.
 
 ## 10. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.

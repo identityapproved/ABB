@@ -9,6 +9,8 @@ declare -A PIPX_APPS=(
   [dirsearch]='dirsearch'
   [sqlmap]='sqlmap'
   [knockpy]='git+https://github.com/guelfoweb/knock.git'
+  [dnsvalidator]='dnsvalidator'
+  [webscreenshot]='webscreenshot'
 )
 
 declare -A PIPX_EXTRA_ARGS=(
@@ -17,6 +19,8 @@ declare -A PIPX_EXTRA_ARGS=(
   [urless]='--include-deps'
   [xnldorker]='--include-deps'
   [knockpy]='--include-deps'
+  [dnsvalidator]='--include-deps'
+  [webscreenshot]='--include-deps'
 )
 
 PDTM_TOOLS=(
@@ -78,6 +82,21 @@ GO_TOOLS=(
   github.com/tomnomnom/gron@latest
   github.com/tomnomnom/qsreplace@latest
   github.com/dwisiswant0/cf-check@latest
+  github.com/Cgboal/exclude-cdn@latest
+  github.com/m4dm0e/dirdar@latest
+  github.com/bp0lr/gauplus@latest
+  github.com/hakluke/hakrevdns@latest
+  github.com/six2dez/ipcdn@latest
+  github.com/tomnomnom/meg@latest
+  github.com/sa7mon/s3scanner@latest
+  github.com/trufflesecurity/trufflehog/v3@latest
+  github.com/musana/fuzzuli@latest
+)
+
+RECON_PACKAGES=(
+  amass
+  masscan
+  feroxbuster
 )
 
 declare -A GIT_TOOLS=(
@@ -146,6 +165,10 @@ install_go_tools() {
       github.com/ethicalhackingplayground/bxss/v2/cmd/bxss@latest)
         go_cmd=$(printf 'GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install -v %q' "${module}")
         ;;
+      github.com/trufflesecurity/trufflehog/v3@latest)
+        tool_name="trufflehog"
+        go_cmd=$(printf 'GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install -v %q' "${module}")
+        ;;
       *)
         go_cmd=$(printf 'GOBIN=$HOME/.local/bin GOPATH=$HOME/go GO111MODULE=on go install %q' "${module}")
         ;;
@@ -188,6 +211,43 @@ ensure_wordlist_workspace() {
   run_as_user "$(printf 'mkdir -p %q %q' "${wordlist_root}" "${wordlist_root}/custom")"
   if [[ -d "${TOOL_BASE_DIR}/SecLists" ]]; then
     run_as_user "$(printf 'ln -snf %q %q' "${TOOL_BASE_DIR}/SecLists" "${wordlist_root}/seclists")"
+  fi
+
+  local cent_repo="https://github.com/xm1k3/cent.git"
+  local cent_dest="${TOOL_BASE_DIR}/cent"
+  if ensure_git_repo "${cent_repo}" "${cent_dest}"; then
+    chown -R root:wheel "${cent_dest}" || true
+    chmod -R 0755 "${cent_dest}" || true
+    run_as_user "$(printf 'ln -snf %q %q' "${cent_dest}" "${wordlist_root}/cent")"
+    append_installed_tool "wordlist-cent"
+  else
+    log_warn "Unable to clone cent wordlist repository."
+  fi
+
+  local permutations_url="https://gist.github.com/six2dez/ffc2b14d283e8f8eff6ac83e20a3c4b4/raw"
+  local permutations_target="${wordlist_root}/permutations.txt"
+  if ! run_as_user "$(printf 'test -f %q' "${permutations_target}")"; then
+    if run_as_user "$(printf 'curl -fsSL %q -o %q' "${permutations_url}" "${permutations_target}")"; then
+      append_installed_tool "wordlist-permutations"
+      log_info "Downloaded permutations wordlist."
+    else
+      log_warn "Failed to download permutations wordlist."
+    fi
+  else
+    log_info "Permutations wordlist already present at ${permutations_target}."
+  fi
+
+  local resolvers_url="https://raw.githubusercontent.com/trickest/resolvers/master/resolvers.txt"
+  local resolvers_target="${wordlist_root}/resolvers.txt"
+  if ! run_as_user "$(printf 'test -f %q' "${resolvers_target}")"; then
+    if run_as_user "$(printf 'curl -fsSL %q -o %q' "${resolvers_url}" "${resolvers_target}")"; then
+      append_installed_tool "wordlist-resolvers"
+      log_info "Downloaded Trickest resolvers list."
+    else
+      log_warn "Failed to download Trickest resolvers list."
+    fi
+  else
+    log_info "Resolvers list already present at ${resolvers_target}."
   fi
 }
 
@@ -261,7 +321,7 @@ install_git_python_tools() {
 
 write_tool_overview() {
   local user_home overview_file tmp_file package_manager_display node_manager_display
-  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=()
+  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=()
   local module tool_name
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -309,6 +369,11 @@ write_tool_overview() {
     unset IFS
   fi
 
+  if ((${#RECON_PACKAGES[@]})); then
+    IFS=$'\n' recon_sorted=($(printf '%s\n' "${RECON_PACKAGES[@]}" | sort -u))
+    unset IFS
+  fi
+
   {
     printf '%s\n' "Arch Bugbounty Bootstrap Tool Overview"
     printf '%s\n\n' "======================================="
@@ -321,6 +386,17 @@ write_tool_overview() {
     printf '%s\n' "-------------------------"
     if ((${#system_sorted[@]})); then
       for module in "${system_sorted[@]}"; do
+        printf ' - %s\n' "${module}"
+      done
+    else
+      printf '%s\n' " - (none recorded)"
+    fi
+    printf '\n'
+
+    printf '%s\n' "Recon Packages (pacman)"
+    printf '%s\n' "-----------------------"
+    if ((${#recon_sorted[@]})); then
+      for module in "${recon_sorted[@]}"; do
         printf ' - %s\n' "${module}"
       done
     else
@@ -390,10 +466,43 @@ write_tool_overview() {
 run_task_tools() {
   ensure_user_context
   ensure_package_manager_ready
+  install_system_recon_packages
   install_language_helpers
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
+  install_dnscEwl
   install_jshawk_release
   write_tool_overview
+}
+install_system_recon_packages() {
+  local pkg
+  if ((${#RECON_PACKAGES[@]})); then
+    pacman_install_packages "${RECON_PACKAGES[@]}"
+    for pkg in "${RECON_PACKAGES[@]}"; do
+      append_installed_tool "${pkg}"
+    done
+  fi
+}
+
+install_dnscEwl() {
+  local target="/usr/local/bin/DNSCewl"
+  local tmp
+  if [[ -x "${target}" ]]; then
+    log_info "DNSCewl already present."
+    append_installed_tool "DNSCewl"
+    return
+  fi
+  tmp="$(mktemp)" || {
+    log_warn "Unable to create temporary file for DNSCewl download."
+    return
+  }
+  if curl -fsSL "https://github.com/codingo/DNSCewl/raw/master/DNScewl" -o "${tmp}"; then
+    install -m 0755 "${tmp}" "${target}"
+    append_installed_tool "DNSCewl"
+    log_info "Installed DNSCewl helper to ${target}."
+  else
+    log_warn "Failed to download DNSCewl binary."
+  fi
+  rm -f "${tmp}"
 }

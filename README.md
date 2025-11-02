@@ -29,10 +29,10 @@ Each task can be executed independently:
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, setuptools, Go, Ruby, and base build tools. |
 | `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, install `mullvad-vpn-bin`, bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
-| `tools` | Use pipx for recon utilities, install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers, and clone git-based tooling (massdns, SecLists, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
+| `tools` | Use pipx for recon utilities (waymore, Sublist3r, dnsvalidator, webscreenshot, etc.), install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, trufflehog, fuzzuli, and more), manage pacman recon packages (`amass`, `masscan`, `feroxbuster`), and clone/git-sync tooling and wordlists (massdns, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
-| `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile) when Docker is the chosen container engine. |
+| `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile, CeWL image wrapper) when Docker is the chosen container engine. |
 | `vpn-bypass` | Configure an iptables-based policy route so SSH traffic remains outside the VPN tunnel. |
 
 ## Highlights
@@ -41,9 +41,9 @@ Each task can be executed independently:
 - **No SSH tweaks:** Contabo already provisions keys; the script leaves `sshd_config` untouched while still offering optional sysctl/iptables hardening on demand.
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, and guarded Node manager/LazyVim hooks.
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
-- **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`, and `~/wordlists/custom` is created for your own mutations.
+- **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`; the tools stage also syncs the cent repository and fetches permutations/resolvers lists alongside `~/wordlists/custom` for personal mutations.
 - **VPN bypass:** The `vpn-bypass` task offers a reusable iptables policy route so SSH sessions survive VPN activation.
-- **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW/Asnlookup wrappers when Docker is present.
+- **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW, Asnlookup, and CeWL wrappers when Docker is present.
 - **Release-friendly tools:** JSParser installs through pipx while keeping a local checkout, and the latest JSHawk release script is downloaded directly into `/usr/local/bin/jshawk`.
 
 ## Rerun Guidance

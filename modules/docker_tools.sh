@@ -41,6 +41,25 @@ WRAP
   fi
 }
 
+install_cewl_container() {
+  local image="ghcr.io/digininja/cewl:latest"
+  if docker pull "${image}" >/dev/null 2>&1; then
+    cat > /usr/local/bin/cewl <<'WRAP'
+#!/usr/bin/env bash
+set -euo pipefail
+workdir="${CEWL_WORKDIR:-$PWD}"
+mkdir -p "${workdir}"
+image="ghcr.io/digininja/cewl:latest"
+exec docker run --rm -it -v "${workdir}:/host" "${image}" "$@"
+WRAP
+    chmod 0755 /usr/local/bin/cewl
+    append_installed_tool "cewl-docker"
+    log_info "CeWL docker wrapper installed."
+  else
+    log_warn "Failed to pull ${image}."
+  fi
+}
+
 ensure_docker_available() {
   if [[ "${CONTAINER_ENGINE}" != "docker" ]]; then
     log_info "Container engine '${CONTAINER_ENGINE}' is not docker; skipping docker tool setup."
@@ -60,4 +79,5 @@ run_task_docker_tools() {
   fi
   install_reconftw_container
   install_asnlookup_container
+  install_cewl_container
 }
