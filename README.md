@@ -9,7 +9,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
 - Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`).
-- Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user; rerun it from that account to remove `admin`, then move the ABB repo under the new home.
+- Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW and Asnlookup.
@@ -24,7 +24,7 @@ Each task can be executed independently:
 | Task | Description |
 | ---- | ----------- |
 | `prompts` | Capture answers for the managed user, editor preference, and hardening toggle; cache responses in `/var/lib/vps-setup/answers.env`. |
-| `accounts` | Create the managed user, ensure wheel access, copy SSH credentials from `admin`, prompt for password, and offer to remove `admin` after switching. |
+| `accounts` | Create the managed user, ensure wheel access, copy SSH credentials from `admin`, prompt for password, instruct you to run `sudo pacman -Syu`, `sudo pacman -S linux`, and reboot before continuing, then offer to remove `admin` after switching. |
 | `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, setuptools, Go, Ruby, and base build tools. |

@@ -160,7 +160,11 @@ suggest_login_transfer() {
   cat <<EOF
 Next steps:
   - Reconnect as ${NEW_USER} via SSH (for example: ssh ${NEW_USER}@<host>).
-  - After reconnecting, run 'sudo ./abb-setup.sh accounts' to continue with provisioning.
+  - Immediately update the system before running any ABB tasks:
+      sudo pacman -Syu
+      sudo pacman -S linux
+      sudo reboot
+  - After rebooting and logging back in as ${NEW_USER}, rerun 'sudo ./abb-setup.sh accounts' to continue with provisioning.
 EOF
 }
 

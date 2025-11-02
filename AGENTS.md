@@ -27,6 +27,12 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   sudo deluser --remove-home admin || true
   sudo userdel -r admin
   ```
+- After logging in as `${NEW_USER}`, require the operator to update and reboot before continuing:
+  ```bash
+  sudo pacman -Syu
+  sudo pacman -S linux
+  sudo reboot
+  ```
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
