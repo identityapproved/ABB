@@ -1,7 +1,19 @@
 # shellcheck shell=bash
 
+sanitize_vpn_bypass_mode() {
+  case "${VPN_BYPASS_MODE}" in
+    iptables|none)
+      return
+      ;;
+    *)
+      VPN_BYPASS_MODE=""
+      ;;
+  esac
+}
+
 prompt_for_vpn_bypass_mode() {
   local choice="" reuse=""
+  sanitize_vpn_bypass_mode
   if [[ -n "${VPN_BYPASS_MODE}" ]]; then
     while true; do
       read -rp "VPN bypass mode is currently '${VPN_BYPASS_MODE}'. Keep this selection? (yes/no): " reuse </dev/tty || { log_error "Unable to read VPN bypass confirmation."; exit 1; }
@@ -39,8 +51,35 @@ prompt_for_vpn_bypass_mode() {
 
 configure_iptables_bypass() {
   local ssh_port="" pub_iface="" pub_gateway="" service_file="/etc/systemd/system/ssh-vpn-bypass.service"
+  local -a required_modules=("ip_tables" "iptable_filter" "iptable_mangle" "iptable_nat")
 
   pacman_install_packages iptables iproute2
+
+  if ! iptables -t mangle -L >/dev/null 2>&1; then
+    if command_exists modprobe; then
+      local module=""
+      for module in "${required_modules[@]}"; do
+        local already_loaded=0
+        if command_exists lsmod && lsmod | awk '{print $1}' | grep -qx "${module}"; then
+          already_loaded=1
+        fi
+        if ((already_loaded == 0)); then
+          if modprobe "${module}" >/dev/null 2>&1; then
+            log_info "Loaded kernel module ${module}."
+          else
+            log_warn "Unable to load kernel module ${module}; iptables mangle table may remain unavailable."
+          fi
+        fi
+      done
+    else
+      log_warn "modprobe not available; cannot auto-load iptables kernel modules."
+    fi
+  fi
+
+  if ! iptables -t mangle -L >/dev/null 2>&1; then
+    log_error "iptables mangle table unavailable. Load the iptable_mangle module (e.g., 'sudo modprobe iptable_mangle') or ensure iptables-nft is installed/enabled, then rerun this task."
+    return 1
+  fi
 
   ssh_port="$(ss -ltnp | awk '/sshd/ {print $4}' | awk -F':' '{print $NF}' | head -n1)"
   [[ -z "${ssh_port}" ]] && ssh_port="22"
@@ -64,10 +103,17 @@ configure_iptables_bypass() {
   ip rule del fwmark "${ssh_port}" table 128 >/dev/null 2>&1 || true
   ip route flush table 128 >/dev/null 2>&1 || true
 
-  if ! iptables -t mangle -A OUTPUT -p tcp --sport "${ssh_port}" -j MARK --set-mark "${ssh_port}"; then
-    log_error "Failed to set iptables mark rule."
+  local iptables_err_file
+  iptables_err_file="$(mktemp)"
+  if ! iptables -t mangle -A OUTPUT -p tcp --sport "${ssh_port}" -j MARK --set-mark "${ssh_port}" 2>"${iptables_err_file}"; then
+    local iptables_err=""
+    iptables_err="$(<"${iptables_err_file}")"
+    rm -f "${iptables_err_file}"
+    log_error "Failed to set iptables mark rule. Details: ${iptables_err}"
+    log_error "Ensure iptable_mangle is loaded and the kernel supports iptables (legacy or nft)."
     return 1
   fi
+  rm -f "${iptables_err_file}"
   if ! ip rule add fwmark "${ssh_port}" table 128; then
     log_error "Failed to add policy routing rule."
     return 1
