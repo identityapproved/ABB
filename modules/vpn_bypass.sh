@@ -85,6 +85,9 @@ configure_iptables_bypass() {
   [[ -z "${ssh_port}" ]] && ssh_port="22"
   log_info "Detected SSH port: ${ssh_port}"
 
+  local mark_hex
+  mark_hex="$(printf '0x%x' "${ssh_port}")"
+
   pub_iface="$(ip route | awk '/default/ {print $5}' | head -n1)"
   if [[ -z "${pub_iface}" ]]; then
     log_error "Unable to determine default network interface."
@@ -99,8 +102,12 @@ configure_iptables_bypass() {
   fi
   log_info "Detected default gateway: ${pub_gateway}"
 
-  iptables -t mangle -D OUTPUT -p tcp --sport "${ssh_port}" -j MARK --set-mark "${ssh_port}" >/dev/null 2>&1 || true
-  ip rule del fwmark "${ssh_port}" table 128 >/dev/null 2>&1 || true
+  while iptables -t mangle -D OUTPUT -p tcp --sport "${ssh_port}" -j MARK --set-mark "${ssh_port}" >/dev/null 2>&1; do
+    log_info "Removed existing iptables mark rule for SSH port ${ssh_port}."
+  done
+  while ip rule del fwmark "${ssh_port}" table 128 >/dev/null 2>&1; do
+    log_info "Removed existing fwmark ${mark_hex} rule from table 128."
+  done
   ip route flush table 128 >/dev/null 2>&1 || true
 
   local iptables_err_file
@@ -138,8 +145,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/ip rule add fwmark ${ssh_port} table 128
-ExecStart=/usr/bin/ip route add default via ${pub_gateway} dev ${pub_iface} table 128
+ExecStart=/usr/bin/ip rule replace fwmark ${ssh_port} table 128
+ExecStart=/usr/bin/ip route replace default via ${pub_gateway} dev ${pub_iface} table 128
 ExecStop=/usr/bin/ip rule del fwmark ${ssh_port} table 128
 ExecStop=/usr/bin/ip route flush table 128
 RemainAfterExit=yes
