@@ -96,9 +96,6 @@ EOF
   if ! pacman -Qi blackarch-keyring >/dev/null 2>&1; then
     need_keyring=1
   fi
-  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
-    need_keyring=1
-  fi
 
   if ((need_keyring)); then
     if ! grep -Eq '^\s*SigLevel\s*=\s*Never\s*$' "${conf_file}"; then
