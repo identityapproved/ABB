@@ -36,7 +36,13 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
-- Before installing the helper, run the official BlackArch bootstrapper (`strap.sh`) with checksum verification, ensure multilib is enabled in `/etc/pacman.conf`, and refresh pacman (`pacman -Syu`).
+- Before installing the helper, integrate the BlackArch repository by writing `/etc/pacman.d/blackarch.conf` with:
+  ```
+  [blackarch]
+  Server = https://blackarch.org/repo/included/$arch
+  Include = /etc/pacman.d/mirrorlist
+  ```
+  Import and locally sign the BlackArch key (`curl -O https://blackarch.org/keyring/blackarch.asc`, `pacman-key --add blackarch.asc`, `pacman-key --lsign-key 0E5E3303`), ensure `/etc/pacman.conf` includes `Include = /etc/pacman.d/blackarch.conf`, enable `multilib`, and force-refresh pacman with `pacman -Syyu`. Do **not** install the `blackarch` meta-package.
 - After reconnecting as the managed user, install and cache the preferred AUR helper (choices: `yay`, `paru`, `pacaur`, `pikaur`, `aura`, `aurman`) and persist the choice so future runs skip reinstallation:
   ```bash
   sudo pacman --needed --noconfirm -S base-devel

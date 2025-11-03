@@ -44,38 +44,65 @@ enable_multilib_repo() {
 }
 
 install_blackarch_repo() {
-  local need_refresh=0 strap_path result
+  local need_refresh=0
+  local conf_file="/etc/pacman.d/blackarch.conf"
+  local key_tmp=""
+  local key_ids=""
+  local result
 
-  if ! grep -Eq '^\[blackarch\]' /etc/pacman.conf; then
-    strap_path="$(mktemp /tmp/blackarch-strap.XXXXXX.sh)"
-    if [[ -z "${strap_path}" ]]; then
-      log_error "Failed to create temporary file for blackarch strap script."
-      exit 1
-    fi
-    pacman_install_packages curl
-    if ! curl -fsSLo "${strap_path}" "https://blackarch.org/strap.sh"; then
-      log_error "Failed to download blackarch strap.sh."
-      rm -f "${strap_path}"
-      exit 1
-    fi
-
-    if ! printf 'e26445d34490cc06bd14b51f9924debf569e0ecb  %s\n' "${strap_path}" | sha1sum -c - >/dev/null 2>&1; then
-      log_error "SHA1 verification failed for blackarch strap.sh."
-      rm -f "${strap_path}"
-      exit 1
-    fi
-
-    chmod +x "${strap_path}"
-    if ! /bin/bash "${strap_path}"; then
-      log_error "blackarch strap.sh execution failed."
-      rm -f "${strap_path}"
-      exit 1
-    fi
-    rm -f "${strap_path}"
+  if [[ ! -f "${conf_file}" ]] || ! grep -Eq 'https://blackarch\.org/repo/included/\$arch' "${conf_file}"; then
+    cat <<'EOF' > "${conf_file}"
+[blackarch]
+Server = https://blackarch.org/repo/included/$arch
+Include = /etc/pacman.d/mirrorlist
+EOF
+    chmod 0644 "${conf_file}"
+    log_info "Configured BlackArch repository definition in ${conf_file}."
     need_refresh=1
-    log_info "BlackArch repository bootstrapped."
   else
-    log_info "BlackArch repository already present."
+    log_info "BlackArch repository definition already present at ${conf_file}."
+  fi
+
+  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
+    pacman_install_packages curl gnupg
+    key_tmp="$(mktemp /tmp/blackarch-key.XXXXXX.asc)"
+    if [[ -z "${key_tmp}" ]]; then
+      log_error "Failed to create temporary file for BlackArch key."
+      exit 1
+    fi
+    if ! curl -fsSLo "${key_tmp}" "https://blackarch.org/keyring/blackarch.asc"; then
+      log_error "Failed to download BlackArch key."
+      rm -f "${key_tmp}"
+      exit 1
+    fi
+    if ! pacman-key --add "${key_tmp}"; then
+      log_error "Failed to import BlackArch key into pacman keyring."
+      rm -f "${key_tmp}"
+      exit 1
+    fi
+    key_ids="$(gpg --with-colons --import-options show-only --import "${key_tmp}" 2>/dev/null | awk -F: '/^pub/ {print $5}')"
+    rm -f "${key_tmp}"
+    if [[ -z "${key_ids}" ]]; then
+      key_ids="0E5E3303"
+    fi
+    for key_id in ${key_ids}; do
+      if pacman-key --lsign-key "${key_id}"; then
+        log_info "Locally signed BlackArch key ${key_id}."
+      else
+        log_warn "Failed to locally sign BlackArch key ${key_id}."
+      fi
+    done
+    need_refresh=1
+  else
+    log_info "BlackArch pacman key already present."
+  fi
+
+  if ! grep -Eq '^\s*Include\s*=\s*/etc/pacman\.d/blackarch\.conf' /etc/pacman.conf; then
+    printf '\n# Include BlackArch repository configuration\nInclude = /etc/pacman.d/blackarch.conf\n' >> /etc/pacman.conf
+    log_info "Linked ${conf_file} from /etc/pacman.conf."
+    need_refresh=1
+  else
+    log_info "/etc/pacman.conf already references ${conf_file}."
   fi
 
   enable_multilib_repo
@@ -87,9 +114,9 @@ install_blackarch_repo() {
   fi
 
   if ((need_refresh)); then
-    log_info "Refreshing package databases after BlackArch/multilib configuration."
-    if ! pacman --noconfirm -Syu; then
-      log_warn "Pacman refresh failed after BlackArch setup; rerun 'pacman -Syu' manually."
+    log_info "Refreshing package databases after BlackArch configuration."
+    if ! pacman --noconfirm -Syyu; then
+      log_warn "Pacman refresh failed after BlackArch setup; rerun 'pacman -Syyu' manually."
     fi
   fi
 }
