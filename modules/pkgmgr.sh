@@ -25,6 +25,75 @@ helper_supported() {
   return 1
 }
 
+enable_multilib_repo() {
+  if grep -Eq '^\[multilib\]' /etc/pacman.conf; then
+    log_info "multilib repository already enabled."
+    return 1
+  fi
+
+  sed -i 's/^#\s*\[multilib\]/[multilib]/' /etc/pacman.conf
+  sed -i 's/^#\s*Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/' /etc/pacman.conf
+
+  if grep -Eq '^\[multilib\]' /etc/pacman.conf; then
+    log_info "Enabled multilib repository in /etc/pacman.conf."
+    return 0
+  fi
+
+  log_warn "Unable to enable multilib repository automatically. Review /etc/pacman.conf."
+  return 2
+}
+
+install_blackarch_repo() {
+  local need_refresh=0 strap_path result
+
+  if ! grep -Eq '^\[blackarch\]' /etc/pacman.conf; then
+    strap_path="$(mktemp /tmp/blackarch-strap.XXXXXX.sh)"
+    if [[ -z "${strap_path}" ]]; then
+      log_error "Failed to create temporary file for blackarch strap script."
+      exit 1
+    fi
+    pacman_install_packages curl
+    if ! curl -fsSLo "${strap_path}" "https://blackarch.org/strap.sh"; then
+      log_error "Failed to download blackarch strap.sh."
+      rm -f "${strap_path}"
+      exit 1
+    fi
+
+    if ! printf 'e26445d34490cc06bd14b51f9924debf569e0ecb  %s\n' "${strap_path}" | sha1sum -c - >/dev/null 2>&1; then
+      log_error "SHA1 verification failed for blackarch strap.sh."
+      rm -f "${strap_path}"
+      exit 1
+    fi
+
+    chmod +x "${strap_path}"
+    if ! /bin/bash "${strap_path}"; then
+      log_error "blackarch strap.sh execution failed."
+      rm -f "${strap_path}"
+      exit 1
+    fi
+    rm -f "${strap_path}"
+    need_refresh=1
+    log_info "BlackArch repository bootstrapped."
+  else
+    log_info "BlackArch repository already present."
+  fi
+
+  enable_multilib_repo
+  result=$?
+  if [[ ${result} -eq 0 ]]; then
+    need_refresh=1
+  elif [[ ${result} -eq 2 ]]; then
+    log_warn "Proceeding without multilib automatically enabled."
+  fi
+
+  if ((need_refresh)); then
+    log_info "Refreshing package databases after BlackArch/multilib configuration."
+    if ! pacman --noconfirm -Syu; then
+      log_warn "Pacman refresh failed after BlackArch setup; rerun 'pacman -Syu' manually."
+    fi
+  fi
+}
+
 prompt_for_package_manager() {
   if [[ -n "${PACKAGE_MANAGER}" ]]; then
     log_info "Using stored package manager: ${PACKAGE_MANAGER}"
@@ -160,6 +229,7 @@ run_task_package_manager() {
     exit 1
   fi
 
+  install_blackarch_repo
   ensure_user_context
   prompt_for_package_manager
   install_aur_helper "${PACKAGE_MANAGER}"
