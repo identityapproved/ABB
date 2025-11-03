@@ -10,9 +10,9 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 - Log in as `root` (or a wheel user) on the Arch VPS.
 - Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`).
 - Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
-- After reconnecting as the managed user, run `./abb-setup.sh package-manager` to install and cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
+- After reconnecting as the managed user, run `./abb-setup.sh package-manager` to bootstrap the BlackArch repository, enable multilib (if missing), refresh pacman, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
-- If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW and Asnlookup.
+- If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to pull/build containerized helpers like ReconFTW, Asnlookup, CeWL, and Amass.
 - After `./abb-setup.sh utilities` completes, inspect the generated WireGuard profiles, add any required Mullvad account details via the `mullvad-wg.sh` prompts, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
@@ -29,10 +29,10 @@ Each task can be executed independently:
 | `security` | Run `pacman -Syu`, apply optional sysctl/iptables hardening, and install/configure AIDE + rkhunter with sudo logging. |
 | `languages` | Install Python, pipx, setuptools, Go, Ruby, and base build tools. |
 | `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools/openresolv, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), enable services, bootstrap the chosen Node manager (`nvm` or `fnm`), configure the selected container engine (`docker` + `lazydocker` or `podman`), and automate Mullvad WireGuard provisioning. |
-| `tools` | Use pipx for recon utilities (waymore, Sublist3r, dnsvalidator, webscreenshot, etc.), install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, trufflehog, fuzzuli, and more), manage pacman recon packages (`amass`, `masscan`, `feroxbuster`), and clone/git-sync tooling and wordlists (massdns, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
+| `tools` | Use pipx for recon utilities (waymore, Sublist3r, dnsvalidator, webscreenshot, etc.), install `pdtm` via Go to manage ProjectDiscovery binaries (subfinder, dnsx, naabu, httpx, nuclei, uncover, cloudlist, proxify, tlsx, notify, chaos-client, shuffledns, mapcidr, interactsh-server/client, katana), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, trufflehog, fuzzuli, and more), handle recon packages via pacman/AUR (`amass`, `feroxbuster-git`), and clone/git-sync tooling and wordlists (massdns, masscan, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, Mullvad-CLI, etc.) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
-| `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile, CeWL image wrapper) when Docker is the chosen container engine. |
+| `docker-tools` | Pull or build Docker-based helpers (ReconFTW image + wrapper, Asnlookup Dockerfile, Amass + CeWL image wrappers) when Docker is the chosen container engine. |
 ## Highlights
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
@@ -41,7 +41,8 @@ Each task can be executed independently:
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`; the tools stage also syncs the cent repository and fetches permutations/resolvers lists alongside `~/wordlists/custom` for personal mutations.
 - **WireGuard ready:** Utilities install `wireguard-tools`/`openresolv`, run `mullvad-wg.sh`, patch WireGuard configs to keep SSH on the main table, and drop the Mullvad CLI helper in `~/bin`.
-- **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW, Asnlookup, and CeWL wrappers when Docker is present.
+- **BlackArch strapped:** The package-manager stage runs the official BlackArch `strap.sh`, verifies its checksum, enables multilib, and re-syncs pacman before building your chosen AUR helper.
+- **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task adds ReconFTW, Asnlookup, CeWL, and Amass wrappers when Docker is present.
 - **Release-friendly tools:** JSParser installs through pipx while keeping a local checkout, and the latest JSHawk release script is downloaded directly into `/usr/local/bin/jshawk`.
 
 ## Rerun Guidance

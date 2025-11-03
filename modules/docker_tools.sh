@@ -60,6 +60,25 @@ WRAP
   fi
 }
 
+install_amass_container() {
+  local image="owaspamass/amass:latest"
+  if docker pull "${image}" >/dev/null 2>&1; then
+    docker tag "${image}" amass:latest >/dev/null 2>&1 || log_warn "Failed to tag ${image} as amass:latest."
+    cat > /usr/local/bin/amass <<'WRAP'
+#!/usr/bin/env bash
+set -euo pipefail
+config_dir="${AMASS_CONFIG:-$HOME/.config/amass}"
+mkdir -p "${config_dir}"
+exec docker run --rm -it -v "${config_dir}:/root/.config/amass" amass:latest "$@"
+WRAP
+    chmod 0755 /usr/local/bin/amass
+    append_installed_tool "amass-docker"
+    log_info "Amass docker wrapper installed."
+  else
+    log_warn "Failed to pull ${image}."
+  fi
+}
+
 ensure_docker_available() {
   if [[ "${CONTAINER_ENGINE}" != "docker" ]]; then
     log_info "Container engine '${CONTAINER_ENGINE}' is not docker; skipping docker tool setup."
@@ -80,4 +99,5 @@ run_task_docker_tools() {
   install_reconftw_container
   install_asnlookup_container
   install_cewl_container
+  install_amass_container
 }

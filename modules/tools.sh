@@ -95,8 +95,10 @@ GO_TOOLS=(
 
 RECON_PACKAGES=(
   amass
-  masscan
-  feroxbuster
+)
+
+AUR_RECON_PACKAGES=(
+  feroxbuster-git
 )
 
 declare -A GIT_TOOLS=(
@@ -105,6 +107,7 @@ declare -A GIT_TOOLS=(
   [virtual-host-discovery]='https://github.com/jobertabma/virtual-host-discovery.git'
   [lazyrecon]='https://github.com/nahamsec/lazyrecon.git'
   [massdns]='https://github.com/blechschmidt/massdns.git'
+  [masscan]='https://github.com/robertdavidgraham/masscan.git'
   [SecLists]='https://github.com/danielmiessler/SecLists.git'
   [JSParser]='https://github.com/nahamsec/JSParser.git'
 )
@@ -203,54 +206,6 @@ EOF
   chmod 0755 "${wrapper}"
 }
 
-ensure_wordlist_workspace() {
-  local user_home wordlist_root
-  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
-  [[ -z "${user_home}" ]] && return
-  wordlist_root="${user_home}/wordlists"
-  run_as_user "$(printf 'mkdir -p %q %q' "${wordlist_root}" "${wordlist_root}/custom")"
-  if [[ -d "${TOOL_BASE_DIR}/SecLists" ]]; then
-    run_as_user "$(printf 'ln -snf %q %q' "${TOOL_BASE_DIR}/SecLists" "${wordlist_root}/seclists")"
-  fi
-
-  local cent_repo="https://github.com/xm1k3/cent.git"
-  local cent_dest="${TOOL_BASE_DIR}/cent"
-  if ensure_git_repo "${cent_repo}" "${cent_dest}"; then
-    chown -R root:wheel "${cent_dest}" || true
-    chmod -R 0755 "${cent_dest}" || true
-    run_as_user "$(printf 'ln -snf %q %q' "${cent_dest}" "${wordlist_root}/cent")"
-    append_installed_tool "wordlist-cent"
-  else
-    log_warn "Unable to clone cent wordlist repository."
-  fi
-
-  local permutations_url="https://gist.github.com/six2dez/ffc2b14d283e8f8eff6ac83e20a3c4b4/raw"
-  local permutations_target="${wordlist_root}/permutations.txt"
-  if ! run_as_user "$(printf 'test -f %q' "${permutations_target}")"; then
-    if run_as_user "$(printf 'curl -fsSL %q -o %q' "${permutations_url}" "${permutations_target}")"; then
-      append_installed_tool "wordlist-permutations"
-      log_info "Downloaded permutations wordlist."
-    else
-      log_warn "Failed to download permutations wordlist."
-    fi
-  else
-    log_info "Permutations wordlist already present at ${permutations_target}."
-  fi
-
-  local resolvers_url="https://raw.githubusercontent.com/trickest/resolvers/master/resolvers.txt"
-  local resolvers_target="${wordlist_root}/resolvers.txt"
-  if ! run_as_user "$(printf 'test -f %q' "${resolvers_target}")"; then
-    if run_as_user "$(printf 'curl -fsSL %q -o %q' "${resolvers_url}" "${resolvers_target}")"; then
-      append_installed_tool "wordlist-resolvers"
-      log_info "Downloaded Trickest resolvers list."
-    else
-      log_warn "Failed to download Trickest resolvers list."
-    fi
-  else
-    log_info "Resolvers list already present at ${resolvers_target}."
-  fi
-}
-
 install_jshawk_release() {
   local repo="https://github.com/Mah3Sec/JSHawk.git"
   local repo_dir="${TOOL_BASE_DIR}/JSHawk"
@@ -291,12 +246,25 @@ install_git_python_tools() {
             log_warn "Failed to build massdns."
           fi
           ;;
+        masscan)
+          local jobs
+          jobs=$(nproc 2>/dev/null || echo 4)
+          if make -C "${dest}" -j "${jobs}" >/dev/null 2>&1; then
+            if make -C "${dest}" install >/dev/null 2>&1; then
+              append_installed_tool "masscan"
+            else
+              log_warn "masscan make install failed."
+            fi
+          else
+            log_warn "Failed to compile masscan."
+          fi
+          ;;
         SecLists)
           if [[ -f "${dest}/Discovery/DNS/dns-Jhaddix.txt" ]]; then
             head -n -14 "${dest}/Discovery/DNS/dns-Jhaddix.txt" > "${dest}/Discovery/DNS/clean-jhaddix-dns.txt"
           fi
           append_installed_tool "SecLists"
-          ensure_wordlist_workspace
+          wordlists_register_seclists "${dest}"
           ;;
         JSParser)
           if ensure_jsparser_env; then
@@ -321,7 +289,7 @@ install_git_python_tools() {
 
 write_tool_overview() {
   local user_home overview_file tmp_file package_manager_display node_manager_display
-  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=()
+  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=()
   local module tool_name
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -374,6 +342,11 @@ write_tool_overview() {
     unset IFS
   fi
 
+  if ((${#AUR_RECON_PACKAGES[@]})); then
+    IFS=$'\n' aur_recon_sorted=($(printf '%s\n' "${AUR_RECON_PACKAGES[@]}" | sort -u))
+    unset IFS
+  fi
+
   {
     printf '%s\n' "Arch Bugbounty Bootstrap Tool Overview"
     printf '%s\n\n' "======================================="
@@ -397,6 +370,17 @@ write_tool_overview() {
     printf '%s\n' "-----------------------"
     if ((${#recon_sorted[@]})); then
       for module in "${recon_sorted[@]}"; do
+        printf ' - %s\n' "${module}"
+      done
+    else
+    printf '%s\n' " - (none recorded)"
+    fi
+    printf '\n'
+
+    printf '%s\n' "Recon Packages (AUR)"
+    printf '%s\n' "--------------------"
+    if ((${#aur_recon_sorted[@]})); then
+      for module in "${aur_recon_sorted[@]}"; do
         printf ' - %s\n' "${module}"
       done
     else
@@ -467,10 +451,12 @@ run_task_tools() {
   ensure_user_context
   ensure_package_manager_ready
   install_system_recon_packages
+  install_aur_recon_packages
   install_language_helpers
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
+  wordlists_refresh_static_assets
   install_dnscEwl
   install_jshawk_release
   write_tool_overview
@@ -481,6 +467,17 @@ install_system_recon_packages() {
     pacman_install_packages "${RECON_PACKAGES[@]}"
     for pkg in "${RECON_PACKAGES[@]}"; do
       append_installed_tool "${pkg}"
+    done
+  fi
+}
+
+install_aur_recon_packages() {
+  local pkg
+  if ((${#AUR_RECON_PACKAGES[@]})); then
+    for pkg in "${AUR_RECON_PACKAGES[@]}"; do
+      if aur_helper_install "${pkg}"; then
+        append_installed_tool "${pkg}"
+      fi
     done
   fi
 }

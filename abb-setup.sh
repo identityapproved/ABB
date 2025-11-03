@@ -21,6 +21,8 @@ source "${MODULE_DIR}/security.sh"
 source "${MODULE_DIR}/languages.sh"
 # shellcheck source=modules/utilities.sh
 source "${MODULE_DIR}/utilities.sh"
+# shellcheck source=modules/wordlists.sh
+source "${MODULE_DIR}/wordlists.sh"
 # shellcheck source=modules/tools.sh
 source "${MODULE_DIR}/tools.sh"
 # shellcheck source=modules/dotfiles.sh

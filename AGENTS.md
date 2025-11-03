@@ -36,6 +36,7 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
+- Before installing the helper, run the official BlackArch bootstrapper (`strap.sh`) with checksum verification, ensure multilib is enabled in `/etc/pacman.conf`, and refresh pacman (`pacman -Syu`).
 - After reconnecting as the managed user, install and cache the preferred AUR helper (choices: `yay`, `paru`, `pacaur`, `pikaur`, `aura`, `aurman`) and persist the choice so future runs skip reinstallation:
   ```bash
   sudo pacman --needed --noconfirm -S base-devel
@@ -90,13 +91,14 @@ sudo pacman -Syu --noconfirm
 
 ### 9.3 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
+- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
 
 ### 9.4 Docker Helpers
-- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), and CeWL (pull `ghcr.io/digininja/cewl:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, and `/usr/local/bin/cewl` that run the respective containers and mount the current working directory (or a user-specified path).
+- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), CeWL (pull `ghcr.io/digininja/cewl:latest`), and Amass (pull/tag `owaspamass/amass:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, `/usr/local/bin/cewl`, and `/usr/local/bin/amass` that run the respective containers and mount the current working directory (or a user-specified path).
 
-### 9.5 Pacman Recon Packages
-- Install `amass`, `masscan`, and `feroxbuster` via `pacman --needed --noconfirm` so the binaries stay system-managed.
+### 9.5 Recon Packages
+- Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
+- Install `feroxbuster-git` via the selected AUR helper (`aur_helper_install feroxbuster-git`).
 
 ## 10. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.

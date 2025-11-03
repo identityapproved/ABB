@@ -37,6 +37,7 @@ If you selected Docker:
 - `reconftw` (wrapper at `/usr/local/bin/reconftw`) maps results to `${RECONFTW_OUTPUT:-$PWD/ReconFTW}`.
 - `asnlookup` (wrapper at `/usr/local/bin/asnlookup`) uses the Docker image built from the upstream Dockerfile. Set `ASNLOOKUP_OUTPUT` to control the output directory.
 - `cewl` (wrapper at `/usr/local/bin/cewl`) mounts `${CEWL_WORKDIR:-$PWD}` to `/host` inside the container. Use standard CeWL flags; wordlists written to `/host/...` will persist on the mounted directory.
+- `amass` (wrapper at `/usr/local/bin/amass`) mounts `${AMASS_CONFIG:-$HOME/.config/amass}` into the container so configuration and data persist between runs.
 
 Run `docker pull six2dez/reconftw:main` periodically and rebuild the Asnlookup image to stay current.
 

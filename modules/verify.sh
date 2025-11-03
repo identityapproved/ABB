@@ -23,10 +23,21 @@ final_verification() {
     log_warn "pdtm not detected for ${NEW_USER}."
   fi
 
+  command_exists masscan >/dev/null 2>&1 || log_warn "masscan not detected. Re-run 'abb-setup.sh tools' to install it via pacman."
+  if run_as_user "command -v feroxbuster" >/dev/null 2>&1; then
+    run_as_user "feroxbuster --version" >/dev/null 2>&1 || true
+  else
+    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' to install feroxbuster-git via ${PACKAGE_MANAGER}."
+  fi
+
   if run_as_user "command -v mull >/dev/null 2>&1"; then
     run_as_user "mull --help" >/dev/null 2>&1 || log_warn "Mullvad CLI (mull) responds unexpectedly."
   else
     log_warn "Mullvad CLI wrapper 'mull' not detected. Re-run 'abb-setup.sh utilities' after reviewing the WireGuard setup logs."
+  fi
+
+  if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
+    command_exists amass >/dev/null 2>&1 || log_warn "Amass wrapper not detected. Re-run 'abb-setup.sh docker-tools' to install the Docker helper."
   fi
 
   case "${NODE_MANAGER}" in
