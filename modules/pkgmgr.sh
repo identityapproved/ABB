@@ -97,9 +97,6 @@ EOF
   if ! pacman -Qi blackarch-keyring >/dev/null 2>&1; then
     need_keyring=1
   fi
-  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
-    need_keyring=1
-  fi
 
   if ((need_keyring)); then
     if ! grep -Eq '^\s*SigLevel\s*=\s*Never\s*$' "${conf_file}"; then
@@ -142,6 +139,8 @@ EOF
       log_warn "Pacman refresh failed after BlackArch setup; rerun 'pacman -Syyu' manually."
     fi
   fi
+
+  return 0
 }
 
 prompt_for_package_manager() {
