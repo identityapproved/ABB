@@ -279,7 +279,9 @@ run_task_package_manager() {
   fi
 
   install_blackarch_repo
+  log_info "BlackArch repository prerequisites satisfied."
   ensure_user_context
+  log_info "Managed user context confirmed; proceeding to package manager selection."
   prompt_for_package_manager
   install_aur_helper "${PACKAGE_MANAGER}"
   record_prompt_answers
