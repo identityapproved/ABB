@@ -41,7 +41,6 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   ```
   [blackarch]
   Server = https://www.blackarch.org/blackarch/$repo/os/$arch
-  Include = /etc/pacman.d/mirrorlist
   ```
   - Append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf` if it is not already present.
   - Temporarily add `SigLevel = Never` to the BlackArch stanza, run `pacman -Sy blackarch-keyring`, then remove the override and force-refresh pacman with `pacman -Syyu`.

@@ -48,11 +48,19 @@ install_blackarch_repo() {
   local conf_file="/etc/pacman.d/blackarch.conf"
   local result
 
-  if [[ ! -f "${conf_file}" ]] || ! grep -Eq 'https://www\.blackarch\.org/blackarch/\$repo/os/\$arch' "${conf_file}"; then
+  local conf_needs_update=0
+  if [[ ! -f "${conf_file}" ]]; then
+    conf_needs_update=1
+  elif ! grep -Fxq 'Server = https://www.blackarch.org/blackarch/$repo/os/$arch' "${conf_file}"; then
+    conf_needs_update=1
+  elif grep -Fxq 'Include = /etc/pacman.d/mirrorlist' "${conf_file}"; then
+    conf_needs_update=1
+  fi
+
+  if ((conf_needs_update)); then
     cat <<'EOF' > "${conf_file}"
 [blackarch]
 Server = https://www.blackarch.org/blackarch/$repo/os/$arch
-Include = /etc/pacman.d/mirrorlist
 EOF
     chmod 0644 "${conf_file}"
     log_info "Configured BlackArch repository definition in ${conf_file}."
