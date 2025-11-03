@@ -17,14 +17,41 @@ declare -A HELPER_AUR_FALLBACKS=(
 
 normalize_pacman_testing_includes() {
   local conf="/etc/pacman.conf"
-  local section
-  for section in core-testing extra-testing multilib-testing; do
-    if grep -Eq "^[[:space:]]*#\\[${section}\\]" "${conf}"; then
-      if sed -i "/^[[:space:]]*#\\[${section}\\]/{n;s/^[[:space:]]*Include = \\/etc\\/pacman.d\\/mirrorlist/#Include = \\/etc\\/pacman.d\\/mirrorlist/}" "${conf}"; then
-        log_info "Ensured ${section} mirror Include is commented in /etc/pacman.conf."
+  local tmp changed=0
+  tmp="$(mktemp)"
+  awk '
+    BEGIN { commented_section = 0; changed = 0 }
+    {
+      line = $0
+      if ($0 ~ /^[[:space:]]*#[[:space:]]*\[[^]]+\]/) {
+        commented_section = 1
+      } else if ($0 ~ /^[[:space:]]*\[[^]]+\]/) {
+        commented_section = 0
+      }
+      if (commented_section && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
+        sub(/Include =/, "#Include =")
+        changed = 1
+      }
+      print
+    }
+    END { if (changed) exit 2 }
+  ' "${conf}" > "${tmp}"
+  case $? in
+    0)
+      rm -f "${tmp}"
+      ;;
+    2)
+      if ! cmp -s "${conf}" "${tmp}"; then
+        cat "${tmp}" > "${conf}"
+        log_info "Commented inactive testing mirror Includes in /etc/pacman.conf."
       fi
-    fi
-  done
+      rm -f "${tmp}"
+      ;;
+    *)
+      rm -f "${tmp}"
+      log_warn "Unable to normalise testing repository Includes in /etc/pacman.conf."
+      ;;
+  esac
   return 0
 }
 
@@ -39,17 +66,33 @@ helper_supported() {
 }
 
 enable_multilib_repo() {
-  if grep -Eq '^\[multilib\]' /etc/pacman.conf; then
+  local conf="/etc/pacman.conf"
+  if awk '
+      BEGIN { found = 0 }
+      /^\[multilib\]/ {
+        if (getline > 0 && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
+          found = 1
+        }
+      }
+      END { exit(found ? 0 : 1) }
+    ' "${conf}" >/dev/null 2>&1; then
     log_info "multilib repository already enabled."
     return 1
   fi
 
-  sed -i 's/^#\s*\[multilib\]/[multilib]/' /etc/pacman.conf
-  sed -i 's/^#\s*Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/' /etc/pacman.conf
-
-  if grep -Eq '^\[multilib\]' /etc/pacman.conf; then
-    log_info "Enabled multilib repository in /etc/pacman.conf."
-    return 0
+  if perl -0pi -e 's/^\s*#\s*\[multilib\]\s*\n\s*#\s*Include = \/etc\/pacman\.d\/mirrorlist/[multilib]\nInclude = \/etc\/pacman\.d\/mirrorlist/m' "${conf}"; then
+    if awk '
+        BEGIN { found = 0 }
+        /^\[multilib\]/ {
+          if (getline > 0 && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
+            found = 1
+          }
+        }
+        END { exit(found ? 0 : 1) }
+      ' "${conf}" >/dev/null 2>&1; then
+      log_info "Enabled multilib repository in /etc/pacman.conf."
+      return 0
+    fi
   fi
 
   log_warn "Unable to enable multilib repository automatically. Review /etc/pacman.conf."
@@ -89,8 +132,6 @@ EOF
   else
     log_info "/etc/pacman.conf already references ${conf_file}."
   fi
-
-  normalize_pacman_testing_includes
 
   local need_keyring=0
   local siglevel_added=0
@@ -132,6 +173,8 @@ EOF
   elif [[ ${result} -eq 2 ]]; then
     log_warn "Proceeding without multilib automatically enabled."
   fi
+
+  normalize_pacman_testing_includes
 
   if ((need_refresh)); then
     log_info "Refreshing package databases after BlackArch configuration."
