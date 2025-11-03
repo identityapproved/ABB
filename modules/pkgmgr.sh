@@ -46,8 +46,6 @@ enable_multilib_repo() {
 install_blackarch_repo() {
   local need_refresh=0
   local conf_file="/etc/pacman.d/blackarch.conf"
-  local key_tmp=""
-  local key_ids=""
   local result
 
   if [[ ! -f "${conf_file}" ]] || ! grep -Eq 'https://blackarch\.org/repo/included/\$arch' "${conf_file}"; then
@@ -63,59 +61,48 @@ EOF
     log_info "BlackArch repository definition already present at ${conf_file}."
   fi
 
-  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
-    pacman_install_packages curl gnupg
-    key_tmp="$(mktemp /tmp/blackarch-key.XXXXXX.asc)"
-    if [[ -z "${key_tmp}" ]]; then
-      log_error "Failed to create temporary file for BlackArch key."
-      exit 1
-    fi
-    local key_downloaded=0 url
-    for url in \
-      "https://blackarch.org/keyring/blackarch.asc" \
-      "https://www.blackarch.org/keyring/blackarch.asc" \
-      "https://blackarch.org/blackarch/keyring/blackarch.asc"
-    do
-      if curl -fsSLo "${key_tmp}" "${url}"; then
-        log_info "Downloaded BlackArch key from ${url}."
-        key_downloaded=1
-        break
-      fi
-      log_warn "Unable to fetch BlackArch key from ${url}."
-    done
-    if ((key_downloaded == 0)); then
-      log_error "Failed to download BlackArch key from known locations."
-      rm -f "${key_tmp}"
-      exit 1
-    fi
-    if ! pacman-key --add "${key_tmp}"; then
-      log_error "Failed to import BlackArch key into pacman keyring."
-      rm -f "${key_tmp}"
-      exit 1
-    fi
-    key_ids="$(gpg --with-colons --import-options show-only --import "${key_tmp}" 2>/dev/null | awk -F: '/^pub/ {print $5}')"
-    rm -f "${key_tmp}"
-    if [[ -z "${key_ids}" ]]; then
-      key_ids="0E5E3303"
-    fi
-    for key_id in ${key_ids}; do
-      if pacman-key --lsign-key "${key_id}"; then
-        log_info "Locally signed BlackArch key ${key_id}."
-      else
-        log_warn "Failed to locally sign BlackArch key ${key_id}."
-      fi
-    done
-    need_refresh=1
-  else
-    log_info "BlackArch pacman key already present."
-  fi
-
   if ! grep -Eq '^\s*Include\s*=\s*/etc/pacman\.d/blackarch\.conf' /etc/pacman.conf; then
     printf '\n# Include BlackArch repository configuration\nInclude = /etc/pacman.d/blackarch.conf\n' >> /etc/pacman.conf
     log_info "Linked ${conf_file} from /etc/pacman.conf."
     need_refresh=1
   else
     log_info "/etc/pacman.conf already references ${conf_file}."
+  fi
+
+  local need_keyring=0
+  local siglevel_added=0
+  if ! pacman -Qi blackarch-keyring >/dev/null 2>&1; then
+    need_keyring=1
+  fi
+  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
+    need_keyring=1
+  fi
+
+  if ((need_keyring)); then
+    if ! grep -Eq '^\s*SigLevel\s*=\s*Never\s*$' "${conf_file}"; then
+      sed -i '1a SigLevel = Never' "${conf_file}"
+      siglevel_added=1
+      log_warn "Temporarily disabling signature checks for BlackArch to install blackarch-keyring."
+    else
+      log_warn "Using existing SigLevel = Never override to install blackarch-keyring."
+    fi
+
+    if pacman --noconfirm -Sy blackarch-keyring; then
+      log_info "Installed blackarch-keyring package."
+      need_refresh=1
+    else
+      if ((siglevel_added)); then
+        sed -i '/^\s*SigLevel\s*=\s*Never\s*$/d' "${conf_file}"
+        log_info "Restored BlackArch signature settings after failed keyring installation."
+      fi
+      log_error "Failed to install blackarch-keyring. Verify network connectivity and rerun."
+      exit 1
+    fi
+
+    sed -i '/^\s*SigLevel\s*=\s*Never\s*$/d' "${conf_file}"
+    log_info "Re-enabled signature verification for the BlackArch repository."
+  else
+    log_info "BlackArch keyring already trusted."
   fi
 
   enable_multilib_repo
