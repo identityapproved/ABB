@@ -70,8 +70,21 @@ EOF
       log_error "Failed to create temporary file for BlackArch key."
       exit 1
     fi
-    if ! curl -fsSLo "${key_tmp}" "https://blackarch.org/keyring/blackarch.asc"; then
-      log_error "Failed to download BlackArch key."
+    local key_downloaded=0 url
+    for url in \
+      "https://blackarch.org/keyring/blackarch.asc" \
+      "https://www.blackarch.org/keyring/blackarch.asc" \
+      "https://blackarch.org/blackarch/keyring/blackarch.asc"
+    do
+      if curl -fsSLo "${key_tmp}" "${url}"; then
+        log_info "Downloaded BlackArch key from ${url}."
+        key_downloaded=1
+        break
+      fi
+      log_warn "Unable to fetch BlackArch key from ${url}."
+    done
+    if ((key_downloaded == 0)); then
+      log_error "Failed to download BlackArch key from known locations."
       rm -f "${key_tmp}"
       exit 1
     fi
