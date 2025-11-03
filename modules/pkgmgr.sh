@@ -15,6 +15,18 @@ declare -A HELPER_AUR_FALLBACKS=(
   [yay]=yay-git
 )
 
+normalize_pacman_testing_includes() {
+  local conf="/etc/pacman.conf"
+  local section
+  for section in core-testing extra-testing multilib-testing; do
+    if grep -Eq "^[[:space:]]*#\\[${section}\\]" "${conf}"; then
+      if sed -i "/^[[:space:]]*#\\[${section}\\]/{n;s/^[[:space:]]*Include = \\/etc\\/pacman.d\\/mirrorlist/#Include = \\/etc\\/pacman.d\\/mirrorlist/}" "${conf}"; then
+        log_info "Ensured ${section} mirror Include is commented in /etc/pacman.conf."
+      fi
+    fi
+  done
+}
+
 helper_supported() {
   local helper="$1" candidate
   for candidate in "${SUPPORTED_HELPERS[@]}"; do
@@ -76,6 +88,8 @@ EOF
   else
     log_info "/etc/pacman.conf already references ${conf_file}."
   fi
+
+  normalize_pacman_testing_includes
 
   local need_keyring=0
   local siglevel_added=0
