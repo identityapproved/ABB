@@ -40,7 +40,7 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   - Write `/etc/pacman.d/blackarch.conf` with:
   ```
   [blackarch]
-  Server = https://blackarch.org/repo/included/$arch
+  Server = https://www.blackarch.org/blackarch/$repo/os/$arch
   Include = /etc/pacman.d/mirrorlist
   ```
   - Append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf` if it is not already present.

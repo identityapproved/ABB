@@ -48,10 +48,10 @@ install_blackarch_repo() {
   local conf_file="/etc/pacman.d/blackarch.conf"
   local result
 
-  if [[ ! -f "${conf_file}" ]] || ! grep -Eq 'https://blackarch\.org/repo/included/\$arch' "${conf_file}"; then
+  if [[ ! -f "${conf_file}" ]] || ! grep -Eq 'https://www\.blackarch\.org/blackarch/\$repo/os/\$arch' "${conf_file}"; then
     cat <<'EOF' > "${conf_file}"
 [blackarch]
-Server = https://blackarch.org/repo/included/$arch
+Server = https://www.blackarch.org/blackarch/$repo/os/$arch
 Include = /etc/pacman.d/mirrorlist
 EOF
     chmod 0644 "${conf_file}"
