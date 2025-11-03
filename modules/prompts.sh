@@ -136,12 +136,66 @@ prompt_for_container_engine() {
   log_info "Container engine selection: ${CONTAINER_ENGINE}"
 }
 
+prompt_for_ferox_method() {
+  local choice=""
+  if [[ -n "${FEROX_INSTALL_METHOD}" ]]; then
+    log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
+    return
+  fi
+  while true; do
+    read -rp "Install feroxbuster via cargo or AUR helper? (cargo/aur) [cargo]: " choice </dev/tty || { log_error "Unable to read feroxbuster install choice."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "cargo" ]]; then
+      FEROX_INSTALL_METHOD="cargo"
+      break
+    fi
+    case "${choice}" in
+      aur)
+        FEROX_INSTALL_METHOD="aur"
+        break
+        ;;
+      *)
+        echo "Please answer cargo or aur." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
+}
+
+prompt_for_trufflehog_install() {
+  local choice=""
+  if [[ -n "${TRUFFLEHOG_INSTALL}" ]]; then
+    log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
+    return
+  fi
+  while true; do
+    read -rp "Install trufflehog via official install script? (yes/no) [yes]: " choice </dev/tty || { log_error "Unable to read trufflehog preference."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "yes" || "${choice}" == "y" ]]; then
+      TRUFFLEHOG_INSTALL="yes"
+      break
+    fi
+    case "${choice}" in
+      no|n)
+        TRUFFLEHOG_INSTALL="no"
+        break
+        ;;
+      *)
+        echo "Please answer yes or no." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
   prompt_for_hardening
   prompt_for_node_manager
   prompt_for_container_engine
+  prompt_for_ferox_method
+  prompt_for_trufflehog_install
   record_prompt_answers
 }
 

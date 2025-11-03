@@ -40,6 +40,8 @@ NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
+FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
+TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
 
 usage() {
   cat <<'EOF'
@@ -50,12 +52,12 @@ Tasks:
   accounts    Create the managed user, copy SSH keys, enable sudo, and optionally retire the admin account.
   package-manager Install and record the preferred AUR helper before continuing with provisioning.
   security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
-  languages   Install language runtimes (Python/pipx, Go, Ruby) for the managed user.
+  languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
-  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup) when Docker is the chosen engine.
+  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -76,8 +78,8 @@ run_task_all() {
   run_task_prompts
   run_task_accounts
   run_task_package_manager
-  run_task_security
   run_task_languages
+  run_task_security
   run_task_utilities
   run_task_tools
   run_task_dotfiles

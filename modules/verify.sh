@@ -27,7 +27,13 @@ final_verification() {
   if run_as_user "command -v feroxbuster" >/dev/null 2>&1; then
     run_as_user "feroxbuster --version" >/dev/null 2>&1 || true
   else
-    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' to install feroxbuster-git via ${PACKAGE_MANAGER}."
+    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' and select the preferred installation method."
+  fi
+
+  if [[ "${TRUFFLEHOG_INSTALL}" == "yes" ]]; then
+    if ! command_exists trufflehog; then
+      log_warn "trufflehog CLI not detected despite installation request."
+    fi
   fi
 
   if run_as_user "command -v mull >/dev/null 2>&1"; then
@@ -38,6 +44,8 @@ final_verification() {
 
   if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
     command_exists amass >/dev/null 2>&1 || log_warn "Amass wrapper not detected. Re-run 'abb-setup.sh docker-tools' to install the Docker helper."
+    command_exists feroxbuster-docker >/dev/null 2>&1 || log_warn "feroxbuster Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
+    command_exists trufflehog-docker >/dev/null 2>&1 || log_warn "trufflehog Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
   fi
 
   case "${NODE_MANAGER}" in

@@ -34,12 +34,14 @@ Repeat as needed to install additional tools announced by ProjectDiscovery.
 ## Docker Helpers
 
 If you selected Docker:
-- `reconftw` (wrapper at `/usr/local/bin/reconftw`) maps results to `${RECONFTW_OUTPUT:-$PWD/ReconFTW}`.
+- `reconftw` (wrapper at `/usr/local/bin/reconftw`) keeps a pristine config at `/opt/vps-tools/reconftw/reconftw.cfg`, copies it to `${RECONFTW_CONFIG:-$HOME/.config/reconftw/reconftw.cfg}` on first run, and maps results to `${RECONFTW_OUTPUT:-$PWD/ReconFTW}` (directory created with 0777 permissions for container writes). Edit the per-user config to customise targets and modules.
+- `feroxbuster` (wrapper at `/usr/local/bin/feroxbuster-docker` with alias `feroxbuster`) seeds `/opt/vps-tools/feroxbuster/ferox-config.toml`, copies it to `${FEROX_CONFIG_PATH:-$HOME/.config/feroxbuster/ferox-config.toml}` on first run, and mounts either the config file or directory into the container. Adjust the config before running long scans.
+- `trufflehog-docker` (wrapper at `/usr/local/bin/trufflehog-docker`) mounts `${TRUFFLEHOG_WORKDIR:-$PWD}` to `/pwd`. If you skipped the native installation prompt, use this wrapper instead.
 - `asnlookup` (wrapper at `/usr/local/bin/asnlookup`) uses the Docker image built from the upstream Dockerfile. Set `ASNLOOKUP_OUTPUT` to control the output directory.
 - `cewl` (wrapper at `/usr/local/bin/cewl`) mounts `${CEWL_WORKDIR:-$PWD}` to `/host` inside the container. Use standard CeWL flags; wordlists written to `/host/...` will persist on the mounted directory.
 - `amass` (wrapper at `/usr/local/bin/amass`) mounts `${AMASS_CONFIG:-$HOME/.config/amass}` into the container so configuration and data persist between runs.
 
-Run `docker pull six2dez/reconftw:main` periodically and rebuild the Asnlookup image to stay current.
+Run `docker pull six2dez/reconftw:main`, `docker pull epi052/feroxbuster:latest`, and `docker pull trufflesecurity/trufflehog:latest` periodically, and rebuild the Asnlookup image to stay current.
 
 ## WireGuard Follow-Up
 

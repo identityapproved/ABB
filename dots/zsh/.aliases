@@ -25,6 +25,7 @@ alias dmt="doom run -nw"
 
 alias yz='yazi'
 alias lz='lazygit'
+alias feroxbuster='feroxbuster-docker'
 
 alias rmpkg="sudo pacman -Rsn"
 alias cleanch="sudo pacman -Scc"

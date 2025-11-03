@@ -112,12 +112,13 @@ ensure_git_repo() {
 run_as_user() {
   local cmd="$1" user_home
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  local user_path="/usr/local/bin:/usr/bin:/bin:${user_home}/.local/bin:${user_home}/.pdtm/go/bin:${user_home}/.cargo/bin"
   if command_exists setpriv; then
     setpriv --reuid="${NEW_USER}" --regid="${NEW_USER}" --init-groups \
-      /usr/bin/env -i HOME="${user_home}" SHELL=/bin/bash PATH="/usr/local/bin:/usr/bin:/bin:${user_home}/.local/bin:${user_home}/.pdtm/go/bin" \
+      /usr/bin/env -i HOME="${user_home}" SHELL=/bin/bash PATH="${user_path}" \
       /bin/bash -lc "${cmd}"
   else
-    runuser -l "${NEW_USER}" -- env PATH="/usr/local/bin:/usr/bin:/bin:${user_home}/.local/bin:${user_home}/.pdtm/go/bin" bash -lc "${cmd}"
+    runuser -l "${NEW_USER}" -- env PATH="${user_path}" bash -lc "${cmd}"
   fi
 }
 
@@ -138,6 +139,8 @@ record_prompt_answers() {
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
     printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
+    printf 'FEROX_INSTALL_METHOD=%q\n' "${FEROX_INSTALL_METHOD}"
+    printf 'TRUFFLEHOG_INSTALL=%q\n' "${TRUFFLEHOG_INSTALL}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
@@ -158,7 +161,7 @@ init_installed_tracker() {
 }
 
 ensure_user_context() {
-  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 ferox_method_missing=0 trufflehog_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
@@ -169,7 +172,13 @@ ensure_user_context() {
   if [[ -z "${CONTAINER_ENGINE}" ]]; then
     container_engine_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 ]]; then
+  if [[ -z "${FEROX_INSTALL_METHOD}" ]]; then
+    ferox_method_missing=1
+  fi
+  if [[ -z "${TRUFFLEHOG_INSTALL}" ]]; then
+    trufflehog_missing=1
+  fi
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${ferox_method_missing} -eq 1 || ${trufflehog_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 

@@ -7,6 +7,7 @@ LANGUAGE_PACKAGES=(
   go
   ruby
   base-devel
+  rustup
 )
 
 install_language_runtimes() {
@@ -18,12 +19,19 @@ install_language_runtimes() {
   append_installed_tool "pipx"
   append_installed_tool "go"
   append_installed_tool "ruby"
+  append_installed_tool "rust"
 
   if ! run_as_user "pipx ensurepath"; then
     log_warn "pipx ensurepath failed for ${NEW_USER}"
   fi
   run_as_user "pipx --version" || log_warn "pipx not available in ${NEW_USER}'s PATH yet."
   go version || log_warn "Go runtime not found in PATH."
+  if run_as_user "command -v rustup" >/dev/null 2>&1; then
+    run_as_user "rustup default stable >/dev/null 2>&1 || rustup default stable" || log_warn "Failed to set rustup default toolchain."
+    run_as_user "cargo --version" || log_warn "Cargo not available for ${NEW_USER}"
+  else
+    log_warn "rustup not detected after installation."
+  fi
 }
 
 run_task_languages() {

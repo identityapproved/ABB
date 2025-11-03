@@ -75,6 +75,7 @@ sudo pacman -Syu --noconfirm
 - Python & pipx: `sudo pacman --needed --noconfirm -S python python-pipx python-setuptools`
 - Go: `sudo pacman --needed --noconfirm -S go`
 - Ruby & build deps: `sudo pacman --needed --noconfirm -S ruby base-devel`
+- Rust: `sudo pacman --needed --noconfirm -S rustup` then `rustup default stable` for the managed user.
 - Run `pipx ensurepath` for the managed user; record versions for logs.
 
 ## 8. System Utilities
@@ -87,26 +88,33 @@ sudo pacman -Syu --noconfirm
 
 ## 9. Tool Catalogue
 ### 9.1 pipx & ProjectDiscovery
-- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy, dnsvalidator, webscreenshot.
+- Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy, webscreenshot.
 - Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
 
 ### 9.2 Go Tools
 - Use `go install ...@latest` for the remaining recon utilities:
   - Recon: anew, assetfinder, gau, gauplus, waybackurls, hakrawler, hakrevdns, ipcdn, puredns, socialhunter, subzy, getJS, crobat, gotator, gowitness, httprobe, gospider, ffuf, gobuster, qsreplace, meg, s3scanner.
   - XSS & parameters: Gxss, bxss, kxss, dalfox, Tok, parameters, Jeeves, galer, quickcert, fuzzuli, anti-burl, unfurl, fff, gron.
-  - Misc: github-subdomains, exclude-cdn, dirdar, cero, cf-check, otx-url, trufflehog, mrco24-* binaries.
+  - Misc: github-subdomains, exclude-cdn, dirdar, cero, cf-check, otx-url, mrco24-* binaries.
 - Deduplicate anything already managed by `pdtm`.
 
-### 9.3 Git/Binary Installs
+### 9.3 Trufflehog
+- Prompt the operator to decide whether to install trufflehog via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`). Honour the saved preference on reruns.
+- Provide a Docker wrapper (`docker run --rm -it -v "$PWD:/pwd" trufflesecurity/trufflehog:latest …`) so the operator can run trufflehog without installing the binary.
+
+### 9.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
 - Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
 
-### 9.4 Docker Helpers
-- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), CeWL (pull `ghcr.io/digininja/cewl:latest`), and Amass (pull/tag `owaspamass/amass:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, `/usr/local/bin/cewl`, and `/usr/local/bin/amass` that run the respective containers and mount the current working directory (or a user-specified path).
+### 9.5 Docker Helpers
+- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), dnsvalidator (build from the upstream Dockerfile), feroxbuster (`docker pull epi052/feroxbuster:latest`), CeWL (pull `ghcr.io/digininja/cewl:latest`), and Amass (pull/tag `owaspamass/amass:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, `/usr/local/bin/dnsvalidator`, `/usr/local/bin/feroxbuster-docker`, `/usr/local/bin/cewl`, and `/usr/local/bin/amass` that run the respective containers and mount the current working directory (or a user-specified path).
+- Add a trufflehog wrapper at `/usr/local/bin/trufflehog-docker` that mounts `${TRUFFLEHOG_WORKDIR:-$PWD}` to `/pwd` and runs `trufflesecurity/trufflehog:latest`.
+- ReconFTW setup must also download the upstream `reconftw.cfg`, stage a copy at `/opt/vps-tools/reconftw/reconftw.cfg`, and seed `~/.config/reconftw/reconftw.cfg` for the managed user. The wrapper should ensure the config exists, create the output directory (default `ReconFTW` in the current working directory, 0777 permissions), and mount both the config and output paths into the container. Respect overrides through `RECONFTW_CONFIG` and `RECONFTW_OUTPUT`.
+- For feroxbuster, seed `/opt/vps-tools/feroxbuster/ferox-config.toml`, copy it to `~/.config/feroxbuster/ferox-config.toml` if missing, and mount either the file or the directory into the container. Expose the wrapper through the `feroxbuster-docker` script and provide a shell alias `feroxbuster`.
 
-### 9.5 Recon Packages
+### 9.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
-- Install `feroxbuster-git` via the selected AUR helper (`aur_helper_install feroxbuster-git`).
+- Feroxbuster is handled separately based on the operator's chosen installation method (`cargo` or selected AUR helper). Document the prompt and ensure reruns honour the saved choice.
 
 ## 10. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.
