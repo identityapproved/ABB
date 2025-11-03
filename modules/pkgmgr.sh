@@ -25,6 +25,7 @@ normalize_pacman_testing_includes() {
       fi
     fi
   done
+  return 0
 }
 
 helper_supported() {
@@ -94,6 +95,9 @@ EOF
   local need_keyring=0
   local siglevel_added=0
   if ! pacman -Qi blackarch-keyring >/dev/null 2>&1; then
+    need_keyring=1
+  fi
+  if ! pacman-key --list-keys 0E5E3303 >/dev/null 2>&1; then
     need_keyring=1
   fi
 
