@@ -91,6 +91,30 @@ install_container_engine() {
           log_warn "Docker will need to be started manually when required."
         fi
       fi
+      if ! command_exists docker || ! systemctl is-active --quiet docker.service; then
+        local answer="" skip_docker=false
+        while true; do
+          read -rp "Docker is not ready. Reboot now to finalize setup? (yes/no): " answer </dev/tty || { answer="no"; skip_docker=true; break; }
+          case "${answer,,}" in
+            yes|y)
+              log_info "Rebooting now to finalize Docker setup."
+              systemctl reboot
+              exit 0
+              ;;
+            no|n)
+              skip_docker=true
+              break
+              ;;
+            *)
+              echo "Please answer yes or no." >/dev/tty
+              ;;
+          esac
+        done
+        if [[ "${skip_docker}" == "true" || ( "${answer,,}" != "yes" && "${answer,,}" != "y" ) ]]; then
+          SKIP_DOCKER_TASKS="true"
+          log_warn "Docker CLI or daemon unavailable; docker-tools task will be skipped. Reboot and rerun 'abb-setup.sh docker-tools' when ready."
+        fi
+      fi
       append_installed_tool "docker"
       append_installed_tool "lazydocker"
       ;;

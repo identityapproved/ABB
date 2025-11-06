@@ -219,6 +219,10 @@ ensure_docker_available() {
 }
 
 run_task_docker_tools() {
+  if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
+    log_warn "Skipping Docker-based tool installation (Docker unavailable)."
+    return 0
+  fi
   ensure_user_context
   if ! ensure_docker_available; then
     return 0

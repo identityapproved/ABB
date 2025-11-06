@@ -44,6 +44,7 @@ NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
 TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
+SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
 
 usage() {
   cat <<'EOF'
@@ -60,7 +61,7 @@ Tasks:
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
   mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
-  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine.
+  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine (skipped if Docker was unavailable earlier).
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -88,7 +89,11 @@ run_task_all() {
   run_task_tools
   run_task_dotfiles
   run_task_verify
-  run_task_docker_tools
+  if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
+    log_warn "Skipping docker-tools task because Docker is unavailable."
+  else
+    run_task_docker_tools
+  fi
 }
 
 main() {
@@ -137,13 +142,17 @@ main() {
       log_info "Running dotfiles task"
       run_task_dotfiles
       ;;
-    verify)
-      log_info "Running verification task"
-      run_task_verify
-      ;;
-    docker-tools)
+  verify)
+    log_info "Running verification task"
+    run_task_verify
+    ;;
+  docker-tools)
+    if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
+      log_warn "docker-tools task skipped because Docker was not ready. Reboot and rerun 'abb-setup.sh docker-tools'."
+    else
       log_info "Running docker tools task"
       run_task_docker_tools
+    fi
       ;;
     all)
       log_info "Running full provisioning workflow"
