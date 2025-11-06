@@ -50,3 +50,4 @@ Run `docker pull six2dez/reconftw:main`, `docker pull epi052/feroxbuster:latest`
   curl https://am.i.mullvad.net/json | jq
   ```
 - The utilities task already injects SSH-preserving `PostUp`/`PreDown` rules; adjust the port if you run SSH on a non-standard port.
+- The setup task removes `mullvad-wg.sh` after execution. Re-run `abb-setup.sh mullvad` whenever you need to regenerate profiles.

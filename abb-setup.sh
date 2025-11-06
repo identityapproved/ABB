@@ -31,6 +31,8 @@ source "${MODULE_DIR}/dotfiles.sh"
 source "${MODULE_DIR}/verify.sh"
 # shellcheck source=modules/docker_tools.sh
 source "${MODULE_DIR}/docker_tools.sh"
+# shellcheck source=modules/mullvad.sh
+source "${MODULE_DIR}/mullvad.sh"
 
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
@@ -57,6 +59,7 @@ Tasks:
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
+  mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
   docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
@@ -81,6 +84,7 @@ run_task_all() {
   run_task_languages
   run_task_security
   run_task_utilities
+  run_task_mullvad
   run_task_tools
   run_task_dotfiles
   run_task_verify
@@ -120,6 +124,10 @@ main() {
     utilities)
       log_info "Running utilities task"
       run_task_utilities
+      ;;
+    mullvad)
+      log_info "Running Mullvad WireGuard task"
+      run_task_mullvad
       ;;
     tools)
       log_info "Running tools task"

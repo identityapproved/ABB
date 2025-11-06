@@ -79,44 +79,47 @@ sudo pacman -Syu --noconfirm
 - Run `pipx ensurepath` for the managed user; record versions for logs.
 
 ## 8. System Utilities
-- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`, `wireguard-tools`.
-- Ensure `openresolv` is also installed so WireGuard can manage DNS resolvers.
+- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `fzf`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`, `wireguard-tools`, `openresolv`.
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
-- Replace legacy Mullvad VPN packages by verifying the kernel is ≥5.11, downloading and executing `mullvad-wg.sh`, adding SSH-preserving policy routing to every `/etc/wireguard/*.conf`, cloning `Mullvad-CLI`, and symlinking its `mull` helper into `~/bin` (making sure `export PATH="$HOME/bin:$PATH"` lives in `.bashrc`/`.zshrc`).
-- After configuration, advise the operator to connect with `sudo wg-quick up <profile>` and verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
-## 9. Tool Catalogue
-### 9.1 pipx & ProjectDiscovery
+## 9. Mullvad WireGuard
+- Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
+- Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
+- Add SSH-preserving policy routing (`PostUp`/`PreDown`) to every `/etc/wireguard/*.conf`.
+- Remind the operator to connect with `sudo wg-quick up <profile>` and confirm via `curl https://am.i.mullvad.net/json | jq`.
+
+## 10. Tool Catalogue
+### 10.1 pipx & ProjectDiscovery
 - Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy, webscreenshot.
 - Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
 
-### 9.2 Go Tools
+### 10.2 Go Tools
 - Use `go install ...@latest` for the remaining recon utilities:
   - Recon: anew, assetfinder, gau, gauplus, waybackurls, hakrawler, hakrevdns, ipcdn, puredns, socialhunter, subzy, getJS, crobat, gotator, gowitness, httprobe, gospider, ffuf, gobuster, qsreplace, meg, s3scanner.
   - XSS & parameters: Gxss, bxss, kxss, dalfox, Tok, parameters, Jeeves, galer, quickcert, fuzzuli, anti-burl, unfurl, fff, gron.
   - Misc: github-subdomains, exclude-cdn, dirdar, cero, cf-check, otx-url, mrco24-* binaries.
 - Deduplicate anything already managed by `pdtm`.
 
-### 9.3 Trufflehog
+### 10.3 Trufflehog
 - Prompt the operator to decide whether to install trufflehog via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`). Honour the saved preference on reruns.
 - Provide a Docker wrapper (`docker run --rm -it -v "$PWD:/pwd" trufflesecurity/trufflehog:latest …`) so the operator can run trufflehog without installing the binary.
 
-### 9.4 Git/Binary Installs
+### 10.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
 - Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
 
-### 9.5 Docker Helpers
+### 10.5 Docker Helpers
 - When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), dnsvalidator (build from the upstream Dockerfile), feroxbuster (`docker pull epi052/feroxbuster:latest`), CeWL (pull `ghcr.io/digininja/cewl:latest`), and Amass (pull/tag `owaspamass/amass:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, `/usr/local/bin/dnsvalidator`, `/usr/local/bin/feroxbuster-docker`, `/usr/local/bin/cewl`, and `/usr/local/bin/amass` that run the respective containers and mount the current working directory (or a user-specified path).
 - Add a trufflehog wrapper at `/usr/local/bin/trufflehog-docker` that mounts `${TRUFFLEHOG_WORKDIR:-$PWD}` to `/pwd` and runs `trufflesecurity/trufflehog:latest`.
 - ReconFTW setup must also download the upstream `reconftw.cfg`, stage a copy at `/opt/vps-tools/reconftw/reconftw.cfg`, and seed `~/.config/reconftw/reconftw.cfg` for the managed user. The wrapper should ensure the config exists, create the output directory (default `ReconFTW` in the current working directory, 0777 permissions), and mount both the config and output paths into the container. Respect overrides through `RECONFTW_CONFIG` and `RECONFTW_OUTPUT`.
 - For feroxbuster, seed `/opt/vps-tools/feroxbuster/ferox-config.toml`, copy it to `~/.config/feroxbuster/ferox-config.toml` if missing, and mount either the file or the directory into the container. Expose the wrapper through the `feroxbuster-docker` script and provide a shell alias `feroxbuster`.
 
-### 9.6 Recon Packages
+### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
 - Feroxbuster is handled separately based on the operator's chosen installation method (`cargo` or selected AUR helper). Document the prompt and ensure reruns honour the saved choice.
 
-## 10. Shells & Editors
+## 11. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.
 - Update plugin installer to match the curated plugin list (cd-ls, zsh-git-fzf, alias-tips, fzf-alias, zsh-vi-mode, zsh-history-substring-search, zsh-syntax-highlighting, zsh-autosuggestions, zsh-aur-install).
 - Editors:
@@ -124,14 +127,14 @@ sudo pacman -Syu --noconfirm
   - `neovim`: clone LazyVim starter with `git clone https://github.com/LazyVim/starter ~/.config/nvim` and run `nvim --headless '+Lazy! sync' +qa`.
 - Copy the tmux config to `~/.config/tmux/tmux.conf` and bootstrap TPM if missing.
 
-## 11. README
+## 12. README
 - Create an emoji-free README summarizing:
   - Arch prerequisites and the workflow for migrating away from the pre-existing `admin` account.
   - Modular tasks and how to run them (`./abb-setup.sh prompts`, etc.).
   - Installed languages, yay usage, system utilities, and recon tooling.
   - Log file location and rerun guidance.
 
-## 12. Verification
+## 13. Verification
 - Provide a `verify` task that confirms:
   - `pacman -Q` versions for key packages.
   - `yay --version`.
