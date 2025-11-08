@@ -36,12 +36,6 @@ final_verification() {
     fi
   fi
 
-  if run_as_user "command -v mull >/dev/null 2>&1"; then
-    run_as_user "mull --help" >/dev/null 2>&1 || log_warn "Mullvad CLI (mull) responds unexpectedly."
-  else
-    log_warn "Mullvad CLI wrapper 'mull' not detected. Re-run 'abb-setup.sh utilities' after reviewing the WireGuard setup logs."
-  fi
-
   if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
     command_exists amass >/dev/null 2>&1 || log_warn "Amass wrapper not detected. Re-run 'abb-setup.sh docker-tools' to install the Docker helper."
     command_exists feroxbuster-docker >/dev/null 2>&1 || log_warn "feroxbuster Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
@@ -59,16 +53,6 @@ final_verification() {
 
   run_as_user "command -v go >/dev/null 2>&1 && go version" || log_warn "Go runtime not found for ${NEW_USER}"
   run_as_user "pipx list" || log_warn "pipx list failed."
-
-  local pd_missing=()
-  for tool in ${PDTM_TOOLS[*]}; do
-    if ! run_as_user "[[ -x \$HOME/.local/bin/${tool} ]]" >/dev/null 2>&1; then
-      pd_missing+=("${tool}")
-    fi
-  done
-  if ((${#pd_missing[@]})); then
-    log_warn "ProjectDiscovery binaries missing from ~/.local/bin: ${pd_missing[*]}"
-  fi
 
   if [[ -f "${INSTALLED_TRACK_FILE}" ]]; then
     log_info "Installed tools recorded in ${INSTALLED_TRACK_FILE}"

@@ -21,25 +21,6 @@ declare -A PIPX_EXTRA_ARGS=(
   [webscreenshot]='--include-deps'
 )
 
-PDTM_TOOLS=(
-  subfinder
-  dnsx
-  naabu
-  httpx
-  nuclei
-  uncover
-  cloudlist
-  proxify
-  tlsx
-  notify
-  chaos-client
-  shuffledns
-  mapcidr
-  interactsh-server
-  interactsh-client
-  katana
-)
-
 GO_TOOLS=(
   github.com/tomnomnom/anew@latest
   github.com/tomnomnom/assetfinder@latest
@@ -281,7 +262,7 @@ install_git_python_tools() {
 
 write_tool_overview() {
   local user_home overview_file tmp_file package_manager_display node_manager_display
-  local pipx_keys=() pipx_sorted=() pd_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=()
+  local pipx_keys=() pipx_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=()
   local module tool_name
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -301,11 +282,6 @@ write_tool_overview() {
   done
   if ((${#pipx_keys[@]})); then
     IFS=$'\n' pipx_sorted=($(printf '%s\n' "${pipx_keys[@]}" | sort))
-    unset IFS
-  fi
-
-  if ((${#PDTM_TOOLS[@]})); then
-    IFS=$'\n' pd_sorted=($(printf '%s\n' "${PDTM_TOOLS[@]}" | sort))
     unset IFS
   fi
 
@@ -391,17 +367,6 @@ write_tool_overview() {
     printf '%s\n' "-----------------"
     if ((${#pipx_sorted[@]})); then
       for module in "${pipx_sorted[@]}"; do
-        printf ' - %s\n' "${module}"
-      done
-    else
-      printf '%s\n' " - (none installed)"
-    fi
-    printf '\n'
-
-    printf '%s\n' "ProjectDiscovery (pdtm)"
-    printf '%s\n' "-----------------------"
-    if ((${#pd_sorted[@]})); then
-      for module in "${pd_sorted[@]}"; do
         printf ' - %s\n' "${module}"
       done
     else
@@ -539,32 +504,99 @@ install_trufflehog() {
     return
   fi
 
+  if run_trufflehog_install_script; then
+    append_installed_tool "trufflehog"
+    log_info "Installed trufflehog via official install script."
+    return
+  fi
+
+  prompt_trufflehog_source_build
+  case $? in
+    0)
+      append_installed_tool "trufflehog"
+      log_info "Installed trufflehog from source."
+      return
+      ;;
+    1)
+      return
+      ;;
+  esac
+
+  notify_trufflehog_docker_fallback
+}
+
+run_trufflehog_install_script() {
   local installer tmp
   tmp="$(mktemp)" || {
     log_warn "Unable to allocate temporary file for trufflehog installer."
-    return
+    return 1
   }
   if ! command_exists curl; then
     log_warn "curl not available; skipping trufflehog installer."
     rm -f "${tmp}"
-    return
+    return 1
   fi
   installer="https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh"
   if curl -fsSL "${installer}" -o "${tmp}"; then
     if sh "${tmp}" -s -- -b /usr/local/bin >/dev/null 2>&1; then
-      if command_exists trufflehog; then
-        append_installed_tool "trufflehog"
-        log_info "Installed trufflehog via official install script."
-      else
-        log_warn "Trufflehog installer completed but binary not detected."
-      fi
-    else
-      log_warn "Trufflehog install script failed."
+      rm -f "${tmp}"
+      return 0
     fi
+    log_warn "Trufflehog install script failed."
   else
     log_warn "Failed to download trufflehog install script."
   fi
   rm -f "${tmp}"
+  return 1
+}
+
+install_trufflehog_from_source() {
+  local cmd
+  cmd=$(cat <<'EOF'
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+git clone https://github.com/trufflesecurity/trufflehog.git "$tmp/trufflehog" >/dev/null 2>&1 || exit 1
+cd "$tmp/trufflehog" || exit 1
+go install ./cmd/trufflehog >/dev/null 2>&1
+EOF
+)
+  if run_as_user "${cmd}"; then
+    if run_as_user "command -v trufflehog >/dev/null 2>&1"; then
+      return 0
+    fi
+  fi
+  log_warn "Failed to build trufflehog from source."
+  return 1
+}
+
+prompt_trufflehog_source_build() {
+  local answer=""
+  while true; do
+    read -rp "Trufflehog install script failed. Build from source now? (y/n): " answer </dev/tty || { answer="n"; }
+    case "${answer,,}" in
+      y|yes)
+        if install_trufflehog_from_source; then
+          return 0
+        fi
+        return 2
+        ;;
+      n|no)
+        notify_trufflehog_docker_fallback
+        return 1
+        ;;
+      *)
+        echo "Please answer y or n." >/dev/tty
+        ;;
+    esac
+  done
+}
+
+notify_trufflehog_docker_fallback() {
+  if [[ "${CONTAINER_ENGINE}" == "docker" ]] && command_exists docker && [[ "${SKIP_DOCKER_TASKS}" != "true" ]]; then
+    log_info "Trufflehog binary not installed; use 'trufflehog-docker' after running the docker-tools task."
+  else
+    log_warn "Trufflehog is unavailable. Review https://github.com/trufflesecurity/trufflehog for manual installation instructions."
+  fi
 }
 
 install_dnscEwl() {

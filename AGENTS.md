@@ -92,7 +92,7 @@ sudo pacman -Syu --noconfirm
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery
 - Use `pipx` for: waymore, xnLinkFinder, urless, xnldorker, Sublist3r, dirsearch, sqlmap, knockpy, webscreenshot.
-- Install `pdtm` with pipx, then provision all ProjectDiscovery tools through it (`subfinder`, `dnsx`, `naabu`, `httpx`, `nuclei`, `uncover`, `cloudlist`, `proxify`, `tlsx`, `notify`, `chaos-client`, `shuffledns`, `mapcidr`, `interactsh-server`, `interactsh-client`, `katana`). Place binaries in `~/.local/bin`.
+- Install `pdtm` via Go and remind the operator to run `pdtm install ...` (or `pdtm install-all`) manually after the environment is ready; ABB does not auto-install ProjectDiscovery binaries.
 
 ### 10.2 Go Tools
 - Use `go install ...@latest` for the remaining recon utilities:
