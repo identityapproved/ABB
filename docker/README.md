@@ -26,4 +26,12 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
    /opt/abb-docker/scripts/rotate-wg.sh
    ```
 
+### Auto Rotation (Optional)
+
+Cron can rotate the active WireGuard profile on a schedule. The following example switches VPN profiles every 15 minutes:
+
+```bash
+(crontab -l 2>/dev/null; echo "*/15 * * * * /opt/abb-docker/scripts/rotate-wg.sh >/dev/null 2>&1") | crontab -
+```
+
 Refer to the comments inside each compose file for mount points and environment overrides. Build-required stacks (e.g., Asnlookup, dnsvalidator) can be built with `docker compose -f docker-compose.<name>.yml build`.

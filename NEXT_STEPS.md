@@ -37,6 +37,7 @@ If you selected Docker, the compose stacks live under `/opt/abb-docker`:
 - Start the VPN transport: `docker compose -f /opt/abb-docker/compose/docker-compose.vpn.yml up -d`.
 - Run a tool through the VPN: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
 - Rotate WireGuard profiles for all Docker stacks: `/opt/abb-docker/scripts/rotate-wg.sh`.
+- Optional auto rotation: `(crontab -l 2>/dev/null; echo "*/15 * * * * /opt/abb-docker/scripts/rotate-wg.sh >/dev/null 2>&1") | crontab -`.
 - Build/update stacks that ship local Dockerfiles (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<tool>.yml build`.
 
 Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster, trufflehog, CeWL, Amass) and rebuild the custom images when upstream repos change.
