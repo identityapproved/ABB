@@ -29,5 +29,5 @@ sleep 1
 docker exec "${WG_CONTAINER}" wg-quick up /config/wg0.conf
 
 echo -n "[+] New exit IP: "
-docker exec "${WG_CONTAINER}" sh -c 'curl -s ifconfig.me || curl -s icanhazip.com'
+docker exec "${WG_CONTAINER}" sh -c 'curl https://am.i.mullvad.net/json | jq || curl -s ifconfig.me '
 echo
