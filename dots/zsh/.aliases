@@ -25,7 +25,6 @@ alias dmt="doom run -nw"
 
 alias yz='yazi'
 alias lz='lazygit'
-alias feroxbuster='feroxbuster-docker'
 
 alias rmpkg="sudo pacman -Rsn"
 alias cleanch="sudo pacman -Scc"
@@ -45,14 +44,6 @@ alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
 
 # WireGuard profile picker
 wgup() {
-  local active
-  active=$(sudo wg show | awk '/interface:/{print $2}')
-  if [[ -n "$active" ]]; then
-    echo "WireGuard already active:"
-    echo "$active"
-    return
-  fi
-
   local list="$HOME/wireguard-profiles.txt"
   if [[ ! -r "${list}" ]]; then
     echo "WireGuard profile list not found at ${list}" >&2
@@ -63,7 +54,6 @@ wgup() {
     return 1
   fi
   local profile
-  # profile=$(grep -v '^[[:space:]]*$' "${list}" | fzf --prompt="Select WireGuard profile> " --height=40%) || return 1
-  profile=$(fzf < ~/wireguard-profiles.txt) || return
+  profile=$(grep -v '^[[:space:]]*$' "${list}" | fzf --prompt="Select WireGuard profile> " --height=40%) || return 1
   sudo wg-quick up "${profile}"
 }

@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  trufflehog:
+    image: trufflesecurity/trufflehog:latest
+    container_name: trufflehog
+    network_mode: "container:wg-vpn"
+    environment:
+      - TRUFFLEHOG_WORKDIR=${TRUFFLEHOG_WORKDIR:-/opt/abb-docker/data/trufflehog}
+    volumes:
+      - ${TRUFFLEHOG_WORKDIR:-/opt/abb-docker/data/trufflehog}:/pwd
+    working_dir: /pwd
+    entrypoint: ["trufflehog"]

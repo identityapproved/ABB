@@ -86,8 +86,8 @@ sudo pacman -Syu --noconfirm
 ## 9. Mullvad WireGuard
 - Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
 - Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
-- Add SSH-preserving policy routing (`PostUp`/`PreDown`) to every `/etc/wireguard/*.conf`.
-- Remind the operator to connect with `sudo wg-quick up <profile>` and confirm via `curl https://am.i.mullvad.net/json | jq`.
+- Copy pristine profiles into `/opt/wg-configs/source`, duplicate them into `/opt/wg-configs/pool`, and inject the SSH-preserving `PostUp`/`PreDown` rules only into the pooled copies (leave `/etc/wireguard/*.conf` untouched). Point `/opt/wg-configs/active/wg0.conf` at the profile currently used by Docker.
+- Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery
@@ -103,17 +103,17 @@ sudo pacman -Syu --noconfirm
 
 ### 10.3 Trufflehog
 - Prompt the operator to decide whether to install trufflehog via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`). Honour the saved preference on reruns.
-- Provide a Docker wrapper (`docker run --rm -it -v "$PWD:/pwd" trufflesecurity/trufflehog:latest …`) so the operator can run trufflehog without installing the binary.
+- If the script fails (or the operator declines), offer to build from source or point to the docker-compose stack (`docker-compose.trufflehog.yml`) inside `/opt/abb-docker`.
 
 ### 10.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, Mullvad-CLI (symlinked to `~/bin/mull`), etc.
+- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc.
 
-### 10.5 Docker Helpers
-- When Docker is selected, offer wrappers for ReconFTW (`docker pull six2dez/reconftw:main`), Asnlookup (build from the repository Dockerfile), dnsvalidator (build from the upstream Dockerfile), feroxbuster (`docker pull epi052/feroxbuster:latest`), CeWL (pull `ghcr.io/digininja/cewl:latest`), and Amass (pull/tag `owaspamass/amass:latest`). Install scripts to `/usr/local/bin/reconftw`, `/usr/local/bin/asnlookup`, `/usr/local/bin/dnsvalidator`, `/usr/local/bin/feroxbuster-docker`, `/usr/local/bin/cewl`, and `/usr/local/bin/amass` that run the respective containers and mount the current working directory (or a user-specified path).
-- Add a trufflehog wrapper at `/usr/local/bin/trufflehog-docker` that mounts `${TRUFFLEHOG_WORKDIR:-$PWD}` to `/pwd` and runs `trufflesecurity/trufflehog:latest`.
-- ReconFTW setup must also download the upstream `reconftw.cfg`, stage a copy at `/opt/vps-tools/reconftw/reconftw.cfg`, and seed `~/.config/reconftw/reconftw.cfg` for the managed user. The wrapper should ensure the config exists, create the output directory (default `ReconFTW` in the current working directory, 0777 permissions), and mount both the config and output paths into the container. Respect overrides through `RECONFTW_CONFIG` and `RECONFTW_OUTPUT`.
-- For feroxbuster, seed `/opt/vps-tools/feroxbuster/ferox-config.toml`, copy it to `~/.config/feroxbuster/ferox-config.toml` if missing, and mount either the file or the directory into the container. Expose the wrapper through the `feroxbuster-docker` script and provide a shell alias `feroxbuster`.
+### 10.5 Docker Assets
+- Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
+- Provide compose files for the WireGuard VPN, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`.
+- Ship helper scripts (e.g., `rotate-wg.sh`) under `docker/scripts/` and ensure they are executable after syncing.
+- Document that every stack uses `network_mode: "container:wg-vpn"` so traffic egresses through the Mullvad WireGuard container.
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
@@ -138,6 +138,6 @@ sudo pacman -Syu --noconfirm
 - Provide a `verify` task that confirms:
   - `pacman -Q` versions for key packages.
   - `yay --version`.
-  - `pipx list` output and presence of PD binaries in `~/.local/bin`.
+  - `pipx list` output.
   - Location of `installed-tools.txt` and `/var/log/vps-setup.log`.
 - Encourage a reboot after full provisioning.

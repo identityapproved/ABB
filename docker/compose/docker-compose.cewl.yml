@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  cewl:
+    image: ghcr.io/digininja/cewl:latest
+    container_name: cewl
+    network_mode: "container:wg-vpn"
+    volumes:
+      - ${CEWL_WORKDIR:-/opt/abb-docker/data/cewl}:/host
+    working_dir: /host
+    entrypoint: ["cewl"]

@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  reconftw:
+    image: six2dez/reconftw:main
+    container_name: reconftw
+    network_mode: "container:wg-vpn"
+    volumes:
+      - ${RECONFTW_DATA:-/opt/abb-docker/data/reconftw/output}:/data
+      - ${RECONFTW_CONFIG_DIR:-/opt/abb-docker/data/reconftw/config}:/config
+    working_dir: /data
+    entrypoint: ["/bin/bash"]
+    command: ["-c", "${RECONFTW_CMD:-/reconftw/reconftw.sh}"]
+    environment:
+      - RECONFTW_CONFIG=${RECONFTW_CONFIG:-/config/reconftw.cfg}

@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  asnlookup:
+    build:
+      context: ../images/asnlookup
+    container_name: asnlookup
+    network_mode: "container:wg-vpn"
+    volumes:
+      - ${ASNLOOKUP_OUTPUT:-/opt/abb-docker/data/asnlookup}:/workspace
+    working_dir: /workspace
+    tty: true

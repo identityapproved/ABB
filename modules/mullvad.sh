@@ -1,5 +1,10 @@
 # shellcheck shell=bash
 
+readonly WG_ROOT="/opt/wg-configs"
+readonly WG_SOURCE_DIR="${WG_ROOT}/source"
+readonly WG_POOL_DIR="${WG_ROOT}/pool"
+readonly WG_ACTIVE_DIR="${WG_ROOT}/active"
+
 ensure_wireguard_kernel() {
   local kernel_raw kernel_version compare_result
   kernel_raw="$(uname -r)"
@@ -24,73 +29,79 @@ ensure_wireguard_kernel() {
   fi
 }
 
-add_wireguard_ssh_rules() {
-  local cfg_dir="/etc/wireguard"
-  local cfg
-  local -a configs=()
-  local user_home config_record
-
-  if [[ ! -d "${cfg_dir}" ]]; then
-    log_warn "WireGuard directory ${cfg_dir} not found; skip PostUp/PreDown updates."
+normalize_wireguard_profile() {
+  local cfg="$1"
+  local need_postup=1 need_predown=1 tmp
+  if grep -Eq '^PostUp[[:space:]]*=[[:space:]]*ip rule add sport 22 lookup main' "${cfg}"; then
+    need_postup=0
+  fi
+  if grep -Eq '^PreDown[[:space:]]*=[[:space:]]*ip rule delete sport 22 lookup main' "${cfg}"; then
+    need_predown=0
+  fi
+  if ((need_postup == 0 && need_predown == 0)); then
     return
   fi
+  tmp="$(mktemp)" || { log_warn "Unable to create temporary file while updating ${cfg}."; return; }
+  awk -v need_postup="${need_postup}" -v need_predown="${need_predown}" '
+    {
+      print
+      if ($0 ~ /^\[Interface\]/ && inserted == 0) {
+        if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
+        if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
+        inserted = 1
+      }
+    }
+    END {
+      if (inserted == 0 && (need_postup || need_predown)) {
+        print "[Interface]"
+        if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
+        if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
+      }
+    }
+  ' "${cfg}" > "${tmp}"
+  mv "${tmp}" "${cfg}"
+  chmod 0600 "${cfg}" || true
+}
+
+copy_wireguard_profiles() {
+  local user_home list_file default_profile=""
+  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if [[ -z "${user_home}" ]]; then
+    log_warn "Unable to determine home directory for ${NEW_USER}; skipping wireguard profile export."
+    return
+  }
+  list_file="${user_home}/wireguard-profiles.txt"
+
+  install -d -m 0755 "${WG_SOURCE_DIR}" "${WG_POOL_DIR}" "${WG_ACTIVE_DIR}"
+  : > "${list_file}"
 
   shopt -s nullglob
-  configs=("${cfg_dir}"/*.conf)
+  local configs=("/etc/wireguard/"*.conf)
   shopt -u nullglob
   if ((${#configs[@]} == 0)); then
-    log_warn "No WireGuard configuration files detected in ${cfg_dir}."
+    log_warn "No WireGuard configuration files detected in /etc/wireguard."
     return
   fi
 
-  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
-  config_record="${user_home}/wireguard-profiles.txt"
-  : > "${config_record}"
-
   for cfg in "${configs[@]}"; do
-    local need_postup=1 need_predown=1 inserted=0 tmp
-    if grep -Eq '^PostUp[[:space:]]*=[[:space:]]*ip rule add sport 22 lookup main' "${cfg}"; then
-      need_postup=0
-    fi
-    if grep -Eq '^PreDown[[:space:]]*=[[:space:]]*ip rule delete sport 22 lookup main' "${cfg}"; then
-      need_predown=0
-    fi
-    if ((need_postup == 0 && need_predown == 0)); then
-      continue
-    fi
-    tmp="$(mktemp)" || { log_warn "Unable to create temporary file while updating ${cfg}."; continue; }
-    awk -v need_postup="${need_postup}" -v need_predown="${need_predown}" '
-      {
-        print
-        if ($0 ~ /^\[Interface\]/ && inserted == 0) {
-          if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
-          if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
-          inserted = 1
-        }
-      }
-      END {
-        if (inserted == 0 && (need_postup || need_predown)) {
-          print "[Interface]"
-          if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
-          if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
-        }
-      }
-    ' "${cfg}" > "${tmp}"
-    if mv "${tmp}" "${cfg}"; then
-      chmod 0600 "${cfg}" || true
-      log_info "Updated SSH rules in ${cfg}."
-    else
-      log_warn "Failed to update ${cfg}."
-      rm -f "${tmp}"
-    fi
-    printf '%s\n' "$(basename "${cfg}" .conf)" >> "${config_record}"
+    local base
+    base="$(basename "${cfg}")"
+    cp -f "${cfg}" "${WG_SOURCE_DIR}/${base}"
+    cp -f "${WG_SOURCE_DIR}/${base}" "${WG_POOL_DIR}/${base}"
+    normalize_wireguard_profile "${WG_POOL_DIR}/${base}"
+    printf '%s\n' "${base%.conf}" >> "${list_file}"
+    [[ -z "${default_profile}" ]] && default_profile="${base}"
   done
 
-  if [[ -n "${user_home}" ]]; then
-    chown "${NEW_USER}:${NEW_USER}" "${config_record}" || true
-    chmod 0644 "${config_record}" || true
-    log_info "Wrote WireGuard profile list to ${config_record}."
+  if [[ -n "${default_profile}" ]]; then
+    cp -f "${WG_POOL_DIR}/${default_profile}" "${WG_ACTIVE_DIR}/wg0.conf"
+    chmod 0600 "${WG_ACTIVE_DIR}/wg0.conf" || true
   fi
+
+  sort -u -o "${list_file}" "${list_file}"
+  chown "${NEW_USER}:${NEW_USER}" "${list_file}" || true
+  chmod 0644 "${list_file}" || true
+  log_info "Staged WireGuard profiles under ${WG_ROOT} (originals preserved in ${WG_SOURCE_DIR})."
 }
 
 run_mullvad_wg_script_once() {
@@ -117,7 +128,7 @@ configure_mullvad_wireguard() {
   pacman_install_packages openresolv wireguard-tools
   ensure_wireguard_kernel
   run_mullvad_wg_script_once || true
-  add_wireguard_ssh_rules
+  copy_wireguard_profiles
   log_info "WireGuard setup complete. Connect with 'sudo wg-quick up <config>' then verify via 'curl https://am.i.mullvad.net/json | jq'."
 }
 
