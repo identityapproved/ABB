@@ -12,6 +12,7 @@ RUN apt-get update && \
       nftables \
       curl \
       jq \
+      openresolv \
       bash \
       ca-certificates \
       procps \

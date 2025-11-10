@@ -11,7 +11,18 @@ while true; do
   if /usr/local/bin/container-rotate-wg.sh; then
     sleep "${ROTATE_SECONDS}"
   else
-    echo "[entrypoint] rotation helper reported no profiles. Retrying in 30s..."
+    status=$?
+    case "${status}" in
+      1)
+        echo "[entrypoint] Mullvad profiles missing; run 'docker exec -it ${CONTAINER_NAME} bootstrap-mullvad'. Retrying in 30s..."
+        ;;
+      2)
+        echo "[entrypoint] wg-quick failed to apply the selected profile (exit ${status}). Retrying in 30s..."
+        ;;
+      *)
+        echo "[entrypoint] rotation helper exited with status ${status}. Retrying in 30s..."
+        ;;
+    esac
     sleep 30
   fi
 done
