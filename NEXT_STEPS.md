@@ -44,7 +44,7 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
 
 ## WireGuard Follow-Up
 
-- Mullvad profiles are copied to `/opt/wg-configs/source` and `/opt/wg-configs/pool`. The active config for Docker lives at `/opt/wg-configs/active/wg0.conf`. Bring up your tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
+- Mullvad profiles for Docker live under `/opt/wg-configs/pool`, while the originals in `/etc/wireguard` include the SSH-preserving rules for VPS usage. The active config for Docker lives at `/opt/wg-configs/active/wg0.conf`. Bring up your tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
   ```bash
   curl https://am.i.mullvad.net/json | jq
   ```

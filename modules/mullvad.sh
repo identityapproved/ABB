@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 
 readonly WG_ROOT="/opt/wg-configs"
-readonly WG_SOURCE_DIR="${WG_ROOT}/source"
 readonly WG_POOL_DIR="${WG_ROOT}/pool"
 readonly WG_ACTIVE_DIR="${WG_ROOT}/active"
 
@@ -82,7 +81,7 @@ copy_wireguard_profiles() {
   fi
   list_file="${user_home}/wireguard-profiles.txt"
 
-  install -d -m 0755 "${WG_SOURCE_DIR}" "${WG_POOL_DIR}" "${WG_ACTIVE_DIR}"
+  install -d -m 0755 "${WG_POOL_DIR}" "${WG_ACTIVE_DIR}"
   : > "${list_file}"
 
   shopt -s nullglob
@@ -96,8 +95,7 @@ copy_wireguard_profiles() {
   for cfg in "${configs[@]}"; do
     local base
     base="$(basename "${cfg}")"
-    sanitize_wireguard_profile "${cfg}" "${WG_SOURCE_DIR}/${base}"
-    cp -f "${WG_SOURCE_DIR}/${base}" "${WG_POOL_DIR}/${base}"
+    sanitize_wireguard_profile "${cfg}" "${WG_POOL_DIR}/${base}"
     printf '%s\n' "${base%.conf}" >> "${list_file}"
     [[ -z "${default_profile}" ]] && default_profile="${base}"
   done
@@ -110,7 +108,7 @@ copy_wireguard_profiles() {
   sort -u -o "${list_file}" "${list_file}"
   chown "${NEW_USER}:${NEW_USER}" "${list_file}" || true
   chmod 0644 "${list_file}" || true
-  log_info "Staged WireGuard profiles under ${WG_ROOT} (originals preserved in ${WG_SOURCE_DIR})."
+  log_info "Staged WireGuard profiles under ${WG_POOL_DIR} for Docker use (pristine VPS configs remain in /etc/wireguard)."
 }
 
 update_vps_wireguard_rules() {
