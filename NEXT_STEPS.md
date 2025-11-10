@@ -34,17 +34,15 @@ Repeat as needed to install additional tools announced by ProjectDiscovery.
 ## Docker Helpers
 
 If you selected Docker, the compose stacks live under `/opt/abb-docker`:
-- Start the VPN transport: `docker compose -f /opt/abb-docker/compose/docker-compose.vpn.yml up -d`.
+- Start the VPN transport (builds on first run): `docker compose -f /opt/abb-docker/compose/docker-compose.vpn.yml up -d`.
+- Generate container-only Mullvad configs: `docker exec -it wg-vpn bootstrap-mullvad`.
 - Run a tool through the VPN: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
-- Rotate WireGuard profiles for all Docker stacks: `/opt/abb-docker/scripts/rotate-wg.sh`.
-- Optional auto rotation: `(crontab -l 2>/dev/null; echo "*/15 * * * * /opt/abb-docker/scripts/rotate-wg.sh >/dev/null 2>&1") | crontab -`.
+- Trigger an immediate VPN rotation (the container already rotates every 15 minutes automatically): `/opt/abb-docker/scripts/rotate-wg.sh`.
 - Build/update stacks that ship local Dockerfiles (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<tool>.yml build`.
 
 Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster, trufflehog, CeWL, Amass) and rebuild the custom images when upstream repos change.
 
-## WireGuard Follow-Up
-
-- Mullvad profiles for Docker live under `/opt/wg-configs/pool`, while the originals in `/etc/wireguard` include the SSH-preserving rules for VPS usage. The active config for Docker lives at `/opt/wg-configs/active/wg0.conf`. Bring up your tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
+- Mullvad configs for the VPS host live exclusively under `/etc/wireguard` (with SSH-preserving rules baked in). The Docker VPN container keeps its own copies inside `/opt/abb-docker/state/wg-profiles`. Bring up a host-side tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
   ```bash
   curl https://am.i.mullvad.net/json | jq
   ```

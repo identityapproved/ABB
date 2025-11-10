@@ -86,7 +86,7 @@ sudo pacman -Syu --noconfirm
 ## 9. Mullvad WireGuard
 - Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
 - Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
-- Copy the freshly generated Mullvad configs into `/opt/wg-configs/pool` (clean copies for Docker) and keep `/opt/wg-configs/active/wg0.conf` pointed at the profile currently used by Docker stacks. Inject the SSH-preserving `PostUp`/`PreDown` rules only into the originals under `/etc/wireguard` so VPS usage keeps the safeguards while Docker keeps unedited configs.
+- Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. Docker gets its own dedicated configs by running `mullvad-wg.sh` *inside* the custom VPN container (see `docker/images/wg-vpn`). The compose file builds that image, mounts `/opt/abb-docker/state/wg-profiles` to persist container-only profiles, and the container rotates to a random profile every 15 minutes (adjustable via `WG_ROTATE_SECONDS`). Trigger manual swaps with `/opt/abb-docker/scripts/rotate-wg.sh` when necessary.
 - Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
 
 ## 10. Tool Catalogue

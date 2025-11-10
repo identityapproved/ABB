@@ -2,20 +2,17 @@ version: "3.8"
 
 services:
   wg-vpn:
-    image: lscr.io/linuxserver/wireguard:latest
+    build:
+      context: ..
+      dockerfile: images/wg-vpn/Dockerfile
     container_name: wg-vpn
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
+      - WG_ROTATE_SECONDS=900
     volumes:
-      - /opt/wg-configs/active/wg0.conf:/config/wg0.conf
-      - /opt/wg-configs/active:/config/active
-      - /opt/wg-configs/pool:/config/pool
-      - /lib/modules:/lib/modules:ro
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
+      - /opt/abb-docker/state/wg-profiles:/var/lib/mullvad/profiles
     restart: unless-stopped

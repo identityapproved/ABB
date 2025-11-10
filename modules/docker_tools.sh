@@ -9,6 +9,7 @@ sync_docker_assets() {
   fi
   install -d -m 0755 "${DOCKER_ASSETS_DIR}"
   rsync -a --delete "${REPO_ROOT}/docker/" "${DOCKER_ASSETS_DIR}/"
+  install -d -m 0755 "${DOCKER_ASSETS_DIR}/state/wg-profiles"
   chown -R "${NEW_USER}:${NEW_USER}" "${DOCKER_ASSETS_DIR}" || true
   log_info "Docker compose stacks synced to ${DOCKER_ASSETS_DIR}."
   log_info "Use 'docker compose -f ${DOCKER_ASSETS_DIR}/compose/<file>.yml up' to start the desired service."
