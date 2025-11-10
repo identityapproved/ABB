@@ -63,6 +63,16 @@ normalize_wireguard_profile() {
   chmod 0600 "${cfg}" || true
 }
 
+sanitize_wireguard_profile() {
+  local src="$1"
+  local dst="$2"
+  awk '
+    !($0 ~ /^PostUp[[:space:]]*=[[:space:]]*ip rule add sport 22 lookup main$/) &&
+    !($0 ~ /^PreDown[[:space:]]*=[[:space:]]*ip rule delete sport 22 lookup main$/)
+  ' "${src}" > "${dst}"
+  chmod 0600 "${dst}" || true
+}
+
 copy_wireguard_profiles() {
   local user_home list_file default_profile=""
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -86,9 +96,8 @@ copy_wireguard_profiles() {
   for cfg in "${configs[@]}"; do
     local base
     base="$(basename "${cfg}")"
-    cp -f "${cfg}" "${WG_SOURCE_DIR}/${base}"
+    sanitize_wireguard_profile "${cfg}" "${WG_SOURCE_DIR}/${base}"
     cp -f "${WG_SOURCE_DIR}/${base}" "${WG_POOL_DIR}/${base}"
-    normalize_wireguard_profile "${WG_POOL_DIR}/${base}"
     printf '%s\n' "${base%.conf}" >> "${list_file}"
     [[ -z "${default_profile}" ]] && default_profile="${base}"
   done
@@ -102,6 +111,20 @@ copy_wireguard_profiles() {
   chown "${NEW_USER}:${NEW_USER}" "${list_file}" || true
   chmod 0644 "${list_file}" || true
   log_info "Staged WireGuard profiles under ${WG_ROOT} (originals preserved in ${WG_SOURCE_DIR})."
+}
+
+update_vps_wireguard_rules() {
+  shopt -s nullglob
+  local configs=("/etc/wireguard/"*.conf)
+  shopt -u nullglob
+  if ((${#configs[@]} == 0)); then
+    log_warn "No WireGuard configuration files detected when updating SSH-preserving rules."
+    return
+  fi
+  for cfg in "${configs[@]}"; do
+    normalize_wireguard_profile "${cfg}"
+  done
+  log_info "Ensured SSH-preserving PostUp/PreDown rules exist in /etc/wireguard profiles for VPS use."
 }
 
 run_mullvad_wg_script_once() {
@@ -129,6 +152,7 @@ configure_mullvad_wireguard() {
   ensure_wireguard_kernel
   run_mullvad_wg_script_once || true
   copy_wireguard_profiles
+  update_vps_wireguard_rules
   log_info "WireGuard setup complete. Connect with 'sudo wg-quick up <config>' then verify via 'curl https://am.i.mullvad.net/json | jq'."
 }
 
