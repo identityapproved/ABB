@@ -69,7 +69,7 @@ copy_wireguard_profiles() {
   if [[ -z "${user_home}" ]]; then
     log_warn "Unable to determine home directory for ${NEW_USER}; skipping wireguard profile export."
     return
-  }
+  fi
   list_file="${user_home}/wireguard-profiles.txt"
 
   install -d -m 0755 "${WG_SOURCE_DIR}" "${WG_POOL_DIR}" "${WG_ACTIVE_DIR}"
