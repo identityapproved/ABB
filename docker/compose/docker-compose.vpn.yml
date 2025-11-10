@@ -4,6 +4,7 @@ services:
       context: ..
       dockerfile: images/wg-vpn/Dockerfile
     container_name: wg-vpn
+    privileged: true
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
