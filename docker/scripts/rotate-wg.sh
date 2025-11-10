@@ -30,7 +30,10 @@ if [[ ! -f "${CONF}" ]]; then
 fi
 
 echo "[+] Switching docker WireGuard container (${WG_CONTAINER}) to profile: ${PROFILE}"
-install -m 600 "${CONF}" "${ACTIVE_CONF}"
+TMP_ACTIVE="$(mktemp "${ACTIVE_DIR}/wg0.conf.XXXXXX")"
+cp -f "${CONF}" "${TMP_ACTIVE}"
+chmod 600 "${TMP_ACTIVE}"
+mv "${TMP_ACTIVE}" "${ACTIVE_CONF}"
 
 docker exec "${WG_CONTAINER}" wg-quick down wg0 >/dev/null 2>&1 || true
 sleep 1
