@@ -20,7 +20,7 @@ RUN apt-get update && \
       findutils && \
     rm -rf /var/lib/apt/lists/*
 
-RUN rm -f /etc/resolv.conf && ln -s /run/resolvconf/resolv.conf /etc/resolv.conf
+RUN mv /etc/resolv.conf /etc/resolv.conf.bak && ln -s /run/resolvconf/resolv.conf /etc/resolv.conf
 
 RUN mkdir -p /var/lib/mullvad/profiles /etc/wireguard
 
