@@ -22,9 +22,9 @@ RUN apt-get update && \
 
 RUN mkdir -p /var/lib/mullvad/profiles /etc/wireguard
 
-COPY docker/images/wg-vpn/entrypoint.sh /usr/local/bin/wg-entrypoint.sh
-COPY docker/images/wg-vpn/bootstrap-mullvad.sh /usr/local/bin/bootstrap-mullvad
-COPY docker/images/wg-vpn/rotate-wg.sh /usr/local/bin/container-rotate-wg.sh
+COPY images/wg-vpn/entrypoint.sh /usr/local/bin/wg-entrypoint.sh
+COPY images/wg-vpn/bootstrap-mullvad.sh /usr/local/bin/bootstrap-mullvad
+COPY images/wg-vpn/rotate-wg.sh /usr/local/bin/container-rotate-wg.sh
 
 RUN chmod 0755 /usr/local/bin/wg-entrypoint.sh \
     /usr/local/bin/bootstrap-mullvad \
