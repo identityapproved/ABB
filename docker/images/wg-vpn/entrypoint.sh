@@ -7,6 +7,11 @@ CONTAINER_NAME="${HOSTNAME:-wg-vpn}"
 echo "[entrypoint] Mullvad WireGuard container starting (rotate every ${ROTATE_SECONDS}s)."
 echo "[entrypoint] Generate configs with: docker exec -it ${CONTAINER_NAME} bootstrap-mullvad"
 
+# Ensure resolvconf target exists; link /etc/resolv.conf to runtime-managed file
+if [[ -f /run/resolvconf/resolv.conf ]]; then
+  ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+fi
+
 while true; do
   if /usr/local/bin/container-rotate-wg.sh; then
     sleep "${ROTATE_SECONDS}"
