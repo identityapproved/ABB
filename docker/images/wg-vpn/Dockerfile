@@ -10,7 +10,6 @@ RUN apt-get update && \
       iproute2 \
       iptables \
       nftables \
-      resolvconf \
       curl \
       jq \
       bash \
