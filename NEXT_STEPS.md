@@ -42,6 +42,11 @@ sudo protonvpn-cli connect --fastest
 ```
 
 Use `protonvpn-cli status` or `protonvpn-cli list --countries` to verify connectivity and browse endpoints. Re-run `sudo protonvpn-cli connect --fastest` whenever you need a fresh exit IP on the VPS itself.
+If you want to maintain an active SSH session while toggling ProtonVPN, use the bundled helper:
+```bash
+sudo proton-safe-connect -- --fastest
+```
+It adds a static route for your SSH client IP before invoking `protonvpn-cli`.
 
 ## Docker Helpers
 

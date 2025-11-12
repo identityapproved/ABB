@@ -97,6 +97,7 @@ Each compose file documents its mounts and environment variables; Asnlookup and 
 
 - VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. ProtonVPN installs the CLI via pipx; complete the login/init/connect flow manually to start the tunnel. The Mullvad Docker container manages its own identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
 - Trigger Mullvad rotations with `/opt/abb-docker/scripts/rotate-wg.sh` and ProtonVPN/Gluetun rotations with `/opt/abb-docker/scripts/rotate-gluetun.sh` (plus a cron entry such as `*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1` for continuous cycling).
+- The `proton-safe-connect` helper lives in `/usr/local/bin`; run `sudo proton-safe-connect` to preserve your SSH route before invoking `protonvpn-cli connect`, especially when working in long-lived SSH sessions.
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` alias (defined in `.aliases`) lets you fuzzy-pick a profile via `fzf` and run `sudo wg-quick up <profile>` in one step.
 - Trigger an immediate container rotation with `/opt/abb-docker/scripts/rotate-wg.sh`; it simply shells into the running `wg-vpn` container and invokes the same rotate helper the entrypoint uses.
 

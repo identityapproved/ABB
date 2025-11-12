@@ -3,6 +3,7 @@
 readonly LOG_FILE_DEFAULT="/var/log/vps-setup.log"
 readonly ANSWERS_FILE="/var/lib/vps-setup/answers.env"
 readonly TOOL_BASE_DIR="/opt/vps-tools"
+readonly HELPER_SCRIPTS_DIR="/opt/abb-scripts"
 readonly SYSCTL_FILE="/etc/sysctl.d/99-arch-hardening.conf"
 readonly RC_LOCAL="/etc/rc.local"
 readonly TEMPLATES_DIR="${REPO_ROOT}/dots"
@@ -199,4 +200,27 @@ ensure_user_context() {
   fi
 
   init_installed_tracker
+  sync_helper_scripts
+}
+sync_helper_scripts() {
+  local src_dir="${MODULE_DIR}/scripts"
+  if [[ ! -d "${src_dir}" ]]; then
+    return
+  fi
+  install -d -m 0755 "${HELPER_SCRIPTS_DIR}" /usr/local/bin
+  local script
+  shopt -s nullglob
+  for script in "${src_dir}"/*.sh; do
+    [[ -f "${script}" ]] || continue
+    local base
+    base="$(basename "${script}")"
+    install -m 0755 "${script}" "${HELPER_SCRIPTS_DIR}/${base}"
+    ln -sf "${HELPER_SCRIPTS_DIR}/${base}" "/usr/local/bin/${base}"
+    local trim="${base%.sh}"
+    if [[ "${trim}" != "${base}" ]]; then
+      ln -sf "${HELPER_SCRIPTS_DIR}/${base}" "/usr/local/bin/${trim}"
+    fi
+  done
+  shopt -u nullglob
+  log_info "Helper scripts synced to ${HELPER_SCRIPTS_DIR} and linked under /usr/local/bin."
 }
