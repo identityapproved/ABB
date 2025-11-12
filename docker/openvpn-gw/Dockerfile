@@ -21,8 +21,8 @@ RUN apk add --no-cache \
       curl && \
     mkdir -p "${OPENVPN_CONFIG_DIR}" "${OPENVPN_STATE_DIR}"
 
-COPY docker/openvpn-gw/entrypoint.sh /entrypoint.sh
-COPY docker/openvpn-gw/openvpn-config-switch.sh /usr/local/bin/openvpn-config-switch
+COPY openvpn-gw/entrypoint.sh /entrypoint.sh
+COPY openvpn-gw/openvpn-config-switch.sh /usr/local/bin/openvpn-config-switch
 
 RUN chmod +x /entrypoint.sh /usr/local/bin/openvpn-config-switch
 
