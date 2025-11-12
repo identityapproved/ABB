@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       openvpn \
+      iproute2 \
       curl \
       ca-certificates && \
     apt-get clean && \
