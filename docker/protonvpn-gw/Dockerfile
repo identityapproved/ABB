@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY entrypoint.sh /entrypoint.sh
+COPY docker/protonvpn-gw/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]
