@@ -53,7 +53,7 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
 
 ## ProtonVPN Gateway (OpenVPN)
 
-This stack expects you to download ProtonVPN OpenVPN `.ovpn` profiles manually and place them under `/opt/openvpn-configs` (owned by `root:root`, mode `0700`). Keep credentials inside those files (for example via `auth-user-pass /opt/openvpn-configs/credentials.txt`); the directory is mounted read-only into the container to avoid accidental edits.
+This stack expects you to download ProtonVPN OpenVPN `.ovpn` profiles manually and drop them under `~/openvpn-configs`. Re-run `./abb-setup.sh docker-tools` after adding new configs and the task will move them into `/opt/openvpn-configs` (owned by `root:root`, mode `0700`), overwriting older files with the same name and removing the originals from your home directory. Keep credentials inside the configs or add a `credentials.txt` alongside them; it will be copied securely as well. The resulting `/opt/openvpn-configs` directory is mounted read-only into the container to avoid accidental edits.
 
 1. Prepare the env file (optional overrides for timezone, default config, extra OpenVPN flags):
    ```bash

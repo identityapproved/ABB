@@ -16,6 +16,7 @@ sync_docker_assets() {
     "${DOCKER_ASSETS_DIR}/env"
   install -d -m 0700 /opt/openvpn-configs
   chown root:root /opt/openvpn-configs || true
+  sync_openvpn_configs_from_home
   chown -R "${NEW_USER}:${NEW_USER}" "${DOCKER_ASSETS_DIR}" || true
   log_info "Docker compose stacks synced to ${DOCKER_ASSETS_DIR}."
   log_info "Use 'docker compose -f ${DOCKER_ASSETS_DIR}/compose/<file>.yml up' to start the desired service."
@@ -24,6 +25,44 @@ sync_docker_assets() {
       chmod 0755 "${DOCKER_ASSETS_DIR}/scripts/${script}"
     fi
   done
+}
+
+sync_openvpn_configs_from_home() {
+  local dest="/opt/openvpn-configs"
+  install -d -m 0700 "${dest}"
+  chown root:root "${dest}" || true
+
+  local user_home
+  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if [[ -z "${user_home}" ]]; then
+    return
+  fi
+  local src="${user_home}/openvpn-configs"
+  if [[ ! -d "${src}" ]]; then
+    return
+  fi
+
+  local moved=0 base
+  shopt -s nullglob
+  for cfg in "${src}"/*.ovpn; do
+    [[ -f "${cfg}" ]] || continue
+    base="$(basename "${cfg}")"
+    install -m 0600 "${cfg}" "${dest}/${base}"
+    moved=1
+  done
+  shopt -u nullglob
+
+  if [[ -f "${src}/credentials.txt" ]]; then
+    install -m 0600 "${src}/credentials.txt" "${dest}/credentials.txt"
+    moved=1
+  fi
+
+  if (( moved == 0 )); then
+    return
+  fi
+
+  rm -rf "${src}"
+  log_info "Moved ProtonVPN OpenVPN configs from ${user_home}/openvpn-configs to ${dest}."
 }
 
 ensure_docker_available() {

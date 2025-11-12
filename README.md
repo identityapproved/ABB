@@ -95,14 +95,14 @@ Each compose file documents its mounts and environment variables; Asnlookup and 
 
 ### ProtonVPN Gateway (OpenVPN)
 
-1. Download ProtonVPN OpenVPN profiles (`.ovpn`) plus any `credentials.txt` files and store them under `/opt/openvpn-configs`:
+1. Drop ProtonVPN OpenVPN profiles (`.ovpn`) plus any `credentials.txt` files under `~/openvpn-configs`, then rerun `./abb-setup.sh docker-tools` (or `./abb-setup.sh all`) so ABB can move them into `/opt/openvpn-configs` with the right permissions:
    ```bash
-   sudo install -d -m0700 /opt/openvpn-configs
-   sudo chown root:root /opt/openvpn-configs
-   sudo cp ~/Downloads/protonvpn/*.ovpn /opt/openvpn-configs/
-   sudo chmod 0600 /opt/openvpn-configs/*
+   mkdir -p ~/openvpn-configs
+   cp ~/Downloads/protonvpn/*.ovpn ~/openvpn-configs/
+   cp ~/Downloads/protonvpn/credentials.txt ~/openvpn-configs/  # optional
+   ./abb-setup.sh docker-tools
    ```
-   The directory is mounted read-only into the container so sensitive creds never leak back into the repo.
+   The task copies everything into `/opt/openvpn-configs` (root:root 0700), overwriting existing files with the same name and removing the originals from your home directory so credentials never linger there.
 2. Copy the env template (timezone, preferred config, extra OpenVPN flags) and adjust as needed:
    ```bash
    cp /opt/abb-docker/env/openvpn.env.example /opt/abb-docker/env/openvpn.env
