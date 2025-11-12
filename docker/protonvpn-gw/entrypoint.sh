@@ -5,43 +5,46 @@ log() {
   printf '[protonvpn-gw] %s\n' "$*"
 }
 
-require_env() {
-  local var="$1"
-  if [[ -z "${!var:-}" ]]; then
-    log "Environment variable ${var} is required."
-    exit 1
-  fi
+CLI_STATE_DIR="/root/.pvpn-cli"
+CONNECT_ARGS="${PROTONVPN_CONNECT:---fastest}"
+AUTO_CONNECT="${PROTONVPN_AUTO_CONNECT:-true}"
+
+cli_initialized() {
+  [[ -f "${CLI_STATE_DIR}/protonvpn_openvpn_configurations.json" ]]
 }
 
-ensure_cli_initialized() {
-  if [[ ! -f /root/.pvpn-cli/protonvpn_openvpn_configurations.json ]]; then
-    log "Initializing protonvpn-cli for the first time..."
-    protonvpn init --protocol wireguard --username "${PROTONVPN_USERNAME}" --password "${PROTONVPN_PASSWORD}" || true
+attempt_connect() {
+  if ! cli_initialized; then
+    log "CLI not initialized yet. Exec into the container and run 'protonvpn init' interactively."
+    return 1
   fi
-}
-
-connect_vpn() {
   if protonvpn status | grep -q "Connected"; then
-    log "Already connected."
-    return
+    return 0
   fi
-  log "Connecting to ProtonVPN (${PROTONVPN_CONNECT:-"--fastest"})..."
-  protonvpn connect "${PROTONVPN_CONNECT:---fastest}"
+  log "Attempting ProtonVPN connect ${CONNECT_ARGS}..."
+  if protonvpn connect ${CONNECT_ARGS}; then
+    log "Connected to ProtonVPN."
+    return 0
+  fi
+  log "Connect command failed (likely awaiting interactive input)."
+  return 1
 }
 
 main() {
   log "Starting ProtonVPN gateway container ($(date))."
-  require_env PROTONVPN_USERNAME
-  require_env PROTONVPN_PASSWORD
-  ensure_cli_initialized
-  connect_vpn
+  if [[ "${AUTO_CONNECT}" =~ ^(1|true|yes|on)$ ]]; then
+    attempt_connect || true
+  else
+    log "AUTO_CONNECT disabled; waiting for manual protonvpn connect."
+  fi
 
-  log "Entering health loop."
   while true; do
     sleep 300
-    if ! protonvpn status | grep -q "Connected"; then
-      log "Connection dropped; reconnecting..."
-      protonvpn connect "${PROTONVPN_CONNECT:---fastest}"
+    if [[ "${AUTO_CONNECT}" =~ ^(1|true|yes|on)$ ]]; then
+      if ! protonvpn status | grep -q "Connected"; then
+        log "Connection not active; retrying..."
+        attempt_connect || true
+      fi
     fi
   done
 }

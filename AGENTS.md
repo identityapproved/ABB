@@ -94,6 +94,7 @@ sudo pacman -Syu --noconfirm
   - Install prerequisites (`openvpn`, `wireguard-tools`, `openresolv`, `dialog`) and the official CLI via `pipx install --force protonvpn-cli` for the managed user.
   - After installation, instruct the operator to run `sudo protonvpn-cli login`, `sudo protonvpn-cli init`, and `sudo protonvpn-cli connect --fastest` to finish setup (interactive steps stay manual for security reasons).
   - Document CLI usage in the README/NEXT_STEPS and log reminders after the automation stage completes.
+  - For Docker-based workflows, provide both a Gluetun stack (WireGuard configs provided via env file) and a ProtonVPN CLI gateway that the operator initializes interactively inside the container (`docker exec -it vpn-gateway protonvpn init`).
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery

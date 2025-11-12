@@ -64,8 +64,13 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
    docker compose -f docker-compose.protonvpn-cli.yml up -d --build
    ```
    State is stored under `/opt/abb-docker/state/protonvpn-cli`.
-3. Attach dependent services using `network_mode: "service:vpn-gateway"`.
-4. Rotate the exit IP manually or via cron:
+3. Initialize the CLI interactively (once per VPS):
+   ```bash
+   docker exec -it vpn-gateway protonvpn init
+   docker exec -it vpn-gateway protonvpn connect --fastest
+   ```
+4. Attach dependent services using `network_mode: "service:vpn-gateway"`.
+5. Rotate the exit IP manually or via cron:
    ```bash
    /opt/abb-docker/scripts/rotate-protonvpn-cli.sh
    (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-protonvpn-cli.sh >/dev/null 2>&1") | crontab -

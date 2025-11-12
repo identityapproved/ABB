@@ -105,8 +105,13 @@ Each compose file documents its mounts and environment variables; Asnlookup and 
    docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn-cli.yml up -d --build
    ```
    The container stores its state under `/opt/abb-docker/state/protonvpn-cli`.
-3. Attach other workloads via `network_mode: "service:vpn-gateway"` so they share the gateway’s network namespace.
-4. Rotate IPs with `/opt/abb-docker/scripts/rotate-protonvpn-cli.sh` or schedule it:
+3. Initialize protonvpn-cli interactively the first time:
+   ```bash
+   docker exec -it vpn-gateway protonvpn init
+   docker exec -it vpn-gateway protonvpn connect --fastest
+   ```
+4. Attach other workloads via `network_mode: "service:vpn-gateway"` so they share the gateway’s network namespace.
+5. Rotate IPs with `/opt/abb-docker/scripts/rotate-protonvpn-cli.sh` or schedule it:
    ```bash
    (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-protonvpn-cli.sh >/dev/null 2>&1") | crontab -
    ```

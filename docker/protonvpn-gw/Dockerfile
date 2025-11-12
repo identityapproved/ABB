@@ -5,12 +5,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      protonvpn-cli \
+      openvpn \
+      dialog \
+      python3-pip \
+      python3-setuptools \
       wireguard-tools \
       openresolv \
       iproute2 \
       curl \
       ca-certificates && \
+    pip3 install --no-cache-dir protonvpn-cli && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
