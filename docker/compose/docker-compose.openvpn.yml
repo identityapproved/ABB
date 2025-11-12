@@ -2,22 +2,25 @@ services:
   vpn-gateway:
     build:
       context: ..
-      dockerfile: protonvpn-gw/Dockerfile
+      dockerfile: openvpn-gw/Dockerfile
     container_name: vpn-gateway
-    privileged: true
     cap_add:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
     env_file:
-      - ../env/protonvpn-cli.env
+      - ../env/openvpn.env
     volumes:
-      - /opt/abb-docker/state/protonvpn-cli:/root/.pvpn-cli
+      - /opt/openvpn-configs:/opt/openvpn-configs:ro
+      - /opt/abb-docker/state/openvpn:/var/run/openvpn
+    sysctls:
+      net.ipv4.ip_forward: '1'
+      net.ipv4.conf.all.src_valid_mark: '1'
     restart: unless-stopped
 
-  protonvpn-gw-client:
+  openvpn-gw-client:
     image: curlimages/curl:8.10.1
-    container_name: protonvpn-gw-client
+    container_name: openvpn-gw-client
     profiles:
       - example
     network_mode: "service:vpn-gateway"

@@ -94,7 +94,7 @@ sudo pacman -Syu --noconfirm
   - Install prerequisites (`openvpn`, `wireguard-tools`, `openresolv`, `dialog`) and the official CLI via `pipx install --force protonvpn-cli` for the managed user.
   - After installation, instruct the operator to run `sudo protonvpn-cli login`, `sudo protonvpn-cli init`, and `sudo protonvpn-cli connect --fastest` to finish setup (interactive steps stay manual for security reasons).
   - Document CLI usage in the README/NEXT_STEPS and log reminders after the automation stage completes.
-  - For Docker-based workflows, provide both a Gluetun stack (WireGuard configs provided via env file) and a ProtonVPN CLI gateway that the operator initializes interactively inside the container (`docker exec -it vpn-gateway protonvpn init`).
+  - For Docker-based workflows, ship both a Gluetun stack (WireGuard configs supplied via env file) and an OpenVPN gateway stack that consumes operator-supplied ProtonVPN `.ovpn` profiles from `/opt/openvpn-configs` and rotates them without rebuilding the container.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery
@@ -118,10 +118,10 @@ sudo pacman -Syu --noconfirm
 
 - ### 10.5 Docker Assets
 - Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
-- Provide compose files for the Mullvad WireGuard VPN, ProtonVPN/Gluetun, ProtonVPN CLI gateway, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`, while the ProtonVPN CLI gateway relies on `docker/protonvpn-gw/`.
-- Ship helper scripts (e.g., `rotate-wg.sh`, `rotate-gluetun.sh`, `rotate-protonvpn-cli.sh`) under `docker/scripts/` and ensure they are executable after syncing. Encourage a cron entry to run the Gluetun helper every seven minutes for ProtonVPN IP rotation; provide similar guidance for the CLI gateway.
-- Copy `.env.example` templates (e.g., `protonvpn-gluetun.env.example`, `protonvpn-cli.env.example`) into `/opt/abb-docker/env/` so the operator can duplicate them (`cp ...env.example ...env`) when wiring up credentials.
-- Document that every stack uses `network_mode: "container:vpn-gateway"` (Mullvad) or `network_mode: "service:vpn-gateway"` (ProtonVPN Gluetun/CLI) so traffic egresses through the selected VPN container.
+- Provide compose files for the Mullvad WireGuard VPN, ProtonVPN/Gluetun, ProtonVPN OpenVPN gateway, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`, while the OpenVPN gateway relies on `docker/openvpn-gw/`.
+- Ship helper scripts (e.g., `rotate-wg.sh`, `rotate-gluetun.sh`, `rotate-openvpn.sh`) under `docker/scripts/` and ensure they are executable after syncing. Encourage cron entries every seven minutes so Gluetun/OpenVPN exit IPs rotate automatically while leaving manual scripts for ad-hoc changes.
+- Copy `.env.example` templates (e.g., `protonvpn-gluetun.env.example`, `openvpn.env.example`) into `/opt/abb-docker/env/` so the operator can duplicate them (`cp ...env.example ...env`) when wiring up credentials.
+- Document that every stack uses `network_mode: "container:vpn-gateway"` (Mullvad) or `network_mode: "service:vpn-gateway"` (ProtonVPN Gluetun/OpenVPN) so traffic egresses through the selected VPN container.
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).

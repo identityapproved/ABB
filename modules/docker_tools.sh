@@ -12,12 +12,14 @@ sync_docker_assets() {
   install -d -m 0755 \
     "${DOCKER_ASSETS_DIR}/state/wg-profiles" \
     "${DOCKER_ASSETS_DIR}/state/gluetun" \
-    "${DOCKER_ASSETS_DIR}/state/protonvpn-cli" \
+    "${DOCKER_ASSETS_DIR}/state/openvpn" \
     "${DOCKER_ASSETS_DIR}/env"
+  install -d -m 0700 /opt/openvpn-configs
+  chown root:root /opt/openvpn-configs || true
   chown -R "${NEW_USER}:${NEW_USER}" "${DOCKER_ASSETS_DIR}" || true
   log_info "Docker compose stacks synced to ${DOCKER_ASSETS_DIR}."
   log_info "Use 'docker compose -f ${DOCKER_ASSETS_DIR}/compose/<file>.yml up' to start the desired service."
-  for script in rotate-wg.sh rotate-gluetun.sh rotate-protonvpn-cli.sh; do
+  for script in rotate-wg.sh rotate-gluetun.sh rotate-openvpn.sh; do
     if [[ -f "${DOCKER_ASSETS_DIR}/scripts/${script}" ]]; then
       chmod 0755 "${DOCKER_ASSETS_DIR}/scripts/${script}"
     fi
