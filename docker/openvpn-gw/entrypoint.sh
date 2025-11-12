@@ -13,6 +13,23 @@ PID_FILE="${OPENVPN_PID_FILE:-${STATE_DIR}/openvpn.pid}"
 CURRENT_FILE="${OPENVPN_CURRENT_FILE:-${STATE_DIR}/current_config}"
 AUTH_FILE_ENV="${OPENVPN_AUTH_FILE:-}"
 
+fix_default_route() {
+  local timeout=20
+  while ! ip link show tun0 >/dev/null 2>&1; do
+    ((timeout--)) || { log "tun0 not found before timeout; skipping route fix."; return 1; }
+    sleep 1
+  done
+
+  if ip route show default 2>/dev/null | grep -q 'dev tun0'; then
+    log "Default route already uses tun0."
+    return 0
+  fi
+
+  log "Adjusting default route to use tun0."
+  ip route del default || true
+  ip route add default dev tun0
+}
+
 ensure_timezone() {
   if [[ -n "${TZ:-}" && -f "/usr/share/zoneinfo/${TZ}" ]]; then
     ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
@@ -105,7 +122,7 @@ main() {
     exit 1
   fi
 
-  exec openvpn \
+  openvpn \
     --config "${ACTIVE_CONFIG}" \
     --cd "${CONFIG_DIR}" \
     --writepid "${PID_FILE}" \
@@ -115,7 +132,12 @@ main() {
     --persist-tun \
     --verb "${OPENVPN_LOG_VERBOSITY:-3}" \
     "${auth_args[@]}" \
-    "${extra[@]}"
+    "${extra[@]}" &
+  local vpn_pid=$!
+
+  fix_default_route
+
+  wait "${vpn_pid}"
 }
 
 main "$@"
