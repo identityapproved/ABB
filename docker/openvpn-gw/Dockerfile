@@ -15,6 +15,7 @@ RUN apk add --no-cache \
       iproute2 \
       iptables \
       ip6tables \
+      openresolv \
       openvpn \
       tzdata \
       util-linux \
@@ -23,7 +24,8 @@ RUN apk add --no-cache \
 
 COPY openvpn-gw/entrypoint.sh /entrypoint.sh
 COPY openvpn-gw/openvpn-config-switch.sh /usr/local/bin/openvpn-config-switch
+COPY openvpn-gw/update-resolv-conf.sh /etc/openvpn/update-resolv-conf
 
-RUN chmod +x /entrypoint.sh /usr/local/bin/openvpn-config-switch
+RUN chmod +x /entrypoint.sh /usr/local/bin/openvpn-config-switch /etc/openvpn/update-resolv-conf
 
 ENTRYPOINT ["/entrypoint.sh"]
