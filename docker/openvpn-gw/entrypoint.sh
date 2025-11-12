@@ -37,6 +37,10 @@ copy_configs() {
     log "No .ovpn files found in ${CONFIG_SRC}. Add ProtonVPN configs there before starting the container."
     exit 1
   fi
+
+  if [[ -f "${CONFIG_SRC}/credentials.txt" ]]; then
+    install -m 0600 "${CONFIG_SRC}/credentials.txt" "${CONFIG_DIR}/credentials.txt"
+  fi
 }
 
 select_initial_config() {
@@ -85,9 +89,20 @@ main() {
   if [[ -z "${auth_file}" ]]; then
     auth_file="${CONFIG_DIR}/credentials.txt"
   fi
+  if [[ ! -f "${auth_file}" && -n "${OPENVPN_AUTH_USER:-}" && -n "${OPENVPN_AUTH_PASS:-}" ]]; then
+    auth_file="${CONFIG_DIR}/credentials.auto"
+    {
+      printf '%s\n' "${OPENVPN_AUTH_USER}"
+      printf '%s\n' "${OPENVPN_AUTH_PASS}"
+    } > "${auth_file}"
+    chmod 0600 "${auth_file}"
+  fi
   if [[ -f "${auth_file}" ]]; then
     chmod 0600 "${auth_file}" || true
     auth_args=(--auth-user-pass "${auth_file}")
+  else
+    log "No credentials file detected. Add credentials.txt under ${CONFIG_SRC} or set OPENVPN_AUTH_USER/OPENVPN_AUTH_PASS."
+    exit 1
   fi
 
   exec openvpn \
