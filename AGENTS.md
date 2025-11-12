@@ -7,6 +7,7 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
 - Ask which Node version manager to deploy (`nvm` or `fnm`).
+- Ask which VPN provider to configure on the VPS (`mullvad` or `protonvpn`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -83,11 +84,16 @@ sudo pacman -Syu --noconfirm
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
-## 9. Mullvad WireGuard
-- Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
-- Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
-- Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. Docker gets its own dedicated configs by running `mullvad-wg.sh` *inside* the custom VPN container (see `docker/images/wg-vpn`). The compose file builds that image, mounts `/opt/abb-docker/state/wg-profiles` to persist container-only profiles, and the container rotates to a random profile every 15 minutes (adjustable via `WG_ROTATE_SECONDS`). Trigger manual swaps with `/opt/abb-docker/scripts/rotate-wg.sh` when necessary.
-- Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
+## 9. VPN Providers
+- Mullvad:
+  - Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
+  - Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
+  - Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. Docker gets its own dedicated configs by running `mullvad-wg.sh` *inside* the custom VPN container (see `docker/images/wg-vpn`). The compose file builds that image, mounts `/opt/abb-docker/state/wg-profiles` to persist container-only profiles, and the container rotates to a random profile every 15 minutes (adjustable via `WG_ROTATE_SECONDS`). Trigger manual swaps with `/opt/abb-docker/scripts/rotate-wg.sh` when necessary.
+  - Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
+- ProtonVPN:
+  - Install prerequisites (`openvpn`, `wireguard-tools`, `openresolv`, `dialog`) and the official CLI via `pipx install --force protonvpn-cli` for the managed user.
+  - After installation, instruct the operator to run `sudo protonvpn-cli login`, `sudo protonvpn-cli init`, and `sudo protonvpn-cli connect --fastest` to finish setup (interactive steps stay manual for security reasons).
+  - Document CLI usage in the README/NEXT_STEPS and log reminders after the automation stage completes.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery
@@ -111,9 +117,9 @@ sudo pacman -Syu --noconfirm
 
 ### 10.5 Docker Assets
 - Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
-- Provide compose files for the WireGuard VPN, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`.
-- Ship helper scripts (e.g., `rotate-wg.sh`) under `docker/scripts/` and ensure they are executable after syncing.
-- Document that every stack uses `network_mode: "container:wg-vpn"` so traffic egresses through the Mullvad WireGuard container.
+- Provide compose files for the Mullvad WireGuard VPN, ProtonVPN/Gluetun, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`.
+- Ship helper scripts (e.g., `rotate-wg.sh`, `rotate-gluetun.sh`) under `docker/scripts/` and ensure they are executable after syncing. Encourage a cron entry to run the Gluetun helper every seven minutes for ProtonVPN IP rotation.
+- Document that every stack uses `network_mode: "container:wg-vpn"` or `network_mode: "service:gluetun-proton"` so traffic egresses through the selected VPN container.
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).

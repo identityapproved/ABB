@@ -164,7 +164,7 @@ install_system_utilities() {
   append_installed_tool "yazi"
   append_installed_tool "lazygit"
 
-  log_info "WireGuard tooling installed. Run 'abb-setup.sh mullvad' to generate Mullvad WireGuard profiles."
+  log_info "WireGuard tooling installed. Run 'abb-setup.sh vpn' to configure the selected VPN provider."
 }
 
 run_task_utilities() {

@@ -31,8 +31,8 @@ source "${MODULE_DIR}/dotfiles.sh"
 source "${MODULE_DIR}/verify.sh"
 # shellcheck source=modules/docker_tools.sh
 source "${MODULE_DIR}/docker_tools.sh"
-# shellcheck source=modules/mullvad.sh
-source "${MODULE_DIR}/mullvad.sh"
+# shellcheck source=modules/vpn.sh
+source "${MODULE_DIR}/vpn.sh"
 
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
@@ -45,6 +45,7 @@ CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
 TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
+VPN_PROVIDER="${VPN_PROVIDER:-}"
 
 usage() {
   cat <<'EOF'
@@ -60,7 +61,7 @@ Tasks:
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
-  mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
+  vpn         Configure VPN tooling for the selected provider (Mullvad or ProtonVPN).
   docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine (skipped if Docker was unavailable earlier).
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
@@ -85,7 +86,7 @@ run_task_all() {
   run_task_languages
   run_task_security
   run_task_utilities
-  run_task_mullvad
+  run_task_vpn
   run_task_tools
   run_task_dotfiles
   run_task_verify
@@ -130,9 +131,9 @@ main() {
       log_info "Running utilities task"
       run_task_utilities
       ;;
-    mullvad)
-      log_info "Running Mullvad WireGuard task"
-      run_task_mullvad
+    vpn)
+      log_info "Running VPN task"
+      run_task_vpn
       ;;
     tools)
       log_info "Running tools task"

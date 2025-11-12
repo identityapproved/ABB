@@ -5,10 +5,11 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
 ## Layout
 
 - `compose/` – individual `docker-compose.<tool>.yml` stacks. Each file focuses on a single tool/service so you can run only what you need.
-- `images/` – minimal Dockerfiles for tools that do not publish official images (e.g., Asnlookup, dnsvalidator).
-- `scripts/` – helper utilities such as `rotate-wg.sh` for changing WireGuard profiles used by the VPN container.
+- `images/` – minimal Dockerfiles for tools that do not publish official images (e.g., Asnlookup, dnsvalidator, the Mullvad VPN helper).
+- `scripts/` – helper utilities such as `rotate-wg.sh` and `rotate-gluetun.sh` for changing VPN exit IPs.
+- `env/` – sample environment files (for example `env/protonvpn.env.example`).
 
-## Usage
+## Mullvad WireGuard Transport
 
 1. Ensure Docker is running (`sudo systemctl status docker`).
 2. Bring up the Mullvad-aware WireGuard container (first run builds the custom image):
@@ -29,6 +30,25 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
 5. The VPN container rotates to a random Mullvad config every 15 minutes automatically. Trigger an immediate change if needed:
    ```bash
    /opt/abb-docker/scripts/rotate-wg.sh
+   ```
+
+## ProtonVPN (Gluetun) Transport
+
+1. Copy and edit the env file with your Proton credentials:
+   ```bash
+   cp /opt/abb-docker/env/protonvpn.env.example /opt/abb-docker/env/protonvpn.env
+   nvim /opt/abb-docker/env/protonvpn.env
+   ```
+2. Start the ProtonVPN container:
+   ```bash
+   cd /opt/abb-docker/compose
+   docker compose -f docker-compose.protonvpn.yml up -d
+   ```
+3. Route other stacks through the ProtonVPN container with `network_mode: "service:gluetun-proton"`.
+4. Rotate the exit IP by restarting the container every seven minutes (or on demand):
+   ```bash
+   /opt/abb-docker/scripts/rotate-gluetun.sh             # manual restart
+   (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1") | crontab -
    ```
 
 Refer to the comments inside each compose file for mount points and environment overrides. Build-required stacks (e.g., Asnlookup, dnsvalidator) can be built with `docker compose -f docker-compose.<name>.yml build`.

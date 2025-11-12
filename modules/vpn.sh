@@ -133,8 +133,60 @@ configure_mullvad_wireguard() {
   log_info "WireGuard setup complete for the VPS host. Docker VPN configs are generated and rotated inside the dedicated container."
 }
 
-run_task_mullvad() {
+protonvpn_cli_installed() {
+  run_as_user "pipx list 2>/dev/null | grep -Fq 'protonvpn-cli'" >/dev/null 2>&1
+}
+
+install_protonvpn_cli() {
+  if ! command_exists pipx; then
+    log_warn "pipx is not available yet. Run 'abb-setup.sh languages' before installing ProtonVPN CLI."
+    return 1
+  fi
+  pacman_install_packages openvpn wireguard-tools openresolv dialog
+  if protonvpn_cli_installed; then
+    log_info "protonvpn-cli already installed for ${NEW_USER}."
+  else
+    if run_as_user "pipx install --force protonvpn-cli"; then
+      log_info "Installed protonvpn-cli via pipx for ${NEW_USER}."
+    else
+      log_warn "pipx failed to install protonvpn-cli. Review pipx output and try again."
+      return 1
+    fi
+  fi
+  append_installed_tool "protonvpn-cli"
+  return 0
+}
+
+summarize_protonvpn_next_steps() {
+  cat <<'EOF'
+ProtonVPN CLI was installed. Complete the initialization manually:
+  1. Log in:   sudo protonvpn-cli login <username>
+  2. Init:     sudo protonvpn-cli init
+  3. Connect:  sudo protonvpn-cli connect --fastest
+You can list servers with: protonvpn-cli list --countries
+EOF
+}
+
+configure_protonvpn_cli() {
+  if install_protonvpn_cli; then
+    summarize_protonvpn_next_steps | while IFS= read -r line; do log_info "${line}"; done
+  else
+    log_warn "ProtonVPN CLI installation encountered issues."
+  fi
+}
+
+run_task_vpn() {
   ensure_user_context
   ensure_package_manager_ready
-  configure_mullvad_wireguard
+  case "${VPN_PROVIDER}" in
+    protonvpn)
+      configure_protonvpn_cli
+      ;;
+    mullvad|"")
+      configure_mullvad_wireguard
+      ;;
+    *)
+      log_warn "VPN provider '${VPN_PROVIDER}' is not supported yet. Skipping VPN task."
+      ;;
+  esac
 }

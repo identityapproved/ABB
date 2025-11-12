@@ -15,7 +15,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to write `/etc/pacman.d/blackarch.conf`, append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf`, temporarily set `SigLevel = Never` to install `blackarch-keyring`, restore signature checking, enable multilib (if missing), force `pacman -Syyu`, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
 - If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to sync the compose stacks under `/opt/abb-docker`; manage containers with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
-- After `./abb-setup.sh mullvad` completes, review the generated WireGuard profiles, supply Mullvad account details during the one-time `mullvad-wg.sh` run, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
+- After `./abb-setup.sh vpn` completes, review the provider-specific instructions: Mullvad users keep `/etc/wireguard/*.conf` for host tunnels, while ProtonVPN users finish `protonvpn-cli` initialization (`sudo protonvpn-cli init && sudo protonvpn-cli connect --fastest`) before relying on the CLI.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
@@ -43,7 +43,7 @@ Each task can be executed independently:
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, guarded Node manager/LazyVim hooks, plus helpers like the `wgup` profile picker for WireGuard.
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`; the tools stage also syncs the cent repository and fetches permutations/resolvers lists alongside `~/wordlists/custom` for personal mutations.
-- **WireGuard ready:** Utilities install `wireguard-tools`/`openresolv`; the dedicated `mullvad` task runs `mullvad-wg.sh` once (removing the script afterwards), normalizes the resulting `/etc/wireguard/*.conf` files with SSH-preserving rules, and records them under `~/wireguard-profiles.txt` for manual `wg-quick` sessions. Docker gets its own Mullvad identities by running the script inside the VPN container, keeping host and container keys separated.
+- **WireGuard ready:** Utilities install `wireguard-tools`/`openresolv`; the VPN task runs `mullvad-wg.sh` (for Mullvad) or bootstraps `protonvpn-cli` (for ProtonVPN). Mullvad configs stay in `/etc/wireguard` with SSH-preserving rules and are listed in `~/wireguard-profiles.txt`, while ProtonVPN installs the CLI and leaves final `sudo protonvpn-cli init`/`connect` steps to the operator. Docker gets its own Mullvad or Gluetun (ProtonVPN) identities so host and container keys remain separate.
 - **BlackArch repo:** The package-manager stage writes `/etc/pacman.d/blackarch.conf`, plugs it into `/etc/pacman.conf`, briefly disables signature checks to install `blackarch-keyring`, restores verification, enables multilib, forces `pacman -Syyu`, and then builds your chosen AUR helper.
 - **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, and the `docker-tools` task simply syncs compose stacks so you can run ReconFTW/Asnlookup/dnsvalidator/feroxbuster/trufflehog/CeWL/Amass via standard `docker compose` flows (all stacks can route through the WireGuard container).
 - **Rust-ready toolchain:** Languages install `rustup`, set the default stable toolchain, and extend PATHs so cargo-built utilities (including feroxbuster) work out of the box.
@@ -75,9 +75,28 @@ The repository ships compose templates under `docker/` (copied to `/opt/abb-dock
 
 Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds.
 
+### ProtonVPN (Gluetun)
+
+1. Copy the ProtonVPN env file and populate credentials:
+   ```bash
+   cp /opt/abb-docker/env/protonvpn.env.example /opt/abb-docker/env/protonvpn.env
+   nvim /opt/abb-docker/env/protonvpn.env
+   ```
+2. Start the Gluetun container:
+   ```bash
+   docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn.yml up -d
+   ```
+3. Route stacks through it with `network_mode: "service:gluetun-proton"`.
+4. Rotate the exit IP every seven minutes (or on demand):
+   ```bash
+   /opt/abb-docker/scripts/rotate-gluetun.sh
+   (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1") | crontab -
+   ```
+
 ## WireGuard Helpers
 
-- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. The Docker VPN container manages its own Mullvad identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
+- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. ProtonVPN installs the CLI via pipx; complete the login/init/connect flow manually to start the tunnel. The Mullvad Docker container manages its own identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
+- Trigger Mullvad rotations with `/opt/abb-docker/scripts/rotate-wg.sh` and ProtonVPN/Gluetun rotations with `/opt/abb-docker/scripts/rotate-gluetun.sh` (plus a cron entry such as `*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1` for continuous cycling).
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` alias (defined in `.aliases`) lets you fuzzy-pick a profile via `fzf` and run `sudo wg-quick up <profile>` in one step.
 - Trigger an immediate container rotation with `/opt/abb-docker/scripts/rotate-wg.sh`; it simply shells into the running `wg-vpn` container and invokes the same rotate helper the entrypoint uses.
 

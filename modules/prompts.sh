@@ -136,6 +136,32 @@ prompt_for_container_engine() {
   log_info "Container engine selection: ${CONTAINER_ENGINE}"
 }
 
+prompt_for_vpn_provider() {
+  local choice=""
+  if [[ -n "${VPN_PROVIDER}" ]]; then
+    log_info "VPN provider selection: ${VPN_PROVIDER}"
+    return
+  fi
+  while true; do
+    read -rp "Select VPN provider for this VPS (mullvad/protonvpn) [protonvpn]: " choice </dev/tty || { log_error "Unable to read VPN provider choice."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "protonvpn" ]]; then
+      VPN_PROVIDER="protonvpn"
+      break
+    fi
+    case "${choice}" in
+      mullvad)
+        VPN_PROVIDER="mullvad"
+        break
+        ;;
+      *)
+        echo "Please answer mullvad or protonvpn." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "VPN provider selection: ${VPN_PROVIDER}"
+}
+
 prompt_for_ferox_method() {
   local choice=""
   if [[ -n "${FEROX_INSTALL_METHOD}" ]]; then
@@ -194,6 +220,7 @@ collect_prompt_answers() {
   prompt_for_hardening
   prompt_for_node_manager
   prompt_for_container_engine
+  prompt_for_vpn_provider
   prompt_for_ferox_method
   prompt_for_trufflehog_install
   record_prompt_answers
