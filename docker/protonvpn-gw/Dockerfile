@@ -8,7 +8,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       openvpn \
+      wireguard-tools \
+      openresolv \
+      dialog \
       iproute2 \
+      iptables \
+      procps \
       curl \
       ca-certificates && \
     apt-get clean && \
