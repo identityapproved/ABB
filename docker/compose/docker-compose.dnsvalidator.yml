@@ -5,7 +5,7 @@ services:
     build:
       context: ../images/dnsvalidator
     container_name: dnsvalidator
-    network_mode: "container:wg-vpn"
+    network_mode: "container:vpn-gateway"
     volumes:
       - ${DNSVALIDATOR_OUTPUT:-/opt/abb-docker/data/dnsvalidator}:/dnsvalidator/output
     working_dir: /dnsvalidator/output

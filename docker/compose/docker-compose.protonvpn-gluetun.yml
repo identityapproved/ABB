@@ -1,14 +1,14 @@
 services:
-  gluetun-proton:
+  vpn-gateway:
     image: qmcgaw/gluetun:latest
-    container_name: gluetun-proton
+    container_name: vpn-gateway
     privileged: true
     cap_add:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
     env_file:
-      - ../env/protonvpn.env
+      - ../env/protonvpn-gluetun.env
     volumes:
       - /opt/abb-docker/state/gluetun:/gluetun
     restart: unless-stopped

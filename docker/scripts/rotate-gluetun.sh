@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GLUETUN_CONTAINER="${GLUETUN_CONTAINER:-gluetun-proton}"
+GLUETUN_CONTAINER="${GLUETUN_CONTAINER:-vpn-gateway}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "[gluetun-rotate] docker CLI not found. Install Docker first." >&2

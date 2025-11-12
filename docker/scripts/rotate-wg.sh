@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WG_CONTAINER="${WG_CONTAINER:-wg-vpn}"
+WG_CONTAINER="${WG_CONTAINER:-vpn-gateway}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "[host-rotate] docker CLI not found. Install Docker and rerun." >&2

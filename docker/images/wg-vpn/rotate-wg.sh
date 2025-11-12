@@ -10,7 +10,7 @@ mapfile -t profiles < <(find "${CONFIG_DIR}" -maxdepth 1 -type f -name '*.conf' 
 shopt -u nullglob
 
 if ((${#profiles[@]} == 0)); then
-  echo "[rotate] No Mullvad configs found in ${CONFIG_DIR}. Run 'docker exec -it ${HOSTNAME:-wg-vpn} bootstrap-mullvad' first." >&2
+  echo "[rotate] No Mullvad configs found in ${CONFIG_DIR}. Run 'docker exec -it ${HOSTNAME:-vpn-gateway} bootstrap-mullvad' first." >&2
   exit 1
 fi
 

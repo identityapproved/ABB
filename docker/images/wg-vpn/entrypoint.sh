@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROTATE_SECONDS="${WG_ROTATE_SECONDS:-900}"
-CONTAINER_NAME="${HOSTNAME:-wg-vpn}"
+CONTAINER_NAME="${HOSTNAME:-vpn-gateway}"
 
 echo "[entrypoint] Mullvad WireGuard container starting (rotate every ${ROTATE_SECONDS}s)."
 echo "[entrypoint] Generate configs with: docker exec -it ${CONTAINER_NAME} bootstrap-mullvad"

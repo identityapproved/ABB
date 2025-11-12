@@ -1,9 +1,9 @@
 services:
-  wg-vpn:
+  vpn-gateway:
     build:
       context: ..
       dockerfile: images/wg-vpn/Dockerfile
-    container_name: wg-vpn
+    container_name: vpn-gateway
     privileged: true
     cap_add:
       - NET_ADMIN

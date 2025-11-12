@@ -51,11 +51,12 @@ It adds a static route for your SSH client IP before invoking `protonvpn-cli`.
 ## Docker Helpers
 
 If you selected Docker, the compose stacks live under `/opt/abb-docker`:
-- Start the VPN transport (builds on first run): `docker compose -f /opt/abb-docker/compose/docker-compose.vpn.yml up -d`.
-- Generate container-only Mullvad configs: `docker exec -it wg-vpn bootstrap-mullvad`.
+- Start the VPN transport (builds on first run): `docker compose -f /opt/abb-docker/compose/docker-compose.mullvad-wg.yml up -d`.
+- Generate container-only Mullvad configs: `docker exec -it vpn-gateway bootstrap-mullvad`.
 - Run a tool through the VPN: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
 - Trigger an immediate Mullvad rotation (the container already rotates every 15 minutes automatically): `/opt/abb-docker/scripts/rotate-wg.sh`.
-- ProtonVPN/Gluetun: copy `/opt/abb-docker/env/protonvpn.env.example` to `.env`, edit credentials, then run `docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn.yml up -d`. Rotate the exit IP every seven minutes with `(crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1") | crontab -` or fire `/opt/abb-docker/scripts/rotate-gluetun.sh` manually.
+- ProtonVPN/Gluetun: copy `/opt/abb-docker/env/protonvpn-gluetun.env.example` to `.env`, edit credentials, then run `docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn-gluetun.yml up -d`. Rotate the exit IP every seven minutes with `(crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1") | crontab -` or fire `/opt/abb-docker/scripts/rotate-gluetun.sh` manually.
+- ProtonVPN CLI gateway: copy `/opt/abb-docker/env/protonvpn-cli.env.example` to `.env`, populate credentials, then run `docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn-cli.yml up -d --build`. Attach dependent containers via `network_mode: "service:vpn-gateway"` and rotate IPs with `/opt/abb-docker/scripts/rotate-protonvpn-cli.sh` (or a cron job `*/7 * * * * /opt/abb-docker/scripts/rotate-protonvpn-cli.sh >/dev/null 2>&1`).
 - Build/update stacks that ship local Dockerfiles (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<tool>.yml build`.
 
 Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster, trufflehog, CeWL, Amass) and rebuild the custom images when upstream repos change.

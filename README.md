@@ -57,11 +57,11 @@ The repository ships compose templates under `docker/` (copied to `/opt/abb-dock
 1. Start the WireGuard transport (first run builds the custom image):
    ```bash
    cd /opt/abb-docker/compose
-   docker compose -f docker-compose.vpn.yml up -d
+   docker compose -f docker-compose.mullvad-wg.yml up -d
    ```
 2. Generate container-only Mullvad configs once per VPS:
    ```bash
-   docker exec -it wg-vpn bootstrap-mullvad
+   docker exec -it vpn-gateway bootstrap-mullvad
    ```
    Follow the prompts from `mullvad-wg.sh`. Configs are stored under `/opt/abb-docker/state/wg-profiles` for the container only.
 3. Run another stack through the VPN container, for example ReconFTW:
@@ -79,27 +79,45 @@ Each compose file documents its mounts and environment variables; Asnlookup and 
 
 1. Copy the ProtonVPN env file and populate credentials:
    ```bash
-   cp /opt/abb-docker/env/protonvpn.env.example /opt/abb-docker/env/protonvpn.env
-   nvim /opt/abb-docker/env/protonvpn.env
+   cp /opt/abb-docker/env/protonvpn-gluetun.env.example /opt/abb-docker/env/protonvpn-gluetun.env
+   nvim /opt/abb-docker/env/protonvpn-gluetun.env
    ```
 2. Start the Gluetun container:
    ```bash
-   docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn.yml up -d
+   docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn-gluetun.yml up -d
    ```
-3. Route stacks through it with `network_mode: "service:gluetun-proton"`.
+3. Route stacks through it with `network_mode: "service:vpn-gateway"`.
 4. Rotate the exit IP every seven minutes (or on demand):
    ```bash
    /opt/abb-docker/scripts/rotate-gluetun.sh
    (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1") | crontab -
    ```
 
+### ProtonVPN Gateway (CLI)
+
+1. Copy the CLI env template and add your username/password (and optional connect flags):
+   ```bash
+   cp /opt/abb-docker/env/protonvpn-cli.env.example /opt/abb-docker/env/protonvpn-cli.env
+   nvim /opt/abb-docker/env/protonvpn-cli.env
+   ```
+2. Launch the ProtonVPN gateway container (builds on first run):
+   ```bash
+   docker compose -f /opt/abb-docker/compose/docker-compose.protonvpn-cli.yml up -d --build
+   ```
+   The container stores its state under `/opt/abb-docker/state/protonvpn-cli`.
+3. Attach other workloads via `network_mode: "service:vpn-gateway"` so they share the gateway’s network namespace.
+4. Rotate IPs with `/opt/abb-docker/scripts/rotate-protonvpn-cli.sh` or schedule it:
+   ```bash
+   (crontab -l 2>/dev/null; echo "*/7 * * * * /opt/abb-docker/scripts/rotate-protonvpn-cli.sh >/dev/null 2>&1") | crontab -
+   ```
+
 ## WireGuard Helpers
 
-- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. ProtonVPN installs the CLI via pipx; complete the login/init/connect flow manually to start the tunnel. The Mullvad Docker container manages its own identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
+- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. ProtonVPN installs the CLI via pipx; complete the login/init/connect flow manually to start the tunnel. The Mullvad Docker container manages its own identities—run `docker exec -it vpn-gateway bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
 - Trigger Mullvad rotations with `/opt/abb-docker/scripts/rotate-wg.sh` and ProtonVPN/Gluetun rotations with `/opt/abb-docker/scripts/rotate-gluetun.sh` (plus a cron entry such as `*/7 * * * * /opt/abb-docker/scripts/rotate-gluetun.sh >/dev/null 2>&1` for continuous cycling).
 - The `proton-safe-connect` helper lives in `/usr/local/bin`; run `sudo proton-safe-connect` to preserve your SSH route before invoking `protonvpn-cli connect`, especially when working in long-lived SSH sessions.
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` alias (defined in `.aliases`) lets you fuzzy-pick a profile via `fzf` and run `sudo wg-quick up <profile>` in one step.
-- Trigger an immediate container rotation with `/opt/abb-docker/scripts/rotate-wg.sh`; it simply shells into the running `wg-vpn` container and invokes the same rotate helper the entrypoint uses.
+- Trigger an immediate container rotation with `/opt/abb-docker/scripts/rotate-wg.sh`; it simply shells into the running `vpn-gateway` container and invokes the same rotate helper the entrypoint uses.
 
 ## Rerun Guidance
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.

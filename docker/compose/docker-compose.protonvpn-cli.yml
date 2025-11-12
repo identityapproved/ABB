@@ -1,0 +1,26 @@
+services:
+  vpn-gateway:
+    build:
+      context: ..
+      dockerfile: protonvpn-gw/Dockerfile
+    container_name: vpn-gateway
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    env_file:
+      - ../env/protonvpn-cli.env
+    volumes:
+      - /opt/abb-docker/state/protonvpn-cli:/root/.pvpn-cli
+    restart: unless-stopped
+
+  protonvpn-gw-client:
+    image: curlimages/curl:8.10.1
+    container_name: protonvpn-gw-client
+    profiles:
+      - example
+    network_mode: "service:vpn-gateway"
+    depends_on:
+      - vpn-gateway
+    entrypoint: ["sleep", "infinity"]
