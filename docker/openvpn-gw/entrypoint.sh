@@ -26,12 +26,12 @@ copy_configs() {
   fi
   install -d -m 0700 "${CONFIG_DIR}"
   local copied=0
-  while IFS= read -r -d '' cfg; do
-    local base
-    base="$(basename "${cfg}")"
+  while IFS= read -r cfg; do
+    [[ -f "${cfg}" ]] || continue
+    local base="${cfg##*/}"
     install -m 0600 "${cfg}" "${CONFIG_DIR}/${base}"
     copied=1
-  done < <(find "${CONFIG_SRC}" -maxdepth 1 -type f -name '*.ovpn' -print0)
+  done < <(find "${CONFIG_SRC}" -mindepth 1 -maxdepth 1 -type f -name '*.ovpn' -print)
   if ((copied == 0)); then
     log "No .ovpn files found in ${CONFIG_SRC}. Add ProtonVPN configs there before starting the container."
     exit 1
@@ -45,7 +45,7 @@ select_initial_config() {
     return
   fi
   local first
-  first="$(find "${CONFIG_DIR}" -maxdepth 1 -type f -name '*.ovpn' ! -name 'active.ovpn' -printf '%f\n' | sort | head -n1)"
+  first="$(find "${CONFIG_DIR}" -mindepth 1 -maxdepth 1 -type f -name '*.ovpn' ! -name 'active.ovpn' -print | sed 's#.*/##' | sort | head -n1)"
   if [[ -z "${first}" ]]; then
     log "No OpenVPN configuration files available under ${CONFIG_DIR}."
     exit 1

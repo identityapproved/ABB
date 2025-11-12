@@ -21,7 +21,7 @@ EOF
 }
 
 list_configs() {
-  find "${CONFIG_DIR}" -maxdepth 1 -type f -name '*.ovpn' ! -name 'active.ovpn' -printf '%f\n' | sort
+  find "${CONFIG_DIR}" -mindepth 1 -maxdepth 1 -type f -name '*.ovpn' ! -name 'active.ovpn' -print | sed 's#.*/##' | sort
 }
 
 current_config() {
@@ -55,13 +55,13 @@ pick_next() {
 }
 
 pick_random() {
-  local choices
-  choices="$(list_configs)"
-  if [[ -z "${choices}" ]]; then
+  mapfile -t configs < <(list_configs)
+  if ((${#configs[@]} == 0)); then
     log "No OpenVPN configs available to rotate."
     exit 1
   fi
-  printf '%s\n' "${choices}" | shuf | head -n1
+  local idx=$(( RANDOM % ${#configs[@]} ))
+  echo "${configs[idx]}"
 }
 
 reload_openvpn() {
