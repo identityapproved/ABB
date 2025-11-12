@@ -11,6 +11,7 @@ ACTIVE_CONFIG="${OPENVPN_ACTIVE_CONFIG:-${CONFIG_DIR}/active.ovpn}"
 STATE_DIR="${OPENVPN_STATE_DIR:-/var/run/openvpn}"
 PID_FILE="${OPENVPN_PID_FILE:-${STATE_DIR}/openvpn.pid}"
 CURRENT_FILE="${OPENVPN_CURRENT_FILE:-${STATE_DIR}/current_config}"
+AUTH_FILE_ENV="${OPENVPN_AUTH_FILE:-}"
 
 ensure_timezone() {
   if [[ -n "${TZ:-}" && -f "/usr/share/zoneinfo/${TZ}" ]]; then
@@ -79,6 +80,16 @@ main() {
     extra=("$@")
   fi
 
+  local auth_args=()
+  local auth_file="${AUTH_FILE_ENV}"
+  if [[ -z "${auth_file}" ]]; then
+    auth_file="${CONFIG_DIR}/credentials.txt"
+  fi
+  if [[ -f "${auth_file}" ]]; then
+    chmod 0600 "${auth_file}" || true
+    auth_args=(--auth-user-pass "${auth_file}")
+  fi
+
   exec openvpn \
     --config "${ACTIVE_CONFIG}" \
     --cd "${CONFIG_DIR}" \
@@ -88,6 +99,7 @@ main() {
     --persist-key \
     --persist-tun \
     --verb "${OPENVPN_LOG_VERBOSITY:-3}" \
+    "${auth_args[@]}" \
     "${extra[@]}"
 }
 

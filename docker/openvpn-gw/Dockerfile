@@ -3,6 +3,7 @@ FROM alpine:3.19
 ENV TZ=UTC \
     OPENVPN_CONFIG= \
     OPENVPN_EXTRA_ARGS= \
+    OPENVPN_AUTH_FILE= \
     OPENVPN_SRC_DIR=/opt/openvpn-configs \
     OPENVPN_CONFIG_DIR=/etc/openvpn/configs \
     OPENVPN_ACTIVE_CONFIG=/etc/openvpn/configs/active.ovpn \

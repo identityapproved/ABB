@@ -102,7 +102,7 @@ Each compose file documents its mounts and environment variables; Asnlookup and 
    cp ~/Downloads/protonvpn/credentials.txt ~/openvpn-configs/  # optional
    ./abb-setup.sh docker-tools
    ```
-   The task copies everything into `/opt/openvpn-configs` (root:root 0700), overwriting existing files with the same name and removing the originals from your home directory so credentials never linger there.
+   The task copies everything into `/opt/openvpn-configs` (root:root 0700), overwriting existing files with the same name and removing the originals from your home directory so credentials never linger there. If a `credentials.txt` file exists in that directory (or you set `OPENVPN_AUTH_FILE` in the env file), the container automatically feeds it to OpenVPN so no interactive prompts occur.
 2. Copy the env template (timezone, preferred config, extra OpenVPN flags) and adjust as needed:
    ```bash
    cp /opt/abb-docker/env/openvpn.env.example /opt/abb-docker/env/openvpn.env
