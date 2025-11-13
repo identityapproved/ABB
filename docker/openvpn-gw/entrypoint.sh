@@ -20,14 +20,25 @@ fix_default_route() {
     sleep 1
   done
 
-  if ip route show default 2>/dev/null | grep -q 'dev tun0'; then
-    log "Default route already uses tun0."
-    return 0
+  local gw
+  gw="$(ip route show dev tun0 proto kernel 2>/dev/null | awk '/proto kernel/ {print $1}' | head -n1)"
+  [[ -z "${gw}" ]] && gw="10.8.0.1"
+
+  local vpn_remote eth_gw
+  vpn_remote="$(awk '/^remote /{print $2; exit}' "${ACTIVE_CONFIG}" 2>/dev/null || true)"
+  eth_gw="$(ip route show default | awk '{print $3}' | head -n1)"
+
+  if [[ -n "${vpn_remote}" && -n "${eth_gw}" ]]; then
+    ip route add "${vpn_remote}/32" via "${eth_gw}" dev eth0 2>/dev/null || true
   fi
 
-  log "Adjusting default route to use tun0."
   ip route del default || true
-  ip route add default dev tun0
+  ip route del 0.0.0.0/1 2>/dev/null || true
+  ip route del 128.0.0.0/1 2>/dev/null || true
+
+  log "Adjusting default route to use tun0 via ${gw}"
+  ip route add 0.0.0.0/1 via "${gw}" dev tun0
+  ip route add 128.0.0.0/1 via "${gw}" dev tun0
 }
 
 ensure_timezone() {
@@ -131,6 +142,8 @@ main() {
     --persist-key \
     --persist-tun \
     --verb "${OPENVPN_LOG_VERBOSITY:-3}" \
+    --up /etc/openvpn/update-resolv-conf \
+    --down /etc/openvpn/update-resolv-conf \
     "${auth_args[@]}" \
     "${extra[@]}" &
   local vpn_pid=$!

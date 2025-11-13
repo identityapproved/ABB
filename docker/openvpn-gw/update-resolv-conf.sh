@@ -3,6 +3,11 @@ set -eu
 
 DEV="${dev:-tun0}"
 TMP_FILE="$(mktemp "/tmp/resolvconf.${DEV}.XXXXXX")"
+BACKUP_FILE="/etc/resolv.conf.openvpn-backup"
+
+log() {
+  printf '[openvpn-dns] %s\n' "$*" >&2
+}
 
 collect_options() {
   local idx=1 opt value
@@ -11,36 +16,50 @@ collect_options() {
     eval "opt=\${foreign_option_${idx}:-}"
     [ -n "${opt:-}" ] || break
     case "${opt}" in
-      "dhcp-option DNS"* )
+      "dhcp-option DNS "*)
         value="${opt#dhcp-option DNS }"
         printf 'nameserver %s\n' "${value}" >> "${TMP_FILE}"
         ;;
-      "dhcp-option DOMAIN"* )
+      "dhcp-option DOMAIN "*)
         value="${opt#dhcp-option DOMAIN }"
         printf 'domain %s\n' "${value}" >> "${TMP_FILE}"
         ;;
-      "dhcp-option DOMAIN-SEARCH"* )
+      "dhcp-option DOMAIN-SEARCH "*)
         value="${opt#dhcp-option DOMAIN-SEARCH }"
         printf 'search %s\n' "${value}" >> "${TMP_FILE}"
         ;;
     esac
     idx=$((idx + 1))
   done
+
+  if ! grep -q '^nameserver' "${TMP_FILE}"; then
+    echo "nameserver 10.8.0.1" >> "${TMP_FILE}"
+  fi
 }
 
-if ! command -v resolvconf >/dev/null 2>&1; then
-  exit 0
-fi
+apply_dns() {
+  if [ ! -f "${BACKUP_FILE}" ]; then
+    cp /etc/resolv.conf "${BACKUP_FILE}" 2>/dev/null || true
+  fi
+  log "Applying VPN DNS"
+  cp "${TMP_FILE}" /etc/resolv.conf
+}
+
+restore_dns() {
+  if [ -f "${BACKUP_FILE}" ]; then
+    log "Restoring original DNS"
+    cp "${BACKUP_FILE}" /etc/resolv.conf
+    rm -f "${BACKUP_FILE}"
+  fi
+}
 
 case "${script_type:-}" in
   up)
     collect_options
-    if [ -s "${TMP_FILE}" ]; then
-      resolvconf -a "${DEV}" < "${TMP_FILE}" || true
-    fi
+    apply_dns
     ;;
   down)
-    resolvconf -d "${DEV}" || true
+    restore_dns
     ;;
 esac
 
