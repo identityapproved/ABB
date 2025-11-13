@@ -10,25 +10,21 @@ ABB ships opinionated Docker Compose templates under this folder. The provisioni
 
 ## Usage
 
-1. Ensure Docker is running (`sudo systemctl status docker`).
-2. Bring up the Mullvad-aware WireGuard container (first run builds the custom image):
+1. Create the ProtonVPN namespace once: `sudo scripts/vpnspace.sh setup`.
+2. Whenever you need Docker traffic tunneled, start the dedicated daemon in that namespace and point your client at it:
+   ```bash
+   sudo scripts/vpnspace-dockerd.sh start
+   export DOCKER_HOST=unix:///run/docker-vpnspace.sock
+   ```
+3. Launch any stack normally. Example:
    ```bash
    cd /opt/abb-docker/compose
-   docker compose -f docker-compose.vpn.yml up -d
-   ```
-3. Generate container-only Mullvad configs:
-   ```bash
-   docker exec -it wg-vpn bootstrap-mullvad
-   ```
-   Follow the prompts from `mullvad-wg.sh`; the configs are stored under `/opt/abb-docker/state/wg-profiles` and never touch the host.
-4. Start another stack (for example, reconftw) in a separate shell:
-   ```bash
    docker compose -f docker-compose.reconftw.yml run --rm reconftw -d example.com -r
    ```
-   Each stack configures `network_mode: "container:wg-vpn"` so traffic egresses via the WireGuard container.
-5. The VPN container rotates to a random Mullvad config every 15 minutes automatically. Trigger an immediate change if needed:
+4. Need to verify the exit IP? Start the tester stack:
    ```bash
-   /opt/abb-docker/scripts/rotate-wg.sh
+   docker compose -f docker-compose.test-client.yml up
    ```
+   It prints the current egress IP every minute.
 
-Refer to the comments inside each compose file for mount points and environment overrides. Build-required stacks (e.g., Asnlookup, dnsvalidator) can be built with `docker compose -f docker-compose.<name>.yml build`.
+Every compose file honours the `ABB_NETWORK_MODE` environment variable (default `bridge`). Override it if you spin up a custom network inside the namespace. The legacy Mullvad container assets remain under `images/wg-vpn` for operators who still rely on that workflow, but they are no longer part of the default instructions above. Refer to the compose comments for additional mounts/environment overrides, and build-required stacks (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<name>.yml build`.

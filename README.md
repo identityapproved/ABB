@@ -54,26 +54,24 @@ Each task can be executed independently:
 
 The repository ships compose templates under `docker/` (copied to `/opt/abb-docker` by `./abb-setup.sh docker-tools`). Typical workflow:
 
-1. Start the WireGuard transport (first run builds the custom image):
+1. (One time) create the ProtonVPN namespace and bridge: `sudo scripts/vpnspace.sh setup`.
+2. Whenever you want Docker traffic tunneled through ProtonVPN, start the dedicated daemon inside the namespace and point your client at its socket:
+   ```bash
+   sudo scripts/vpnspace-dockerd.sh start
+   export DOCKER_HOST=unix:///run/docker-vpnspace.sock
+   ```
+3. With `DOCKER_HOST` exported, run any stack normally. Example (ReconFTW):
    ```bash
    cd /opt/abb-docker/compose
-   docker compose -f docker-compose.vpn.yml up -d
-   ```
-2. Generate container-only Mullvad configs once per VPS:
-   ```bash
-   docker exec -it wg-vpn bootstrap-mullvad
-   ```
-   Follow the prompts from `mullvad-wg.sh`. Configs are stored under `/opt/abb-docker/state/wg-profiles` for the container only.
-3. Run another stack through the VPN container, for example ReconFTW:
-   ```bash
    docker compose -f docker-compose.reconftw.yml run --rm reconftw -d example.com -r
    ```
-4. The VPN container rotates to a random Mullvad config every 15 minutes automatically. Trigger an immediate change with:
+4. Need a quick sanity check to confirm the tunnel? Use the tester stack:
    ```bash
-   /opt/abb-docker/scripts/rotate-wg.sh
+   docker compose -f docker-compose.test-client.yml up
    ```
+   It prints the current egress IP every minute. All compose files honour `ABB_NETWORK_MODE` (default `bridge`). Override it when you need a different network inside the namespace.
 
-Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds.
+Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds. The legacy Mullvad container assets remain under `docker/images/wg-vpn` for future use but are no longer part of the default workflow.
 
 ## ProtonVPN Namespace (CLI + Docker)
 
@@ -85,8 +83,8 @@ If you prefer to run ProtonVPN on the VPS itself without losing your SSH session
    ```
 2. Connect via protonvpn-cli from inside the namespace (default `connect --fastest`, customize with normal CLI flags):
    ```bash
-   sudo scripts/vpnspace.sh connect
-   sudo scripts/vpnspace.sh connect c --cc NL --p tcp   # example override
+   sudo scripts/vpnspace-protonvpn.sh connect
+   sudo scripts/vpnspace-protonvpn.sh connect c --cc NL --p tcp   # example override
    ```
 3. Open a tunneled shell for ad-hoc commands:
    ```bash
@@ -104,7 +102,7 @@ If you prefer to run ProtonVPN on the VPS itself without losing your SSH session
 5. Rotate ProtonVPN exit IPs without touching SSH sessions:
    ```bash
    sudo scripts/protonvpn-rotate.sh          # protonvpn reconnect
-   sudo scripts/protonvpn-rotate.sh c -r     # random server
+   sudo scripts/protonvpn-rotate.sh connect c -r  # random server example
    ```
 6. When you are finished, disconnect and (optionally) delete the namespace:
    ```bash
@@ -114,9 +112,9 @@ If you prefer to run ProtonVPN on the VPS itself without losing your SSH session
 
 ## WireGuard Helpers
 
-- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. The Docker VPN container manages its own Mullvad identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
+- VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`.
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` alias (defined in `.aliases`) lets you fuzzy-pick a profile via `fzf` and run `sudo wg-quick up <profile>` in one step.
-- Trigger an immediate container rotation with `/opt/abb-docker/scripts/rotate-wg.sh`; it simply shells into the running `wg-vpn` container and invokes the same rotate helper the entrypoint uses.
+- If you still rely on Mullvad-specific tooling (for example to regenerate configs with `mullvad-wg.sh`), the scripts and Dockerfile remain under `docker/images/wg-vpn`, but they are no longer part of the default compose workflow.
 
 ## Rerun Guidance
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.

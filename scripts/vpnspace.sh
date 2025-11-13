@@ -8,7 +8,8 @@ SUBNET="${VPN_SUBNET:-10.200.0.0/24}"
 HOST_IP="${VPN_HOST_IP:-10.200.0.1/24}"
 NS_IP="${VPN_NS_IP:-10.200.0.2/24}"
 VPN_USER="${VPN_USER:-${SUDO_USER:-${USER}}}"
-PROTONVPN_BIN="${PROTONVPN_BIN:-/home/${VPN_USER}/.local/bin/protonvpn}"
+VPN_USER_HOME="$(getent passwd "${VPN_USER}" | cut -d: -f6 || true)"
+[[ -z "${VPN_USER_HOME}" ]] && VPN_USER_HOME="/home/${VPN_USER}"
 UPSTREAM_IF="${VPN_UPSTREAM_IF:-$(ip route show default | awk 'NR==1 {print $5}' 2>/dev/null || echo eth0)}"
 MASQ_RULE="-s ${SUBNET} -o ${UPSTREAM_IF} -j MASQUERADE"
 
@@ -73,29 +74,6 @@ ensure_namespace_exists() {
   fi
 }
 
-connect_vpn() {
-  ensure_namespace_exists
-  if [[ ! -x "${PROTONVPN_BIN}" ]]; then
-    echo "Cannot find protonvpn-cli at ${PROTONVPN_BIN}. Adjust PROTONVPN_BIN or VPN_USER." >&2
-    exit 1
-  fi
-  local args=("$@")
-  if [[ ${#args[@]} -eq 0 ]]; then
-    args=(connect --fastest)
-  fi
-  ns_exec runuser -u "${VPN_USER}" -- "${PROTONVPN_BIN}" "${args[@]}"
-}
-
-disconnect_vpn() {
-  ensure_namespace_exists
-  ns_exec runuser -u "${VPN_USER}" -- "${PROTONVPN_BIN}" disconnect || true
-}
-
-status_vpn() {
-  ensure_namespace_exists
-  ns_exec runuser -u "${VPN_USER}" -- "${PROTONVPN_BIN}" status || true
-}
-
 ns_shell() {
   ensure_namespace_exists
   local shell_cmd="${SHELL:-/bin/bash}"
@@ -118,10 +96,6 @@ Usage: vpnspace.sh <command> [args]
 Commands:
   setup                 Create the vpnspace namespace and veth pair.
   teardown              Remove the namespace, veth pair, and NAT rule.
-  connect [args]        Run protonvpn-cli inside the namespace (default: connect --fastest).
-  disconnect            Disconnect protonvpn inside the namespace.
-  reconnect             Wrapper for protonvpn-cli reconnect.
-  status                Show protonvpn status inside the namespace.
   shell                 Open an interactive shell inside vpnspace as VPN_USER.
   exec <cmd...>         Run an arbitrary command inside vpnspace as VPN_USER.
   ip <args>             Execute 'ip' inside the namespace (root).
@@ -145,22 +119,6 @@ main() {
     teardown)
       require_root "$cmd" "$@"
       delete_namespace
-      ;;
-    connect)
-      require_root "$cmd" "$@"
-      connect_vpn "$@"
-      ;;
-    disconnect)
-      require_root "$cmd" "$@"
-      disconnect_vpn
-      ;;
-    reconnect)
-      require_root "$cmd" "$@"
-      connect_vpn reconnect
-      ;;
-    status)
-      require_root "$cmd" "$@"
-      status_vpn
       ;;
     shell)
       require_root "$cmd" "$@"

@@ -34,15 +34,19 @@ Repeat as needed to install additional tools announced by ProjectDiscovery.
 ## Docker Helpers
 
 If you selected Docker, the compose stacks live under `/opt/abb-docker`:
-- Start the VPN transport (builds on first run): `docker compose -f /opt/abb-docker/compose/docker-compose.vpn.yml up -d`.
-- Generate container-only Mullvad configs: `docker exec -it wg-vpn bootstrap-mullvad`.
-- Run a tool through the VPN: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
-- Trigger an immediate VPN rotation (the container already rotates every 15 minutes automatically): `/opt/abb-docker/scripts/rotate-wg.sh`.
+- Run `sudo scripts/vpnspace.sh setup` once to prepare the namespace bridge.
+- Start the ProtonVPN daemonized workflow whenever you need container traffic tunneled:
+  ```bash
+  sudo scripts/vpnspace-dockerd.sh start
+  export DOCKER_HOST=unix:///run/docker-vpnspace.sock
+  ```
+- Launch stacks normally: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
 - Build/update stacks that ship local Dockerfiles (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<tool>.yml build`.
+- `ABB_NETWORK_MODE` defaults to `bridge`. Override it if you introduce a custom network. Use `docker-compose.test-client.yml` to print the current exit IP every minute and verify routing.
 
 Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster, trufflehog, CeWL, Amass) and rebuild the custom images when upstream repos change.
 
-- Mullvad configs for the VPS host live exclusively under `/etc/wireguard` (with SSH-preserving rules baked in). The Docker VPN container keeps its own copies inside `/opt/abb-docker/state/wg-profiles`. Bring up a host-side tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
+- Mullvad configs for the VPS host live exclusively under `/etc/wireguard` (with SSH-preserving rules baked in). Bring up a host-side tunnel with `sudo wg-quick up <profile>` and confirm connectivity:
   ```bash
   curl https://am.i.mullvad.net/json | jq
   ```
@@ -54,10 +58,10 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
 Use the bundled helpers under `scripts/` when you need ProtonVPN CLI on the VPS without losing SSH (and when you want docker workloads tunneled):
 
 1. Create the namespace once: `sudo scripts/vpnspace.sh setup`
-2. Connect via ProtonVPN: `sudo scripts/vpnspace.sh connect` (or pass additional CLI flags such as `c --cc NL`)
+2. Connect via ProtonVPN: `sudo scripts/vpnspace-protonvpn.sh connect` (or pass additional CLI flags such as `connect c --cc NL`)
 3. Open a tunneled shell for ad-hoc tooling: `sudo scripts/vpnspace.sh shell`
 4. Start the dedicated docker daemon inside the namespace: `sudo scripts/vpnspace-dockerd.sh start` then `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
-5. Rotate exit IPs anytime with `sudo scripts/protonvpn-rotate.sh` (defaults to `reconnect`; pass additional args such as `c -r` for random).
+5. Rotate exit IPs anytime with `sudo scripts/protonvpn-rotate.sh` (defaults to `reconnect`; pass additional args such as `connect c -r` for random).
 6. Leave the namespace up (SSH is unaffected) or disconnect/teardown when done:
    ```bash
    sudo scripts/vpnspace.sh disconnect

@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  vpn-tester:
+    image: curlimages/curl:8.10.1
+    container_name: vpn-tester
+    network_mode: "${ABB_NETWORK_MODE:-bridge}"
+    environment:
+      - TEST_INTERVAL=${TEST_INTERVAL:-60}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          echo "[$(date --iso-8601=seconds)] Current egress IP: $(curl -s https://ifconfig.io)";
+          sleep "${TEST_INTERVAL}";
+        done

@@ -4,7 +4,7 @@ services:
   cewl:
     image: ghcr.io/digininja/cewl:latest
     container_name: cewl
-    network_mode: "container:wg-vpn"
+    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     volumes:
       - ${CEWL_WORKDIR:-/opt/abb-docker/data/cewl}:/host
     working_dir: /host
