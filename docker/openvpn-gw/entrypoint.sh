@@ -53,6 +53,8 @@ fix_default_route() {
 
   ensure_remote_route
 
+  ip route del default 2>/dev/null || true
+
   if ! ip route show | grep -q "^0\.0\.0\.0/1 .* dev tun0"; then
     log "Adding 0.0.0.0/1 via ${gw} on tun0"
     ip route add 0.0.0.0/1 via "${gw}" dev tun0 2>/dev/null || true
