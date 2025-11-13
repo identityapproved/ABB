@@ -48,3 +48,18 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
   ```
 - The utilities task already injects SSH-preserving `PostUp`/`PreDown` rules; adjust the port if you run SSH on a non-standard port.
 - The setup task removes `mullvad-wg.sh` after execution. Re-run `abb-setup.sh mullvad` whenever you need to regenerate profiles.
+
+## ProtonVPN Namespace
+
+Use the bundled helpers under `scripts/` when you need ProtonVPN CLI on the VPS without losing SSH (and when you want docker workloads tunneled):
+
+1. Create the namespace once: `sudo scripts/vpnspace.sh setup`
+2. Connect via ProtonVPN: `sudo scripts/vpnspace.sh connect` (or pass additional CLI flags such as `c --cc NL`)
+3. Open a tunneled shell for ad-hoc tooling: `sudo scripts/vpnspace.sh shell`
+4. Start the dedicated docker daemon inside the namespace: `sudo scripts/vpnspace-dockerd.sh start` then `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
+5. Rotate exit IPs anytime with `sudo scripts/protonvpn-rotate.sh` (defaults to `reconnect`; pass additional args such as `c -r` for random).
+6. Leave the namespace up (SSH is unaffected) or disconnect/teardown when done:
+   ```bash
+   sudo scripts/vpnspace.sh disconnect
+   sudo scripts/vpnspace.sh teardown
+   ```

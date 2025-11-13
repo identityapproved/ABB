@@ -83,11 +83,20 @@ sudo pacman -Syu --noconfirm
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
-## 9. Mullvad WireGuard
+## 9. VPN Providers
+
+### Mullvad WireGuard
 - Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
 - Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
 - Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. Docker gets its own dedicated configs by running `mullvad-wg.sh` *inside* the custom VPN container (see `docker/images/wg-vpn`). The compose file builds that image, mounts `/opt/abb-docker/state/wg-profiles` to persist container-only profiles, and the container rotates to a random profile every 15 minutes (adjustable via `WG_ROTATE_SECONDS`). Trigger manual swaps with `/opt/abb-docker/scripts/rotate-wg.sh` when necessary.
 - Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
+
+### ProtonVPN Namespace
+- Install `protonvpn-cli` via pipx for the managed user (`pipx install protonvpn-cli --force`) but leave credentials/configuration to the operator.
+- Ship `scripts/vpnspace.sh` to manage a dedicated network namespace (`setup`, `connect`, `shell`, `exec`, `teardown`) so SSH stays on the Contabo IP while commands run inside the namespace egress through ProtonVPN.
+- Provide `scripts/vpnspace-dockerd.sh` to launch a dedicated dockerd instance inside the namespace (socket `/run/docker-vpnspace.sock`, separate data/exec roots). Document usage: `sudo scripts/vpnspace-dockerd.sh start` followed by `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
+- Include `scripts/protonvpn-rotate.sh` as a thin wrapper around the namespace helper so operators can schedule rotations (`sudo scripts/protonvpn-rotate.sh c -r` for random exits).
+- Note in README/NEXT_STEPS how to tear down the namespace, rotate exits, and ensure Docker workloads use the tunneled daemon.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery

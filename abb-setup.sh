@@ -66,6 +66,9 @@ Tasks:
   help        Display this message.
 
 Each task reads cached answers from /var/lib/vps-setup/answers.env and will prompt for missing data.
+
+Flags:
+  --sync-scripts   Copy scripts/ into /opt/abb-scripts and install them under /usr/local/bin, then continue with the requested task (or exit if no task provided).
 EOF
 }
 
@@ -99,7 +102,41 @@ run_task_all() {
 main() {
   require_root
   ensure_log_targets
-  local task="${1:-all}"
+
+  local sync_scripts="false"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --sync-scripts)
+        sync_scripts="true"
+        shift
+        ;;
+      --help|-h)
+        usage
+        return 0
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  local task=""
+  if [[ $# -gt 0 ]]; then
+    task="$1"
+    shift || true
+  fi
+
+  if [[ "${sync_scripts}" == "true" ]]; then
+    sync_repo_scripts
+  fi
+
+  if [[ -z "${task}" ]]; then
+    if [[ "${sync_scripts}" == "true" ]]; then
+      log_info "Script sync completed. No task requested."
+      return 0
+    fi
+    task="all"
+  fi
 
   case "${task}" in
     help|-h|--help)

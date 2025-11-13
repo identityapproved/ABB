@@ -160,6 +160,25 @@ init_installed_tracker() {
   log_info "Tracking installed tools in ${INSTALLED_TRACK_FILE}"
 }
 
+sync_repo_scripts() {
+  local src="${REPO_ROOT}/scripts"
+  local dest="/opt/abb-scripts"
+  if [[ ! -d "${src}" ]]; then
+    log_warn "No scripts directory detected at ${src}; skipping sync."
+    return 1
+  fi
+  install -d -m 0755 "${dest}" /usr/local/bin
+  rsync -a --delete "${src}/" "${dest}/"
+  shopt -s nullglob
+  local script base
+  for script in "${dest}"/*.sh; do
+    base="$(basename "${script}")"
+    install -m 0755 "${script}" "/usr/local/bin/${base}"
+  done
+  shopt -u nullglob
+  log_info "Scripts synced to ${dest} and installed under /usr/local/bin."
+}
+
 ensure_user_context() {
   local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 ferox_method_missing=0 trufflehog_missing=0
   load_previous_answers

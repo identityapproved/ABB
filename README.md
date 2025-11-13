@@ -75,6 +75,43 @@ The repository ships compose templates under `docker/` (copied to `/opt/abb-dock
 
 Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds.
 
+## ProtonVPN Namespace (CLI + Docker)
+
+If you prefer to run ProtonVPN on the VPS itself without losing your SSH session, use the namespace helper scripts under `scripts/`. The workflow keeps SSH on the Contabo-assigned IP while any process launched inside the namespace egresses through ProtonVPN.
+
+1. Create the namespace, veth pair, and NAT rule (one time):
+   ```bash
+   sudo scripts/vpnspace.sh setup
+   ```
+2. Connect via protonvpn-cli from inside the namespace (default `connect --fastest`, customize with normal CLI flags):
+   ```bash
+   sudo scripts/vpnspace.sh connect
+   sudo scripts/vpnspace.sh connect c --cc NL --p tcp   # example override
+   ```
+3. Open a tunneled shell for ad-hoc commands:
+   ```bash
+   sudo scripts/vpnspace.sh shell
+   curl ifconfig.me   # shows ProtonVPN IP while host SSH stays unchanged
+   ```
+4. Run docker workloads through the tunnel by launching a dedicated dockerd inside the namespace:
+   ```bash
+   sudo scripts/vpnspace-dockerd.sh start
+   export DOCKER_HOST=unix:///run/docker-vpnspace.sock
+   docker info
+   docker compose up -d
+   ```
+   Stop or inspect the daemon with `scripts/vpnspace-dockerd.sh stop|status`. When you only need a one-off tunneled command, wrap it with `sudo scripts/vpnspace.sh exec <command>`.
+5. Rotate ProtonVPN exit IPs without touching SSH sessions:
+   ```bash
+   sudo scripts/protonvpn-rotate.sh          # protonvpn reconnect
+   sudo scripts/protonvpn-rotate.sh c -r     # random server
+   ```
+6. When you are finished, disconnect and (optionally) delete the namespace:
+   ```bash
+   sudo scripts/vpnspace.sh disconnect
+   sudo scripts/vpnspace.sh teardown
+   ```
+
 ## WireGuard Helpers
 
 - VPS configs live solely in `/etc/wireguard` (with SSH-preserving rules injected automatically), and manual connections use the `wgup` helper plus `~/wireguard-profiles.txt`. The Docker VPN container manages its own Mullvad identities—run `docker exec -it wg-vpn bootstrap-mullvad` once to seed dedicated profiles, and it will rotate them every 15 minutes automatically (tune via `WG_ROTATE_SECONDS`).
