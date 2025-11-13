@@ -33,7 +33,7 @@ collect_options() {
   done
 
   if ! grep -q '^nameserver' "${TMP_FILE}"; then
-    echo "nameserver 10.8.0.1" >> "${TMP_FILE}"
+    echo "nameserver 10.98.0.1" >> "${TMP_FILE}"
   fi
 }
 

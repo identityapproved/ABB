@@ -13,6 +13,56 @@ PID_FILE="${OPENVPN_PID_FILE:-${STATE_DIR}/openvpn.pid}"
 CURRENT_FILE="${OPENVPN_CURRENT_FILE:-${STATE_DIR}/current_config}"
 AUTH_FILE_ENV="${OPENVPN_AUTH_FILE:-}"
 
+resolve_remote_ip() {
+  local remote host_ip
+  remote="$(awk '/^remote[[:space:]]+/ {print $2; exit}' "${ACTIVE_CONFIG}" 2>/dev/null || true)"
+  [[ -z "${remote}" ]] && return
+  if [[ "${remote}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf '%s' "${remote}"
+    return
+  fi
+  host_ip="$(getent ahostsv4 "${remote}" | awk 'NR==1 {print $1}' || true)"
+  [[ -n "${host_ip}" ]] && printf '%s' "${host_ip}"
+}
+
+ensure_remote_route() {
+  local remote_ip gw
+  remote_ip="$(resolve_remote_ip)" || true
+  [[ -z "${remote_ip}" ]] && return
+  gw="$(ip route show default 2>/dev/null | awk 'NR==1 {print $3}')"
+  [[ -z "${gw}" ]] && return
+  ip route replace "${remote_ip}/32" via "${gw}" dev eth0 2>/dev/null || true
+}
+
+fix_default_route() {
+  local timeout=30
+  while ! ip link show tun0 >/dev/null 2>&1; do
+    ((timeout--)) || { log "tun0 not found before timeout; skipping route verification."; return 1; }
+    sleep 1
+  done
+
+  local gw
+  gw="$(ip route show 0.0.0.0/1 dev tun0 2>/dev/null | awk '{print $3}' | head -n1)"
+  if [[ -z "${gw}" ]]; then
+    gw="$(grep -E '^route-gateway[[:space:]]+' "${ACTIVE_CONFIG}" | awk '{print $2}' | head -n1)"
+  fi
+  if [[ -z "${gw}" ]]; then
+    log "Unable to determine VPN gateway; leaving routes unchanged."
+    return 1
+  fi
+
+  ensure_remote_route
+
+  if ! ip route show | grep -q "^0\.0\.0\.0/1 .* dev tun0"; then
+    log "Adding 0.0.0.0/1 via ${gw} on tun0"
+    ip route add 0.0.0.0/1 via "${gw}" dev tun0 2>/dev/null || true
+  fi
+  if ! ip route show | grep -q "^128\.0\.0\.0/1 .* dev tun0"; then
+    log "Adding 128.0.0.0/1 via ${gw} on tun0"
+    ip route add 128.0.0.0/1 via "${gw}" dev tun0 2>/dev/null || true
+  fi
+}
+
 ensure_timezone() {
   if [[ -n "${TZ:-}" && -f "/usr/share/zoneinfo/${TZ}" ]]; then
     ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
@@ -106,9 +156,11 @@ main() {
   fi
 
   local dns_args=()
-  if ! grep -Eq '^[[:space:]]*up[[:space:]]+/etc/openvpn/update-resolv-conf' "${ACTIVE_CONFIG}" 2>/dev/null; then
+  if ! grep -Eq '^[[:space:]]*up[[:space:]]+"?/etc/openvpn/update-resolv-conf"?[[:space:]]*$' "${ACTIVE_CONFIG}" 2>/dev/null; then
     dns_args+=(--up /etc/openvpn/update-resolv-conf --down /etc/openvpn/update-resolv-conf)
   fi
+
+  ensure_remote_route
 
   openvpn \
     --config "${ACTIVE_CONFIG}" \
@@ -123,6 +175,8 @@ main() {
     "${extra[@]}" \
     "${dns_args[@]}" &
   local vpn_pid=$!
+
+  fix_default_route || true
 
   wait "${vpn_pid}"
 }
