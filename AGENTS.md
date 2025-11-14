@@ -92,11 +92,13 @@ sudo pacman -Syu --noconfirm
 - Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
 
 - Install `openvpn`, `openresolv`, and related tooling for the managed user, keeping `.ovpn` profiles under `/opt/openvpn-configs`. Document that the helper syncs from `~/openvpn-configs` automatically.
-- Ship `scripts/vpnspace.sh` to manage the namespace lifecycle (setup/teardown/shell/exec/ip). Keep it provider-agnostic so future VPN options can reuse it.
-- Provide `scripts/vpnspace-openvpn.sh` to copy configs, launch OpenVPN inside the namespace, and manage PID/log/rotation metadata. Ensure instructions reference `sudo scripts/vpnspace-openvpn.sh start`.
-- Provide `scripts/openvpn-rotate.sh` as a thin wrapper so operators can schedule rotations (`sudo scripts/openvpn-rotate.sh` or `sudo scripts/openvpn-rotate.sh us-nyc.ovpn`).
-- Provide `scripts/vpnspace-dockerd.sh` to launch a dedicated dockerd instance inside the namespace (socket `/run/docker-vpnspace.sock`, separate data/exec roots). Document usage: `sudo scripts/vpnspace-dockerd.sh start` followed by `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
-- Note in README/NEXT_STEPS how to tear down the namespace, rotate exits, and ensure Docker workloads use the tunneled daemon.
+- Provide `scripts/openvpn-connect.sh` to manage OpenVPN directly on the host (start/stop/status/rotate/list/sync). The script must:
+  - Sync configs from `~/openvpn-configs`.
+  - Read credentials from `credentials.txt` (or `credentials.text`) under `/opt/openvpn-configs` and enforce `chmod 600`.
+  - Preserve SSH connectivity by pinning routes for the VPN gateway and current `SSH_CLIENT` IP before `openvpn` adjusts the default route, restoring everything on stop.
+  - Log to `/var/log/openvpn-host.log`, track state under `/var/run/openvpn-host`, and use `/etc/openvpn/update-resolv-conf`.
+- Keep `scripts/openvpn-rotate.sh` as a compatibility wrapper that simply calls the new host script.
+- Update README / NEXT_STEPS / docker docs to describe the host wrapper workflow and remove references to ProtonVPN namespaces or custom Docker sockets.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery
@@ -122,7 +124,7 @@ sudo pacman -Syu --noconfirm
 - Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
 - Provide compose files for the WireGuard VPN, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, Amass, and the lightweight test client stack. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`.
 - Ship helper scripts (e.g., `rotate-wg.sh`) under `docker/scripts/` and ensure they are executable after syncing.
-- Document that all tool stacks consult `ABB_NETWORK_MODE` (default `bridge`). Operators can override it when they create custom networks or revive the Mullvad container flow; when using the ProtonVPN namespace dockerd, the default bridge network already egresses through the tunnel.
+- Compose files should rely on Docker's default bridge networking; remove references to custom namespace sockets or bespoke network-mode environment variables.
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).

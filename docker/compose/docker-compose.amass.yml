@@ -4,7 +4,6 @@ services:
   amass:
     image: owaspamass/amass:latest
     container_name: amass
-    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     volumes:
       - ${AMASS_CONFIG:-/opt/abb-docker/data/amass/config}:/root/.config/amass
       - ${AMASS_OUTPUT:-/opt/abb-docker/data/amass/output}:/output

@@ -4,7 +4,6 @@ services:
   feroxbuster:
     image: epi052/feroxbuster:latest
     container_name: feroxbuster
-    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     volumes:
       - ${FEROX_CONFIG_DIR:-/opt/abb-docker/data/feroxbuster/config}:/root/.config/feroxbuster
       - ${FEROX_OUTPUT_DIR:-/opt/abb-docker/data/feroxbuster/output}:/data

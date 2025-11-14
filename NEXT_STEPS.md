@@ -34,15 +34,10 @@ Repeat as needed to install additional tools announced by ProjectDiscovery.
 ## Docker Helpers
 
 If you selected Docker, the compose stacks live under `/opt/abb-docker`:
-- Run `sudo scripts/vpnspace.sh setup` once to prepare the namespace bridge.
-- Start the ProtonVPN daemonized workflow whenever you need container traffic tunneled:
-  ```bash
-  sudo scripts/vpnspace-dockerd.sh start
-  export DOCKER_HOST=unix:///run/docker-vpnspace.sock
-  ```
+- Start the host-level VPN if you want container traffic tunneled: `sudo scripts/openvpn-connect.sh start`.
 - Launch stacks normally: `docker compose -f /opt/abb-docker/compose/docker-compose.reconftw.yml run --rm reconftw -d example.com -r`.
 - Build/update stacks that ship local Dockerfiles (Asnlookup, dnsvalidator) with `docker compose -f docker-compose.<tool>.yml build`.
-- `ABB_NETWORK_MODE` defaults to `bridge`. Override it if you introduce a custom network. Use `docker-compose.test-client.yml` to print the current exit IP every minute and verify routing.
+- Use `docker-compose.test-client.yml` to print the current exit IP every minute and verify routing.
 
 Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster, trufflehog, CeWL, Amass) and rebuild the custom images when upstream repos change.
 
@@ -53,17 +48,13 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
 - The utilities task already injects SSH-preserving `PostUp`/`PreDown` rules; adjust the port if you run SSH on a non-standard port.
 - The setup task removes `mullvad-wg.sh` after execution. Re-run `abb-setup.sh mullvad` whenever you need to regenerate profiles.
 
-## OpenVPN Namespace
+## OpenVPN (Host Wrapper)
 
-Use the bundled helpers under `scripts/` when you need the VPS tunneled through `.ovpn` profiles without breaking SSH:
+Use `scripts/openvpn-connect.sh` when you need the VPS tunneled through `.ovpn` profiles without breaking SSH:
 
-1. Create the namespace once: `sudo scripts/vpnspace.sh setup`
-2. Drop `.ovpn` files (plus `credentials.txt`, if needed) into `~/openvpn-configs` and start the tunnel: `sudo scripts/vpnspace-openvpn.sh start`
-3. Check status/rotate: `sudo scripts/vpnspace-openvpn.sh status`, `sudo scripts/openvpn-rotate.sh us-nyc.ovpn`
-4. Open a tunneled shell for tooling: `sudo scripts/vpnspace.sh shell`
-5. Start the dedicated docker daemon inside the namespace: `sudo scripts/vpnspace-dockerd.sh start` then `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
-6. Leave the namespace up (SSH is unaffected) or stop/teardown when done:
-   ```bash
-   sudo scripts/vpnspace-openvpn.sh stop
-   sudo scripts/vpnspace.sh teardown
-   ```
+1. Drop `.ovpn` files plus `credentials.txt` (or `credentials.text`) into `~/openvpn-configs`.
+2. Start the tunnel: `sudo scripts/openvpn-connect.sh start`
+3. Check status/rotate: `sudo scripts/openvpn-connect.sh status`, `sudo scripts/openvpn-connect.sh rotate us-nyc.ovpn` (or `sudo scripts/openvpn-rotate.sh`).
+4. Stop and restore the original routes when done: `sudo scripts/openvpn-connect.sh stop`
+
+The wrapper syncs configs to `/opt/openvpn-configs`, pins routes for the VPN gateway and your current SSH client, and wires up `/etc/openvpn/update-resolv-conf` so DNS follows the tunnel.

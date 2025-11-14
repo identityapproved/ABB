@@ -4,7 +4,6 @@ services:
   vpn-tester:
     image: curlimages/curl:8.10.1
     container_name: vpn-tester
-    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     environment:
       - TEST_INTERVAL=${TEST_INTERVAL:-60}
     entrypoint:

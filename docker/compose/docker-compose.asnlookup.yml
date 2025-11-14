@@ -5,7 +5,6 @@ services:
     build:
       context: ../images/asnlookup
     container_name: asnlookup
-    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     volumes:
       - ${ASNLOOKUP_OUTPUT:-/opt/abb-docker/data/asnlookup}:/workspace
     working_dir: /workspace

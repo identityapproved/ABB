@@ -52,62 +52,48 @@ Each task can be executed independently:
 
 ## Docker Compose Stacks
 
-The repository ships compose templates under `docker/` (copied to `/opt/abb-docker` by `./abb-setup.sh docker-tools`). Typical workflow:
+The repository ships compose templates under `docker/` (copied to `/opt/abb-docker` by `./abb-setup.sh docker-tools`). Workflow:
 
-1. (One time) create the ProtonVPN namespace and bridge: `sudo scripts/vpnspace.sh setup`.
-2. Whenever you want Docker traffic tunneled through ProtonVPN, start the dedicated daemon inside the namespace and point your client at its socket:
-   ```bash
-   sudo scripts/vpnspace-dockerd.sh start
-   export DOCKER_HOST=unix:///run/docker-vpnspace.sock
-   ```
-3. With `DOCKER_HOST` exported, run any stack normally. Example (ReconFTW):
+1. Bring up the host-level OpenVPN tunnel (see next section) if you want Docker traffic routed through the VPN; otherwise, use the Contabo egress IP.
+2. Run any stack normally. Example (ReconFTW):
    ```bash
    cd /opt/abb-docker/compose
    docker compose -f docker-compose.reconftw.yml run --rm reconftw -d example.com -r
    ```
-4. Need a quick sanity check to confirm the tunnel? Use the tester stack:
+3. Need a quick sanity check to confirm the tunnel? Use the tester stack:
    ```bash
    docker compose -f docker-compose.test-client.yml up
    ```
-   It prints the current egress IP every minute. All compose files honour `ABB_NETWORK_MODE` (default `bridge`). Override it when you need a different network inside the namespace.
+   It prints the current egress IP every minute.
 
-Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds. The legacy Mullvad container assets remain under `docker/images/wg-vpn` for future use but are no longer part of the default workflow.
+Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds. The legacy Mullvad assets remain under `docker/images/wg-vpn` for future use but are no longer part of the default workflow.
 
-## OpenVPN Namespace (CLI + Docker)
+## OpenVPN (host wrapper)
 
-Drop your `.ovpn` profiles (and optional `credentials.txt`) into `~/openvpn-configs`, then use the helper scripts to run OpenVPN inside the `vpnspace` namespace while SSH remains on the Contabo IP.
+Drop your `.ovpn` profiles plus `credentials.txt` (or `credentials.text`) into `~/openvpn-configs`, then use the host wrapper to connect without disrupting your SSH session. The script syncs configs into `/opt/openvpn-configs`, pins routes for the VPN gateway and your SSH client, and restores everything on stop.
 
-1. Create the namespace and bridge (one time):
+1. Start or select a profile (defaults to the first file):
    ```bash
-   sudo scripts/vpnspace.sh setup
+   sudo scripts/openvpn-connect.sh start
+   sudo scripts/openvpn-connect.sh status
    ```
-2. Start OpenVPN inside the namespace (defaults to the first `.ovpn`; pass a filename to override). The helper automatically syncs `~/openvpn-configs` into `/opt/openvpn-configs` before launching:
+2. Rotate exits without dropping the tunnel:
    ```bash
-   sudo scripts/vpnspace-openvpn.sh start
-   sudo scripts/vpnspace-openvpn.sh status
+   sudo scripts/openvpn-connect.sh rotate us-nyc.ovpn
+   # or use the compatibility wrapper:
+   sudo scripts/openvpn-rotate.sh
    ```
-3. Open a tunneled shell for ad-hoc commands:
+3. List / sync configs:
    ```bash
-   sudo scripts/vpnspace.sh shell
-   curl ifconfig.me
+   sudo scripts/openvpn-connect.sh list
+   sudo scripts/openvpn-connect.sh sync
    ```
-4. Run docker workloads through the same namespace:
+4. Tear down and restore the original routes when finished:
    ```bash
-   sudo scripts/vpnspace-dockerd.sh start
-   export DOCKER_HOST=unix:///run/docker-vpnspace.sock
-   docker compose up -d
+   sudo scripts/openvpn-connect.sh stop
    ```
-   Stop or inspect the daemon with `scripts/vpnspace-dockerd.sh stop|status`. For one-off commands, wrap them with `sudo scripts/vpnspace.sh exec <command>`.
-5. Rotate exit IPs without restarting the namespace:
-   ```bash
-   sudo scripts/openvpn-rotate.sh            # rotates to the next .ovpn
-   sudo scripts/openvpn-rotate.sh us-nyc.ovpn
-   ```
-6. Stop or remove the namespace when you no longer need it:
-   ```bash
-   sudo scripts/vpnspace-openvpn.sh stop
-   sudo scripts/vpnspace.sh teardown
-   ```
+
+The wrapper automatically reads `credentials.txt` from `/opt/openvpn-configs`, enforces `chmod 600`, and wires up `/etc/openvpn/update-resolv-conf` so DNS follows the tunnel.
 
 ## WireGuard Helpers
 

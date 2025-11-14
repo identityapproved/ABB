@@ -4,7 +4,6 @@ services:
   reconftw:
     image: six2dez/reconftw:main
     container_name: reconftw
-    network_mode: "${ABB_NETWORK_MODE:-bridge}"
     volumes:
       - ${RECONFTW_DATA:-/opt/abb-docker/data/reconftw/output}:/data
       - ${RECONFTW_CONFIG_DIR:-/opt/abb-docker/data/reconftw/config}:/config
