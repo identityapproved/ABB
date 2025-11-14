@@ -270,21 +270,34 @@ start_openvpn() {
     echo "Unable to detect default route. Aborting to avoid losing connectivity." >&2
     exit 1
   }
+  local orig_gw="${gw}" orig_dev="${dev}"
   remote_host="$(first_remote_host)"
   remote_ip="$(resolve_host_ip "${remote_host}")"
   ssh_ip="$(detect_ssh_ip || true)"
   ssh_port="$(detect_ssh_port || true)"
+  if read -r gw dev < <(default_route_info); then
+    :
+  else
+    gw="${orig_gw}"
+    dev="${orig_dev}"
+  fi
   ensure_host_route "${remote_ip}" "${gw}" "${dev}"
   if [[ -n "${ssh_ip}" ]]; then
+    if read -r gw dev < <(default_route_info); then
+      :
+    else
+      gw="${orig_gw}"
+      dev="${orig_dev}"
+    fi
     ensure_host_route "${ssh_ip}" "${gw}" "${dev}"
   fi
   ssh_bypass="false"
   if [[ -n "${ssh_port}" ]]; then
-    if ensure_ssh_bypass "${gw}" "${dev}" "${ssh_port}"; then
+    if ensure_ssh_bypass "${orig_gw}" "${orig_dev}" "${ssh_port}"; then
       ssh_bypass="true"
     fi
   fi
-  record_routes "${gw}" "${dev}" "${remote_ip}" "${ssh_ip}" "${ssh_port}" "${ssh_bypass}"
+  record_routes "${orig_gw}" "${orig_dev}" "${remote_ip}" "${ssh_ip}" "${ssh_port}" "${ssh_bypass}"
 
   cred_file="$(credentials_file || true)"
   if [[ -n "${cred_file}" ]]; then
