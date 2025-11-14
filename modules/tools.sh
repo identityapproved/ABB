@@ -319,6 +319,8 @@ write_tool_overview() {
   if ((${#BLACKARCH_ONLY_PACKAGES[@]})); then
     IFS=$'\n' blackarch_sorted=($(printf '%s\n' "${BLACKARCH_ONLY_PACKAGES[@]}" | sort -u))
     unset IFS
+  else
+    blackarch_sorted=()
   fi
 
   {
@@ -357,6 +359,23 @@ write_tool_overview() {
       for module in "${aur_recon_sorted[@]}"; do
         printf ' - %s\n' "${module}"
       done
+    else
+      printf '%s\n' " - (none recorded)"
+    fi
+    printf '\n'
+
+    printf '%s\n' "BlackArch Packages (pacman)"
+    printf '%s\n' "---------------------------"
+    if ((${#blackarch_sorted[@]})); then
+      if [[ "${ENABLE_BLACKARCH_REPO}" == "yes" ]]; then
+        for module in "${blackarch_sorted[@]}"; do
+          printf ' - %s\n' "${module}"
+        done
+      else
+        for module in "${blackarch_sorted[@]}"; do
+          printf ' - %s (requires BlackArch repo)\n' "${module}"
+        done
+      fi
     else
       printf '%s\n' " - (none recorded)"
     fi
@@ -623,19 +642,3 @@ install_dnscEwl() {
   fi
   rm -f "${tmp}"
 }
-    printf '%s\n' "BlackArch Packages (pacman)"
-    printf '%s\n' "---------------------------"
-    if ((${#blackarch_sorted[@]})); then
-      if [[ "${ENABLE_BLACKARCH_REPO}" == "yes" ]]; then
-        for module in "${blackarch_sorted[@]}"; do
-          printf ' - %s\n' "${module}"
-        done
-      else
-        for module in "${blackarch_sorted[@]}"; do
-          printf ' - %s (requires BlackArch repo)\n' "${module}"
-        done
-      fi
-    else
-      printf '%s\n' " - (none recorded)"
-    fi
-    printf '\n'
