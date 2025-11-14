@@ -53,7 +53,11 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
 Use `scripts/openvpn-connect.sh` when you need the VPS tunneled through `.ovpn` profiles without breaking SSH:
 
 1. Drop `.ovpn` files plus `credentials.txt` (or `credentials.text`) into `~/openvpn-configs`.
-2. Start the tunnel: `sudo scripts/openvpn-connect.sh start`
+2. (Optional) Persist SSH bypass so the host always keeps the Contabo route:
+   ```bash
+   sudo scripts/ssh-bypass.sh setup
+   ```
+3. Start the tunnel: `sudo scripts/openvpn-connect.sh start`
 3. Check status/rotate: `sudo scripts/openvpn-connect.sh status`, `sudo scripts/openvpn-connect.sh rotate us-nyc.ovpn` (or `sudo scripts/openvpn-rotate.sh`).
 4. Stop and restore the original routes when done: `sudo scripts/openvpn-connect.sh stop`
 

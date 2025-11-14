@@ -77,6 +77,10 @@ Drop your `.ovpn` profiles plus `credentials.txt` (or `credentials.text`) into `
    sudo scripts/openvpn-connect.sh start
    sudo scripts/openvpn-connect.sh status
    ```
+   If you need SSH to keep using the Contabo gateway permanently, run once:
+   ```bash
+   sudo scripts/ssh-bypass.sh setup   # adds iptables/ip rule + persistence
+   ```
 2. Rotate exits without dropping the tunnel:
    ```bash
    sudo scripts/openvpn-connect.sh rotate us-nyc.ovpn

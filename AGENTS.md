@@ -95,9 +95,10 @@ sudo pacman -Syu --noconfirm
 - Provide `scripts/openvpn-connect.sh` to manage OpenVPN directly on the host (start/stop/status/rotate/list/sync). The script must:
   - Sync configs from `~/openvpn-configs`.
   - Read credentials from `credentials.txt` (or `credentials.text`) under `/opt/openvpn-configs` and enforce `chmod 600`.
-  - Preserve SSH connectivity by pinning routes for the VPN gateway and current `SSH_CLIENT` IP before `openvpn` adjusts the default route, restoring everything on stop.
+  - Preserve basic connectivity by pinning a host route for the VPN gateway before `openvpn` adjusts the default route, restoring everything on stop.
   - Log to `/var/log/openvpn-host.log`, track state under `/var/run/openvpn-host`, and use `/etc/openvpn/update-resolv-conf`.
 - Keep `scripts/openvpn-rotate.sh` as a compatibility wrapper that simply calls the new host script.
+- Ship `scripts/ssh-bypass.sh` so operators can configure a persistent iptables/ip rule bypass for SSH (default port 22, mark 22, table 128) and restore it later; follow the manual snippet provided by the user (iptables-save to `/etc/iptables.rules`, ensure `/etc/rc.local` runs `iptables-restore`).
 - Update README / NEXT_STEPS / docker docs to describe the host wrapper workflow and remove references to ProtonVPN namespaces or custom Docker sockets.
 
 ## 10. Tool Catalogue
