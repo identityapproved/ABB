@@ -262,7 +262,8 @@ install_git_python_tools() {
 
 write_tool_overview() {
   local user_home overview_file tmp_file package_manager_display node_manager_display
-  local pipx_keys=() pipx_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=() blackarch_sorted=()
+  local pipx_keys=() pipx_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=()
+  local -a blackarch_sorted=()
   local module tool_name
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
