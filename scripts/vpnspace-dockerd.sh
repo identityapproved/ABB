@@ -34,27 +34,6 @@ ensure_namespace() {
   fi
 }
 
-ensure_cgroup_mounts() {
-  local mount_script='
-set -e
-mkdir -p /sys/fs/cgroup
-if ! mountpoint -q /sys/fs/cgroup; then
-  if ! mount -t cgroup2 none /sys/fs/cgroup 2>/dev/null; then
-    mount -t tmpfs cgroup_root /sys/fs/cgroup
-    for ctrl in blkio cpu cpuacct cpuset devices freezer hugetlb memory net_cls net_prio perf_event pids rdma; do
-      mkdir -p "/sys/fs/cgroup/${ctrl}"
-      mount -t cgroup -o "${ctrl}" cgroup "/sys/fs/cgroup/${ctrl}" 2>/dev/null || true
-    done
-  fi
-fi
-'
-  if ! ip netns exec "${NS_NAME}" mountpoint -q /sys/fs/cgroup 2>/dev/null; then
-    ip netns exec "${NS_NAME}" /bin/sh -c "${mount_script}" || {
-      echo "Warning: failed to mount cgroups inside ${NS_NAME}; dockerd may fail." >&2
-    }
-  fi
-}
-
 install_profile_snippet() {
   [[ "${AUTO_EXPORT}" == "0" ]] && return
   install -d -m 0755 "$(dirname "${PROFILE_SNIPPET}")"
@@ -74,21 +53,36 @@ remove_profile_snippet() {
 
 start_dockerd() {
   ensure_namespace
-  ensure_cgroup_mounts
   if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
     echo "dockerd already running inside ${NS_NAME} (pid $(cat "${PID_FILE}"))." >&2
     exit 0
   fi
   mkdir -p "$(dirname "${SOCK_PATH}")" "${DATA_ROOT}" "${EXEC_ROOT}"
-  ip netns exec "${NS_NAME}" "${DOCKERD_BIN}" \
-    --host="unix://${SOCK_PATH}" \
-    --data-root="${DATA_ROOT}" \
-    --exec-root="${EXEC_ROOT}" \
-    --pidfile="${PID_FILE}" \
-    --bip="${BIP}" \
-    --exec-opt "native.cgroupdriver=${CGROUP_DRIVER}" \
-    --iptables=false \
-    --ip-masq=false &
+  local start_script
+  read -r -d '' start_script <<EOF
+set -e
+mount --make-rshared /
+mkdir -p /sys/fs/cgroup
+if ! mountpoint -q /sys/fs/cgroup; then
+  if ! mount -t cgroup2 none /sys/fs/cgroup 2>/dev/null; then
+    mount -t tmpfs cgroup_root /sys/fs/cgroup
+    for ctrl in blkio cpu cpuacct cpuset devices freezer hugetlb memory net_cls net_prio perf_event pids rdma; do
+      mkdir -p "/sys/fs/cgroup/\${ctrl}"
+      mount -t cgroup -o "\${ctrl}" cgroup "/sys/fs/cgroup/\${ctrl}" 2>/dev/null || true
+    done
+  fi
+fi
+exec ${DOCKERD_BIN} \
+  --host="${SOCK_URI}" \
+  --data-root="${DATA_ROOT}" \
+  --exec-root="${EXEC_ROOT}" \
+  --pidfile="${PID_FILE}" \
+  --bip="${BIP}" \
+  --exec-opt "native.cgroupdriver=${CGROUP_DRIVER}" \
+  --iptables=false \
+  --ip-masq=false
+EOF
+  ip netns exec "${NS_NAME}" unshare --mount --propagation shared /bin/sh -c "${start_script}" &
   local pid=$!
   sleep 2
   if ! kill -0 "${pid}" 2>/dev/null; then
