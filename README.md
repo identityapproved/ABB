@@ -73,40 +73,39 @@ The repository ships compose templates under `docker/` (copied to `/opt/abb-dock
 
 Each compose file documents its mounts and environment variables; Asnlookup and dnsvalidator stacks include Dockerfiles under `docker/images/` for repeatable builds. The legacy Mullvad container assets remain under `docker/images/wg-vpn` for future use but are no longer part of the default workflow.
 
-## ProtonVPN Namespace (CLI + Docker)
+## OpenVPN Namespace (CLI + Docker)
 
-If you prefer to run ProtonVPN on the VPS itself without losing your SSH session, use the namespace helper scripts under `scripts/`. The workflow keeps SSH on the Contabo-assigned IP while any process launched inside the namespace egresses through ProtonVPN.
+Drop your `.ovpn` profiles (and optional `credentials.txt`) into `~/openvpn-configs`, then use the helper scripts to run OpenVPN inside the `vpnspace` namespace while SSH remains on the Contabo IP.
 
-1. Create the namespace, veth pair, and NAT rule (one time):
+1. Create the namespace and bridge (one time):
    ```bash
    sudo scripts/vpnspace.sh setup
    ```
-2. Connect via protonvpn-cli from inside the namespace (default `connect --fastest`, customize with normal CLI flags):
+2. Start OpenVPN inside the namespace (defaults to the first `.ovpn`; pass a filename to override). The helper automatically syncs `~/openvpn-configs` into `/opt/openvpn-configs` before launching:
    ```bash
-   sudo scripts/vpnspace-protonvpn.sh connect
-   sudo scripts/vpnspace-protonvpn.sh connect c --cc NL --p tcp   # example override
+   sudo scripts/vpnspace-openvpn.sh start
+   sudo scripts/vpnspace-openvpn.sh status
    ```
 3. Open a tunneled shell for ad-hoc commands:
    ```bash
    sudo scripts/vpnspace.sh shell
-   curl ifconfig.me   # shows ProtonVPN IP while host SSH stays unchanged
+   curl ifconfig.me
    ```
-4. Run docker workloads through the tunnel by launching a dedicated dockerd inside the namespace:
+4. Run docker workloads through the same namespace:
    ```bash
    sudo scripts/vpnspace-dockerd.sh start
    export DOCKER_HOST=unix:///run/docker-vpnspace.sock
-   docker info
    docker compose up -d
    ```
-   Stop or inspect the daemon with `scripts/vpnspace-dockerd.sh stop|status`. When you only need a one-off tunneled command, wrap it with `sudo scripts/vpnspace.sh exec <command>`.
-5. Rotate ProtonVPN exit IPs without touching SSH sessions:
+   Stop or inspect the daemon with `scripts/vpnspace-dockerd.sh stop|status`. For one-off commands, wrap them with `sudo scripts/vpnspace.sh exec <command>`.
+5. Rotate exit IPs without restarting the namespace:
    ```bash
-   sudo scripts/protonvpn-rotate.sh          # protonvpn reconnect
-   sudo scripts/protonvpn-rotate.sh connect c -r  # random server example
+   sudo scripts/openvpn-rotate.sh            # rotates to the next .ovpn
+   sudo scripts/openvpn-rotate.sh us-nyc.ovpn
    ```
-6. When you are finished, disconnect and (optionally) delete the namespace:
+6. Stop or remove the namespace when you no longer need it:
    ```bash
-   sudo scripts/vpnspace.sh disconnect
+   sudo scripts/vpnspace-openvpn.sh stop
    sudo scripts/vpnspace.sh teardown
    ```
 

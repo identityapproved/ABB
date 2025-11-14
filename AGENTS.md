@@ -88,14 +88,14 @@ sudo pacman -Syu --noconfirm
 ### Mullvad WireGuard
 - Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
 - Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
-- Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. The legacy Mullvad container assets remain under `docker/images/wg-vpn` (with rotation helper scripts under `docker/scripts/`) in case you reintroduce that workflow later, but the default Docker path now assumes ProtonVPN via the namespace helpers.
+- Keep the VPS-focused Mullvad configs under `/etc/wireguard` but inject the SSH-preserving `PostUp`/`PreDown` rules directly there. The legacy Mullvad container assets remain under `docker/images/wg-vpn` (with rotation helper scripts under `docker/scripts/`) in case you reintroduce that workflow later, but the default Docker path now assumes the namespace-based OpenVPN flow.
 - Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
 
-- Install `protonvpn-cli` via pipx for the managed user (`pipx install protonvpn-cli --force`) but leave credentials/configuration to the operator.
+- Install `openvpn`, `openresolv`, and related tooling for the managed user, keeping `.ovpn` profiles under `/opt/openvpn-configs`. Document that the helper syncs from `~/openvpn-configs` automatically.
 - Ship `scripts/vpnspace.sh` to manage the namespace lifecycle (setup/teardown/shell/exec/ip). Keep it provider-agnostic so future VPN options can reuse it.
-- Provide `scripts/vpnspace-protonvpn.sh` to run ProtonVPN CLI commands (connect/disconnect/status/reconnect) inside the namespace while keeping the process root-owned. Ensure instructions reference `sudo scripts/vpnspace-protonvpn.sh connect`.
+- Provide `scripts/vpnspace-openvpn.sh` to copy configs, launch OpenVPN inside the namespace, and manage PID/log/rotation metadata. Ensure instructions reference `sudo scripts/vpnspace-openvpn.sh start`.
+- Provide `scripts/openvpn-rotate.sh` as a thin wrapper so operators can schedule rotations (`sudo scripts/openvpn-rotate.sh` or `sudo scripts/openvpn-rotate.sh us-nyc.ovpn`).
 - Provide `scripts/vpnspace-dockerd.sh` to launch a dedicated dockerd instance inside the namespace (socket `/run/docker-vpnspace.sock`, separate data/exec roots). Document usage: `sudo scripts/vpnspace-dockerd.sh start` followed by `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
-- Include `scripts/protonvpn-rotate.sh` as a thin wrapper so operators can schedule rotations (`sudo scripts/protonvpn-rotate.sh connect c -r` for random exits).
 - Note in README/NEXT_STEPS how to tear down the namespace, rotate exits, and ensure Docker workloads use the tunneled daemon.
 
 ## 10. Tool Catalogue

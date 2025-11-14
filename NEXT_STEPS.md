@@ -53,17 +53,17 @@ Refresh images periodically with `docker pull` (WireGuard, ReconFTW, feroxbuster
 - The utilities task already injects SSH-preserving `PostUp`/`PreDown` rules; adjust the port if you run SSH on a non-standard port.
 - The setup task removes `mullvad-wg.sh` after execution. Re-run `abb-setup.sh mullvad` whenever you need to regenerate profiles.
 
-## ProtonVPN Namespace
+## OpenVPN Namespace
 
-Use the bundled helpers under `scripts/` when you need ProtonVPN CLI on the VPS without losing SSH (and when you want docker workloads tunneled):
+Use the bundled helpers under `scripts/` when you need the VPS tunneled through `.ovpn` profiles without breaking SSH:
 
 1. Create the namespace once: `sudo scripts/vpnspace.sh setup`
-2. Connect via ProtonVPN: `sudo scripts/vpnspace-protonvpn.sh connect` (or pass additional CLI flags such as `connect c --cc NL`)
-3. Open a tunneled shell for ad-hoc tooling: `sudo scripts/vpnspace.sh shell`
-4. Start the dedicated docker daemon inside the namespace: `sudo scripts/vpnspace-dockerd.sh start` then `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
-5. Rotate exit IPs anytime with `sudo scripts/protonvpn-rotate.sh` (defaults to `reconnect`; pass additional args such as `connect c -r` for random).
-6. Leave the namespace up (SSH is unaffected) or disconnect/teardown when done:
+2. Drop `.ovpn` files (plus `credentials.txt`, if needed) into `~/openvpn-configs` and start the tunnel: `sudo scripts/vpnspace-openvpn.sh start`
+3. Check status/rotate: `sudo scripts/vpnspace-openvpn.sh status`, `sudo scripts/openvpn-rotate.sh us-nyc.ovpn`
+4. Open a tunneled shell for tooling: `sudo scripts/vpnspace.sh shell`
+5. Start the dedicated docker daemon inside the namespace: `sudo scripts/vpnspace-dockerd.sh start` then `export DOCKER_HOST=unix:///run/docker-vpnspace.sock` before running docker/compose commands.
+6. Leave the namespace up (SSH is unaffected) or stop/teardown when done:
    ```bash
-   sudo scripts/vpnspace.sh disconnect
+   sudo scripts/vpnspace-openvpn.sh stop
    sudo scripts/vpnspace.sh teardown
    ```
