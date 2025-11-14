@@ -108,7 +108,17 @@ install_blackarch_repo() {
   local need_refresh=0
   local conf_file="/etc/pacman.d/blackarch.conf"
   local default_mirror="https://www.blackarch.org/blackarch"
-  local selected_mirror="${BLACKARCH_MIRROR:-${default_mirror}}"
+  local saved_mirror="${BLACKARCH_MIRROR_SELECTED:-}"
+  local selected_mirror existing_server
+
+  if [[ -z "${saved_mirror}" && -f "${conf_file}" ]]; then
+    existing_server="$(awk -F'= ' '/^[[:space:]]*Server[[:space:]]*=/ {print $2; exit}' "${conf_file}" | tr -d '[:space:]')"
+    if [[ -n "${existing_server}" ]]; then
+      saved_mirror="${existing_server%/\$repo/os/\$arch}"
+    fi
+  fi
+
+  selected_mirror="${BLACKARCH_MIRROR:-${saved_mirror:-${default_mirror}}}"
   selected_mirror="${selected_mirror%/}"
   if [[ -z "${selected_mirror}" ]]; then
     selected_mirror="${default_mirror}"
@@ -134,11 +144,15 @@ install_blackarch_repo() {
       printf '[blackarch]\n'
       printf '%s\n' "${server_line}"
     } > "${conf_file}"
+    BLACKARCH_MIRROR_SELECTED="${selected_mirror}"
     chmod 0644 "${conf_file}"
     log_info "Configured BlackArch repository definition in ${conf_file}."
     need_refresh=1
   else
     log_info "BlackArch repository definition already present at ${conf_file}."
+    if [[ -z "${BLACKARCH_MIRROR_SELECTED}" ]]; then
+      BLACKARCH_MIRROR_SELECTED="${selected_mirror}"
+    fi
   fi
 
   if ! grep -Eq '^\s*Include\s*=\s*/etc/pacman\.d/blackarch\.conf' /etc/pacman.conf; then

@@ -143,6 +143,7 @@ record_prompt_answers() {
     printf 'TRUFFLEHOG_INSTALL=%q\n' "${TRUFFLEHOG_INSTALL}"
     printf 'ENABLE_MULLVAD=%q\n' "${ENABLE_MULLVAD}"
     printf 'AUTO_WORDLISTS_CLONE=%q\n' "${AUTO_WORDLISTS_CLONE}"
+    printf 'BLACKARCH_MIRROR_SELECTED=%q\n' "${BLACKARCH_MIRROR_SELECTED}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
