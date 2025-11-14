@@ -25,6 +25,7 @@ SYSTEM_PACKAGES=(
   jq
   wireguard-tools
   openresolv
+  openvpn
   rsync
   yazi
   lazygit
