@@ -42,9 +42,8 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   - Write `/etc/pacman.d/blackarch.conf` with:
   ```
   [blackarch]
-  Server = ${BLACKARCH_MIRROR:-https://www.blackarch.org/blackarch}/$repo/os/$arch
+  Server = https://www.blackarch.org/blackarch/$repo/os/$arch
   ```
-    (ABB automatically substitutes `BLACKARCH_MIRROR` if the operator exports it; otherwise it falls back to the upstream URL.)
   - Append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf` if it is not already present.
   - Temporarily add `SigLevel = Never` to the BlackArch stanza, run `pacman -Sy blackarch-keyring`, then remove the override and force-refresh pacman with `pacman -Syyu`.
   - Enable `multilib` in `/etc/pacman.conf` if missing. Do **not** install the `blackarch` meta-package.
@@ -131,7 +130,7 @@ sudo pacman -Syu --noconfirm
 - Compose files should rely on Docker's default bridge networking; remove references to custom namespace sockets or bespoke network-mode environment variables.
 
 ### 10.6 Recon Packages
-- Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
+- When (and only when) the BlackArch repository is enabled, install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
 - Feroxbuster is handled separately based on the operator's chosen installation method (`cargo` or selected AUR helper). Document the prompt and ensure reruns honour the saved choice.
 
 ## 11. Shells & Editors

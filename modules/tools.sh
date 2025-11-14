@@ -72,6 +72,9 @@ GO_TOOLS=(
 )
 
 RECON_PACKAGES=(
+)
+
+BLACKARCH_ONLY_PACKAGES=(
   amass
 )
 
@@ -259,7 +262,7 @@ install_git_python_tools() {
 
 write_tool_overview() {
   local user_home overview_file tmp_file package_manager_display node_manager_display
-  local pipx_keys=() pipx_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=()
+  local pipx_keys=() pipx_sorted=() go_names=() go_sorted=() system_sorted=() recon_sorted=() aur_recon_sorted=() blackarch_sorted=()
   local module tool_name
 
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -309,6 +312,11 @@ write_tool_overview() {
 
   if ((${#AUR_RECON_PACKAGES[@]})); then
     IFS=$'\n' aur_recon_sorted=($(printf '%s\n' "${AUR_RECON_PACKAGES[@]}" | sort -u))
+    unset IFS
+  fi
+
+  if ((${#BLACKARCH_ONLY_PACKAGES[@]})); then
+    IFS=$'\n' blackarch_sorted=($(printf '%s\n' "${BLACKARCH_ONLY_PACKAGES[@]}" | sort -u))
     unset IFS
   fi
 
@@ -406,6 +414,7 @@ run_task_tools() {
   ensure_user_context
   ensure_package_manager_ready
   install_system_recon_packages
+  install_blackarch_only_packages
   install_aur_recon_packages
   install_language_helpers
   install_feroxbuster
@@ -425,6 +434,22 @@ install_system_recon_packages() {
       append_installed_tool "${pkg}"
     done
   fi
+}
+
+install_blackarch_only_packages() {
+  local pkg
+  if ((${#BLACKARCH_ONLY_PACKAGES[@]} == 0)); then
+    return
+  fi
+  if [[ "${ENABLE_BLACKARCH_REPO}" != "yes" ]]; then
+    log_info "BlackArch repository disabled; skipping packages: ${BLACKARCH_ONLY_PACKAGES[*]}"
+    return
+  fi
+  blackarch_ensure_ready
+  pacman_install_packages "${BLACKARCH_ONLY_PACKAGES[@]}"
+  for pkg in "${BLACKARCH_ONLY_PACKAGES[@]}"; do
+    append_installed_tool "${pkg}"
+  done
 }
 
 install_aur_recon_packages() {
@@ -597,3 +622,19 @@ install_dnscEwl() {
   fi
   rm -f "${tmp}"
 }
+    printf '%s\n' "BlackArch Packages (pacman)"
+    printf '%s\n' "---------------------------"
+    if ((${#blackarch_sorted[@]})); then
+      if [[ "${ENABLE_BLACKARCH_REPO}" == "yes" ]]; then
+        for module in "${blackarch_sorted[@]}"; do
+          printf ' - %s\n' "${module}"
+        done
+      else
+        for module in "${blackarch_sorted[@]}"; do
+          printf ' - %s (requires BlackArch repo)\n' "${module}"
+        done
+      fi
+    else
+      printf '%s\n' " - (none recorded)"
+    fi
+    printf '\n'
