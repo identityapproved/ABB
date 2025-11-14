@@ -120,7 +120,7 @@ sudo pacman -Syu --noconfirm
 
 ### 10.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
-- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc. Wordlists are managed via `./abb-setup.sh wordlists`, which prompts (within that module) for cloning Auto_Wordlists and mirroring the Assetnote collection before syncing everything under `~/wordlists`.
+- Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and keep under `~/wordlists/SecLists`), cent wordlists (`~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc. Run `./abb-setup.sh wordlists` whenever you need to refresh SecLists/cent/permutations/resolvers/rockyou, or opt into the heavier Auto_Wordlists and Assetnote mirrors via the prompts shown during that module.
 
 ### 10.5 Docker Assets
 - Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.

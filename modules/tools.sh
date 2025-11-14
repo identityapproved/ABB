@@ -85,7 +85,6 @@ declare -A GIT_TOOLS=(
   [lazyrecon]='https://github.com/nahamsec/lazyrecon.git'
   [massdns]='https://github.com/blechschmidt/massdns.git'
   [masscan]='https://github.com/robertdavidgraham/masscan.git'
-  [SecLists]='https://github.com/danielmiessler/SecLists.git'
   [JSParser]='https://github.com/nahamsec/JSParser.git'
 )
 
@@ -236,12 +235,6 @@ install_git_python_tools() {
           else
             log_warn "Failed to compile masscan."
           fi
-          ;;
-        SecLists)
-          if [[ -f "${dest}/Discovery/DNS/dns-Jhaddix.txt" ]]; then
-            head -n -14 "${dest}/Discovery/DNS/dns-Jhaddix.txt" > "${dest}/Discovery/DNS/clean-jhaddix-dns.txt"
-          fi
-          append_installed_tool "SecLists"
           ;;
         JSParser)
           if ensure_jsparser_env; then
