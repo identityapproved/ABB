@@ -19,7 +19,8 @@ normalize_pacman_testing_includes() {
   local conf="/etc/pacman.conf"
   local tmp changed=0
   tmp="$(mktemp)"
-  awk '
+  local awk_status=0
+  if awk '
     BEGIN { commented_section = 0; changed = 0 }
     {
       line = $0
@@ -35,8 +36,12 @@ normalize_pacman_testing_includes() {
       print
     }
     END { if (changed) exit 2 }
-  ' "${conf}" > "${tmp}"
-  case $? in
+  ' "${conf}" > "${tmp}"; then
+    awk_status=0
+  else
+    awk_status=$?
+  fi
+  case ${awk_status} in
     0)
       rm -f "${tmp}"
       ;;
@@ -102,22 +107,33 @@ enable_multilib_repo() {
 install_blackarch_repo() {
   local need_refresh=0
   local conf_file="/etc/pacman.d/blackarch.conf"
+  local default_mirror="https://www.blackarch.org/blackarch"
+  local selected_mirror="${BLACKARCH_MIRROR:-${default_mirror}}"
+  selected_mirror="${selected_mirror%/}"
+  if [[ -z "${selected_mirror}" ]]; then
+    selected_mirror="${default_mirror}"
+  fi
+  local server_line="Server = ${selected_mirror}/\$repo/os/\$arch"
   local result
+
+  if [[ "${selected_mirror}" != "${default_mirror}" ]]; then
+    log_info "Using custom BlackArch mirror: ${selected_mirror}"
+  fi
 
   local conf_needs_update=0
   if [[ ! -f "${conf_file}" ]]; then
     conf_needs_update=1
-  elif ! grep -Fxq 'Server = https://www.blackarch.org/blackarch/$repo/os/$arch' "${conf_file}"; then
+  elif ! grep -Fxq "${server_line}" "${conf_file}"; then
     conf_needs_update=1
   elif grep -Fxq 'Include = /etc/pacman.d/mirrorlist' "${conf_file}"; then
     conf_needs_update=1
   fi
 
   if ((conf_needs_update)); then
-    cat <<'EOF' > "${conf_file}"
-[blackarch]
-Server = https://www.blackarch.org/blackarch/$repo/os/$arch
-EOF
+    {
+      printf '[blackarch]\n'
+      printf '%s\n' "${server_line}"
+    } > "${conf_file}"
     chmod 0644 "${conf_file}"
     log_info "Configured BlackArch repository definition in ${conf_file}."
     need_refresh=1
