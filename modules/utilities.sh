@@ -10,6 +10,7 @@ SYSTEM_PACKAGES=(
   bat
   htop
   iftop
+  lsof
   tmux
   vim
   neovim

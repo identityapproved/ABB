@@ -207,6 +207,11 @@ install_git_python_tools() {
   for tool in "${!GIT_TOOLS[@]}"; do
     repo="${GIT_TOOLS[$tool]}"
     dest="${TOOL_BASE_DIR}/${tool}"
+    if [[ "${tool}" == "SecLists" ]]; then
+      if wordlists_require_root; then
+        dest="${WORDLIST_ROOT}/seclists"
+      fi
+    fi
     if ensure_git_repo "${repo}" "${dest}"; then
       chown -R root:wheel "${dest}" || true
       chmod -R 0755 "${dest}" || true
@@ -237,7 +242,6 @@ install_git_python_tools() {
             head -n -14 "${dest}/Discovery/DNS/dns-Jhaddix.txt" > "${dest}/Discovery/DNS/clean-jhaddix-dns.txt"
           fi
           append_installed_tool "SecLists"
-          wordlists_register_seclists "${dest}"
           ;;
         JSParser)
           if ensure_jsparser_env; then
@@ -416,7 +420,6 @@ run_task_tools() {
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
-  wordlists_refresh_static_assets
   install_dnscEwl
   install_jshawk_release
   write_tool_overview

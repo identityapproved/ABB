@@ -48,6 +48,7 @@ SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
 ENABLE_MULLVAD="${ENABLE_MULLVAD:-}"
 AUTO_WORDLISTS_CLONE="${AUTO_WORDLISTS_CLONE:-}"
 ENABLE_BLACKARCH_REPO="${ENABLE_BLACKARCH_REPO:-}"
+ENABLE_ASSETNOTE_WORDLISTS="${ENABLE_ASSETNOTE_WORDLISTS:-}"
 
 usage() {
   cat <<'EOF'
@@ -60,6 +61,7 @@ Tasks:
   security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
+  wordlists   Clone or refresh curated wordlists (SecLists, cent, Auto_Wordlists, Assetnote, permutations/resolvers, rockyou, etc.).
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
@@ -91,6 +93,7 @@ run_task_all() {
   run_task_languages
   run_task_security
   run_task_utilities
+  run_task_wordlists
   run_task_mullvad
   run_task_tools
   run_task_dotfiles
@@ -177,6 +180,10 @@ main() {
     tools)
       log_info "Running tools task"
       run_task_tools
+      ;;
+    wordlists)
+      log_info "Running wordlists task"
+      run_task_wordlists
       ;;
     dotfiles)
       log_info "Running dotfiles task"
