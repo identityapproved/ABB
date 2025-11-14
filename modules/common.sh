@@ -163,6 +163,7 @@ init_installed_tracker() {
 sync_repo_scripts() {
   local src="${REPO_ROOT}/scripts"
   local dest="/opt/abb-scripts"
+  local dns_helper="update-resolv-conf.sh"
   if [[ ! -d "${src}" ]]; then
     log_warn "No scripts directory detected at ${src}; skipping sync."
     return 1
@@ -176,6 +177,11 @@ sync_repo_scripts() {
     install -m 0755 "${script}" "/usr/local/bin/${base}"
   done
   shopt -u nullglob
+  if [[ -f "${dest}/${dns_helper}" ]]; then
+    install -d -m 0755 /etc/openvpn
+    install -m 0755 "${dest}/${dns_helper}" /etc/openvpn/update-resolv-conf
+    log_info "DNS helper installed to /etc/openvpn/update-resolv-conf."
+  fi
   log_info "Scripts synced to ${dest} and installed under /usr/local/bin."
 }
 
