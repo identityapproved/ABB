@@ -134,6 +134,11 @@ configure_mullvad_wireguard() {
 }
 
 run_task_mullvad() {
+  load_previous_answers
+  if [[ "${ENABLE_MULLVAD}" != "yes" ]]; then
+    log_info "Skipping Mullvad WireGuard task (preference: ${ENABLE_MULLVAD:-no})."
+    return
+  fi
   ensure_user_context
   ensure_package_manager_ready
   configure_mullvad_wireguard

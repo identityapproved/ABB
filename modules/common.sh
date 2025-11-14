@@ -141,6 +141,7 @@ record_prompt_answers() {
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
     printf 'FEROX_INSTALL_METHOD=%q\n' "${FEROX_INSTALL_METHOD}"
     printf 'TRUFFLEHOG_INSTALL=%q\n' "${TRUFFLEHOG_INSTALL}"
+    printf 'ENABLE_MULLVAD=%q\n' "${ENABLE_MULLVAD}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"

@@ -504,23 +504,26 @@ install_trufflehog() {
     return
   fi
 
+  if [[ -n "${PACKAGE_MANAGER}" ]] && command_exists "${PACKAGE_MANAGER}"; then
+    if aur_helper_install "trufflehog"; then
+      append_installed_tool "trufflehog"
+      log_info "Installed trufflehog via ${PACKAGE_MANAGER}."
+      return
+    fi
+    log_warn "Failed to install trufflehog via ${PACKAGE_MANAGER}; falling back to alternate methods."
+  fi
+
   if run_trufflehog_install_script; then
     append_installed_tool "trufflehog"
     log_info "Installed trufflehog via official install script."
     return
   fi
 
-  prompt_trufflehog_source_build
-  case $? in
-    0)
-      append_installed_tool "trufflehog"
-      log_info "Installed trufflehog from source."
-      return
-      ;;
-    1)
-      return
-      ;;
-  esac
+  if install_trufflehog_from_source; then
+    append_installed_tool "trufflehog"
+    log_info "Installed trufflehog from source."
+    return
+  fi
 
   notify_trufflehog_docker_fallback
 }
@@ -567,28 +570,6 @@ EOF
   fi
   log_warn "Failed to build trufflehog from source."
   return 1
-}
-
-prompt_trufflehog_source_build() {
-  local answer=""
-  while true; do
-    read -rp "Trufflehog install script failed. Build from source now? (y/n): " answer </dev/tty || { answer="n"; }
-    case "${answer,,}" in
-      y|yes)
-        if install_trufflehog_from_source; then
-          return 0
-        fi
-        return 2
-        ;;
-      n|no)
-        notify_trufflehog_docker_fallback
-        return 1
-        ;;
-      *)
-        echo "Please answer y or n." >/dev/tty
-        ;;
-    esac
-  done
 }
 
 notify_trufflehog_docker_fallback() {

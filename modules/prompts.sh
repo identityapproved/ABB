@@ -188,6 +188,32 @@ prompt_for_trufflehog_install() {
   log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
 }
 
+prompt_for_mullvad_usage() {
+  local choice=""
+  if [[ -n "${ENABLE_MULLVAD}" ]]; then
+    log_info "Mullvad configuration preference: ${ENABLE_MULLVAD}"
+    return
+  fi
+  while true; do
+    read -rp "Configure Mullvad WireGuard profiles on this host? (yes/no) [no]: " choice </dev/tty || { log_error "Unable to read Mullvad preference."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "no" || "${choice}" == "n" ]]; then
+      ENABLE_MULLVAD="no"
+      break
+    fi
+    case "${choice}" in
+      yes|y)
+        ENABLE_MULLVAD="yes"
+        break
+        ;;
+      *)
+        echo "Please answer yes or no." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Mullvad configuration preference: ${ENABLE_MULLVAD}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
@@ -196,6 +222,7 @@ collect_prompt_answers() {
   prompt_for_container_engine
   prompt_for_ferox_method
   prompt_for_trufflehog_install
+  prompt_for_mullvad_usage
   record_prompt_answers
 }
 
