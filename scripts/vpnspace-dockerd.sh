@@ -15,6 +15,11 @@ CGROUP_DRIVER="${VPN_DOCKER_CGROUP_DRIVER:-systemd}"
 AUTO_EXPORT="${VPN_DOCKER_AUTO_EXPORT:-1}"
 PROFILE_SNIPPET="${VPN_DOCKER_PROFILE_SNIPPET:-/etc/profile.d/abb-docker-host.sh}"
 SOCK_URI="unix://${SOCK_PATH}"
+CONTAINERD_BIN="${CONTAINERD_BIN:-/usr/bin/containerd}"
+CONTAINERD_SOCK="${VPN_CONTAINERD_SOCK:-/run/containerd-vpnspace.sock}"
+CONTAINERD_PID_FILE="${VPN_CONTAINERD_PIDFILE:-/run/containerd-vpnspace.pid}"
+CONTAINERD_STATE="${VPN_CONTAINERD_STATE:-/run/containerd-vpnspace}"
+CONTAINERD_ROOT="${VPN_CONTAINERD_ROOT:-/var/lib/containerd-vpnspace}"
 
 require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
@@ -25,6 +30,7 @@ require_root() {
 ensure_helpers() {
   [[ -x "${VPNSPACE_SH}" ]] || { echo "vpnspace.sh not found at ${VPNSPACE_SH}" >&2; exit 1; }
   command -v "${DOCKERD_BIN}" >/dev/null || { echo "dockerd not found at ${DOCKERD_BIN}" >&2; exit 1; }
+  command -v "${CONTAINERD_BIN}" >/dev/null || { echo "containerd not found at ${CONTAINERD_BIN}" >&2; exit 1; }
 }
 
 ensure_namespace() {
@@ -58,6 +64,7 @@ start_dockerd() {
     exit 0
   fi
   mkdir -p "$(dirname "${SOCK_PATH}")" "${DATA_ROOT}" "${EXEC_ROOT}"
+  mkdir -p "$(dirname "${CONTAINERD_SOCK}")" "${CONTAINERD_STATE}" "${CONTAINERD_ROOT}"
   local start_script
   read -r -d '' start_script <<EOF
 set -e
@@ -72,6 +79,13 @@ if ! mountpoint -q /sys/fs/cgroup; then
     done
   fi
 fi
+${CONTAINERD_BIN} \
+  --address "${CONTAINERD_SOCK}" \
+  --state "${CONTAINERD_STATE}" \
+  --root "${CONTAINERD_ROOT}" &
+containerd_pid=\$!
+echo "\${containerd_pid}" > "${CONTAINERD_PID_FILE}"
+sleep 2
 exec ${DOCKERD_BIN} \
   --host="${SOCK_URI}" \
   --data-root="${DATA_ROOT}" \
@@ -79,6 +93,7 @@ exec ${DOCKERD_BIN} \
   --pidfile="${PID_FILE}" \
   --bip="${BIP}" \
   --exec-opt "native.cgroupdriver=${CGROUP_DRIVER}" \
+  --containerd="${CONTAINERD_SOCK}" \
   --iptables=false \
   --ip-masq=false
 EOF
@@ -105,7 +120,17 @@ stop_dockerd() {
     fi
     rm -f "${PID_FILE}"
   fi
+  if [[ -f "${CONTAINERD_PID_FILE}" ]]; then
+    local cpid
+    cpid="$(cat "${CONTAINERD_PID_FILE}")"
+    if kill -0 "${cpid}" 2>/dev/null; then
+      kill "${cpid}"
+      wait "${cpid}" 2>/dev/null || true
+    fi
+    rm -f "${CONTAINERD_PID_FILE}"
+  fi
   rm -f "${SOCK_PATH}"
+  rm -f "${CONTAINERD_SOCK}"
   remove_profile_snippet
   echo "dockerd in ${NS_NAME} stopped."
 }
