@@ -14,6 +14,9 @@ CURRENT_FILE="${STATE_DIR}/current_config"
 ROUTE_FILE="${STATE_DIR}/route.env"
 ACTIVE_CONFIG="${CONFIG_DIR}/active.ovpn"
 LOG_FILE="${OPENVPN_LOG_FILE:-/var/log/openvpn-host.log}"
+DEFAULT_BYPASS_MARK="${SSH_BYPASS_MARK:-22}"
+DEFAULT_BYPASS_TABLE="${SSH_BYPASS_TABLE:-100}"
+DEFAULT_SSH_PORT="${SSH_BYPASS_PORT:-22}"
 
 require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
@@ -132,13 +135,17 @@ ensure_host_route() {
 }
 
 record_routes() {
-  local gw="$1" dev="$2" remote_ip="$3" ssh_ip="$4"
+  local gw="$1" dev="$2" remote_ip="$3" ssh_ip="$4" ssh_port="$5" ssh_bypass="$6"
   install -d -m 0755 "${STATE_DIR}"
   {
     printf 'DEFAULT_GW=%q\n' "${gw}"
     printf 'DEFAULT_DEV=%q\n' "${dev}"
     printf 'REMOTE_IP=%q\n' "${remote_ip}"
     printf 'SSH_IP=%q\n' "${ssh_ip}"
+    printf 'SSH_PORT=%q\n' "${ssh_port}"
+    printf 'SSH_BYPASS=%q\n' "${ssh_bypass}"
+    printf 'BYPASS_MARK_VALUE=%q\n' "${DEFAULT_BYPASS_MARK}"
+    printf 'BYPASS_TABLE_ID=%q\n' "${DEFAULT_BYPASS_TABLE}"
   } > "${ROUTE_FILE}"
   chmod 0600 "${ROUTE_FILE}"
 }
@@ -155,6 +162,11 @@ restore_routes() {
   fi
   if [[ -n "${DEFAULT_GW:-}" && -n "${DEFAULT_DEV:-}" ]]; then
     ip route replace default via "${DEFAULT_GW}" dev "${DEFAULT_DEV}" >/dev/null 2>&1 || true
+  fi
+  if [[ "${SSH_BYPASS:-false}" == "true" ]]; then
+    local mark="${BYPASS_MARK_VALUE:-${DEFAULT_BYPASS_MARK}}"
+    local table="${BYPASS_TABLE_ID:-${DEFAULT_BYPASS_TABLE}}"
+    remove_ssh_bypass "${SSH_PORT:-}" "${mark}" "${table}"
   fi
   rm -f "${ROUTE_FILE}"
 }
@@ -178,14 +190,62 @@ detect_ssh_ip() {
     return
   fi
   if command -v ss >/dev/null 2>&1; then
-    local line
-    line="$(ss -tnp 2>/dev/null | awk '/ESTAB/ && /sshd/ {print $5; exit}')"
-    if [[ -n "${line}" ]]; then
-      ip="${line%:*}"
+    local peer
+    peer="$(ss -tnp 2>/dev/null | awk '/ESTAB/ && /sshd/ {print $5; exit}')"
+    if [[ -n "${peer}" ]]; then
+      ip="${peer%:*}"
       printf '%s\n' "${ip}"
       return
     fi
   fi
+}
+
+detect_ssh_port() {
+  local conn="${SSH_CONNECTION:-}"
+  if [[ -n "${conn}" ]]; then
+    local _c1 _c2 _c3 port
+    read -r _c1 _c2 _c3 port <<<"${conn}"
+    if [[ -n "${port}" ]]; then
+      printf '%s\n' "${port}"
+      return
+    fi
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    local local_addr
+    local_addr="$(ss -tnp 2>/dev/null | awk '/ESTAB/ && /sshd/ {print $4; exit}')"
+    if [[ -n "${local_addr}" ]]; then
+      printf '%s\n' "${local_addr##*:}"
+      return
+    fi
+  fi
+  printf '%s\n' "${DEFAULT_SSH_PORT}"
+}
+
+ensure_ssh_bypass() {
+  local gw="$1" dev="$2" port="$3"
+  [[ -z "${port}" ]] && return 1
+  if ! command -v iptables >/dev/null 2>&1; then
+    echo "iptables not available; cannot preserve SSH route." >&2
+    return 1
+  fi
+  if ! iptables -t mangle -C OUTPUT -p tcp --sport "${port}" -j MARK --set-mark "${DEFAULT_BYPASS_MARK}" >/dev/null 2>&1; then
+    iptables -t mangle -A OUTPUT -p tcp --sport "${port}" -j MARK --set-mark "${DEFAULT_BYPASS_MARK}"
+  fi
+  if ! ip rule show | grep -q "fwmark ${DEFAULT_BYPASS_MARK}.*lookup ${DEFAULT_BYPASS_TABLE}"; then
+    ip rule add fwmark "${DEFAULT_BYPASS_MARK}" table "${DEFAULT_BYPASS_TABLE}"
+  fi
+  ip route replace default via "${gw}" dev "${dev}" table "${DEFAULT_BYPASS_TABLE}"
+  return 0
+}
+
+remove_ssh_bypass() {
+  local port="$1" mark="$2" table="$3"
+  [[ -z "${port}" ]] && return
+  if command -v iptables >/dev/null 2>&1; then
+    iptables -t mangle -D OUTPUT -p tcp --sport "${port}" -j MARK --set-mark "${mark}" 2>/dev/null || true
+  fi
+  ip rule del fwmark "${mark}" table "${table}" 2>/dev/null || true
+  ip route flush table "${table}" 2>/dev/null || true
 }
 
 start_openvpn() {
@@ -205,7 +265,7 @@ start_openvpn() {
   fi
   set_active_config "${cfg}"
 
-  local gw dev remote_host remote_ip ssh_ip cred_file
+  local gw dev remote_host remote_ip ssh_ip ssh_port ssh_bypass cred_file
   read -r gw dev < <(default_route_info) || {
     echo "Unable to detect default route. Aborting to avoid losing connectivity." >&2
     exit 1
@@ -213,11 +273,18 @@ start_openvpn() {
   remote_host="$(first_remote_host)"
   remote_ip="$(resolve_host_ip "${remote_host}")"
   ssh_ip="$(detect_ssh_ip || true)"
+  ssh_port="$(detect_ssh_port || true)"
   ensure_host_route "${remote_ip}" "${gw}" "${dev}"
   if [[ -n "${ssh_ip}" ]]; then
     ensure_host_route "${ssh_ip}" "${gw}" "${dev}"
   fi
-  record_routes "${gw}" "${dev}" "${remote_ip}" "${ssh_ip}"
+  ssh_bypass="false"
+  if [[ -n "${ssh_port}" ]]; then
+    if ensure_ssh_bypass "${gw}" "${dev}" "${ssh_port}"; then
+      ssh_bypass="true"
+    fi
+  fi
+  record_routes "${gw}" "${dev}" "${remote_ip}" "${ssh_ip}" "${ssh_port}" "${ssh_bypass}"
 
   cred_file="$(credentials_file || true)"
   if [[ -n "${cred_file}" ]]; then
