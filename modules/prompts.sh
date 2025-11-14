@@ -214,6 +214,32 @@ prompt_for_mullvad_usage() {
   log_info "Mullvad configuration preference: ${ENABLE_MULLVAD}"
 }
 
+prompt_for_auto_wordlists() {
+  local choice=""
+  if [[ -n "${AUTO_WORDLISTS_CLONE}" ]]; then
+    log_info "Auto Wordlists clone preference: ${AUTO_WORDLISTS_CLONE}"
+    return
+  fi
+  while true; do
+    read -rp "Clone the Auto_Wordlists repository (large download)? (yes/no) [no]: " choice </dev/tty || { log_error "Unable to read Auto_Wordlists preference."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "no" || "${choice}" == "n" ]]; then
+      AUTO_WORDLISTS_CLONE="no"
+      break
+    fi
+    case "${choice}" in
+      yes|y)
+        AUTO_WORDLISTS_CLONE="yes"
+        break
+        ;;
+      *)
+        echo "Please answer yes or no." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Auto Wordlists clone preference: ${AUTO_WORDLISTS_CLONE}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
@@ -223,6 +249,7 @@ collect_prompt_answers() {
   prompt_for_ferox_method
   prompt_for_trufflehog_install
   prompt_for_mullvad_usage
+  prompt_for_auto_wordlists
   record_prompt_answers
 }
 

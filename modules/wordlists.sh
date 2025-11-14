@@ -130,6 +130,10 @@ wordlists_fetch_rockyou() {
 }
 
 wordlists_fetch_auto_wordlists() {
+  if [[ "${AUTO_WORDLISTS_CLONE}" != "yes" ]]; then
+    log_info "Skipping Auto_Wordlists clone (preference: ${AUTO_WORDLISTS_CLONE:-no})."
+    return
+  fi
   if ! wordlists_require_root; then
     return
   fi
