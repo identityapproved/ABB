@@ -182,8 +182,11 @@ install_blackarch_repo() {
     log_info "BlackArch keyring already trusted."
   fi
 
-  enable_multilib_repo
-  result=$?
+  if enable_multilib_repo; then
+    result=0
+  else
+    result=$?
+  fi
   if [[ ${result} -eq 0 ]]; then
     need_refresh=1
   elif [[ ${result} -eq 2 ]]; then
