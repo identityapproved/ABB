@@ -179,7 +179,6 @@ run_task_package_manager() {
   fi
 
   refresh_pacman_mirrors
-  blackarch_ensure_ready
   ensure_user_context
   log_info "Managed user context confirmed; proceeding to package manager selection."
   prompt_for_package_manager

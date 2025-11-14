@@ -36,17 +36,8 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
-- Before installing the helper, offer the operator the choice to integrate the BlackArch repository. Always refresh the Arch mirror list beforehand:
+- Before installing the helper, always refresh the Arch mirror list:
   - Install `reflector`, run `reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist`, and then run `pacman -Syyu`.
-  - If the operator agrees to enable BlackArch:
-  - Write `/etc/pacman.d/blackarch.conf` with:
-  ```
-  [blackarch]
-  Server = https://www.blackarch.org/blackarch/$repo/os/$arch
-  ```
-  - Append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf` if it is not already present.
-  - Temporarily add `SigLevel = Never` to the BlackArch stanza, run `pacman -Sy blackarch-keyring`, then remove the override and force-refresh pacman with `pacman -Syyu`.
-  - Enable `multilib` in `/etc/pacman.conf` if missing. Do **not** install the `blackarch` meta-package.
 - After reconnecting as the managed user, install and cache the preferred AUR helper (choices: `yay`, `paru`, `pacaur`, `pikaur`, `aura`, `aurman`) and persist the choice so future runs skip reinstallation:
   ```bash
   sudo pacman --needed --noconfirm -S base-devel
@@ -130,7 +121,7 @@ sudo pacman -Syu --noconfirm
 - Compose files should rely on Docker's default bridge networking; remove references to custom namespace sockets or bespoke network-mode environment variables.
 
 ### 10.6 Recon Packages
-- When (and only when) the BlackArch repository is enabled, install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
+- ABB does not auto-enable the BlackArch repository. If the operator needs `amass`, point them to either the Docker compose helper (`docker/compose/docker-compose.amass.yml`) or the standard Arch repos/AUR (`yay -S amass`) after provisioning. Document whichever path they choose.
 - Feroxbuster is handled separately based on the operator's chosen installation method (`cargo` or selected AUR helper). Document the prompt and ensure reruns honour the saved choice.
 
 ## 11. Shells & Editors

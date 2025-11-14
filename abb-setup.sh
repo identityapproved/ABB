@@ -13,8 +13,6 @@ source "${MODULE_DIR}/common.sh"
 source "${MODULE_DIR}/prompts.sh"
 # shellcheck source=modules/accounts.sh
 source "${MODULE_DIR}/accounts.sh"
-# shellcheck source=modules/blackarch.sh
-source "${MODULE_DIR}/blackarch.sh"
 # shellcheck source=modules/pkgmgr.sh
 source "${MODULE_DIR}/pkgmgr.sh"
 # shellcheck source=modules/security.sh
@@ -48,8 +46,6 @@ FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
 TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
 ENABLE_MULLVAD="${ENABLE_MULLVAD:-}"
-ENABLE_BLACKARCH_REPO="${ENABLE_BLACKARCH_REPO:-}"
-BLACKARCH_MIRROR_SELECTED="${BLACKARCH_MIRROR_SELECTED:-}"
 
 usage() {
   cat <<'EOF'
@@ -63,7 +59,6 @@ Tasks:
   languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
   wordlists   Clone or refresh curated wordlists (SecLists, cent, Auto_Wordlists, Assetnote, permutations/resolvers, rockyou, etc.).
-  blackarch   Configure the BlackArch repository (optional per prompt preference).
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
@@ -91,7 +86,6 @@ show_next_steps() {
 run_task_all() {
   run_task_prompts
   run_task_accounts
-  run_task_blackarch
   run_task_package_manager
   run_task_languages
   run_task_security
@@ -175,10 +169,6 @@ main() {
     utilities)
       log_info "Running utilities task"
       run_task_utilities
-      ;;
-    blackarch)
-      log_info "Running BlackArch repository task"
-      run_task_blackarch
       ;;
     mullvad)
       log_info "Running Mullvad WireGuard task"

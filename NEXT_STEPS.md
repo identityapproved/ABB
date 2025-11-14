@@ -31,6 +31,19 @@ PATH="$HOME/.pdtm/go/bin:$HOME/.local/bin:$PATH" pdtm install --force subfinder 
 ```
 Repeat as needed to install additional tools announced by ProjectDiscovery.
 
+## BlackArch Repository (optional)
+
+ABB leaves the BlackArch repository disabled so you can opt in manually:
+
+1. Once provisioning is complete, run:
+   ```bash
+   sudo ./scripts/blackarch-enable.sh
+   ```
+2. The helper writes `/etc/pacman.d/blackarch.conf`, links it into `/etc/pacman.conf`, installs `blackarch-keyring`, enables multilib, and refreshes `pacman`. Review the script output for any warnings.
+3. To switch mirrors later, edit `/etc/pacman.d/blackarch.conf` directly and rerun `sudo pacman -Syyu`.
+
+With the repository enabled, install packages (e.g., `sudo pacman -S amass`) or fall back to the included Docker compose stack/`yay` packages if you prefer not to enable it.
+
 ## Docker Helpers
 
 If you selected Docker, the compose stacks live under `/opt/abb-docker`:

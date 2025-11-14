@@ -24,6 +24,7 @@ final_verification() {
   fi
 
   command_exists masscan >/dev/null 2>&1 || log_warn "masscan not detected. Re-run 'abb-setup.sh tools' to install it via pacman."
+  command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Install it manually via 'yay -S amass', run 'sudo ./scripts/blackarch-enable.sh' followed by 'pacman -S amass', or use the Docker compose helper under /opt/abb-docker."
   if run_as_user "command -v feroxbuster" >/dev/null 2>&1; then
     run_as_user "feroxbuster --version" >/dev/null 2>&1 || true
   else
@@ -37,7 +38,6 @@ final_verification() {
   fi
 
   if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
-    command_exists amass >/dev/null 2>&1 || log_warn "Amass wrapper not detected. Re-run 'abb-setup.sh docker-tools' to install the Docker helper."
     command_exists feroxbuster-docker >/dev/null 2>&1 || log_warn "feroxbuster Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
     command_exists trufflehog-docker >/dev/null 2>&1 || log_warn "trufflehog Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
   fi
