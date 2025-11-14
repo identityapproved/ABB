@@ -169,6 +169,25 @@ credentials_file() {
   done
 }
 
+detect_ssh_ip() {
+  local ip
+  ip="${SSH_CLIENT:-}"
+  ip="${ip%% *}"
+  if [[ -n "${ip}" ]]; then
+    printf '%s\n' "${ip}"
+    return
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    local line
+    line="$(ss -tnp 2>/dev/null | awk '/ESTAB/ && /sshd/ {print $5; exit}')"
+    if [[ -n "${line}" ]]; then
+      ip="${line%:*}"
+      printf '%s\n' "${ip}"
+      return
+    fi
+  fi
+}
+
 start_openvpn() {
   ensure_openvpn
   sync_home_configs
@@ -193,10 +212,11 @@ start_openvpn() {
   }
   remote_host="$(first_remote_host)"
   remote_ip="$(resolve_host_ip "${remote_host}")"
-  ssh_ip="${SSH_CLIENT:-}"
-  ssh_ip="${ssh_ip%% *}"
+  ssh_ip="$(detect_ssh_ip || true)"
   ensure_host_route "${remote_ip}" "${gw}" "${dev}"
-  ensure_host_route "${ssh_ip}" "${gw}" "${dev}"
+  if [[ -n "${ssh_ip}" ]]; then
+    ensure_host_route "${ssh_ip}" "${gw}" "${dev}"
+  fi
   record_routes "${gw}" "${dev}" "${remote_ip}" "${ssh_ip}"
 
   cred_file="$(credentials_file || true)"
