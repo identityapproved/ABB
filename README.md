@@ -10,7 +10,7 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, feroxbuster installation method `cargo`/`aur`, whether to install trufflehog via the upstream script, and whether this host should configure Mullvad WireGuard profiles).
+- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, feroxbuster installation method `cargo`/`aur`, whether to add the BlackArch repository, whether to install trufflehog via the upstream script, and whether this host should configure Mullvad WireGuard profiles or clone the large Auto_Wordlists repository).
 - Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
 - After reconnecting as the managed user, run `./abb-setup.sh package-manager` to write `/etc/pacman.d/blackarch.conf`, append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf`, temporarily set `SigLevel = Never` to install `blackarch-keyring`, restore signature checking, enable multilib (if missing), force `pacman -Syyu`, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`). ABB defaults to `https://www.blackarch.org/blackarch` for the repo, but you can override it by exporting `BLACKARCH_MIRROR=https://mirror.example.com/blackarch` before running the task.
 - Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
@@ -37,7 +37,7 @@ Each task can be executed independently:
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
 | `docker-tools` | Sync the curated compose stacks from `docker/` into `/opt/abb-docker`. Use those compose files (vpn, reconftw, asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, Amass, etc.) with `docker compose`—no shell wrappers are installed. |
 ## Highlights
-- **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
+- **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it. Opt out of BlackArch during prompts if the repository is unnecessary for your workflow.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
 - **No SSH tweaks:** Contabo already provisions keys; the script leaves `sshd_config` untouched while still offering optional sysctl/iptables hardening on demand.
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, guarded Node manager/LazyVim hooks, plus helpers like the `wgup` profile picker for WireGuard.

@@ -240,6 +240,32 @@ prompt_for_auto_wordlists() {
   log_info "Auto Wordlists clone preference: ${AUTO_WORDLISTS_CLONE}"
 }
 
+prompt_for_blackarch_repo() {
+  local choice=""
+  if [[ -n "${ENABLE_BLACKARCH_REPO}" ]]; then
+    log_info "BlackArch repository preference: ${ENABLE_BLACKARCH_REPO}"
+    return
+  fi
+  while true; do
+    read -rp "Configure the BlackArch repository on this host? (yes/no) [yes]: " choice </dev/tty || { log_error "Unable to read BlackArch preference."; exit 1; }
+    choice="${choice,,}"
+    if [[ -z "${choice}" || "${choice}" == "yes" || "${choice}" == "y" ]]; then
+      ENABLE_BLACKARCH_REPO="yes"
+      break
+    fi
+    case "${choice}" in
+      no|n)
+        ENABLE_BLACKARCH_REPO="no"
+        break
+        ;;
+      *)
+        echo "Please answer yes or no." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "BlackArch repository preference: ${ENABLE_BLACKARCH_REPO}"
+}
+
 collect_prompt_answers() {
   prompt_for_user
   prompt_for_editor_choice
@@ -247,6 +273,7 @@ collect_prompt_answers() {
   prompt_for_node_manager
   prompt_for_container_engine
   prompt_for_ferox_method
+  prompt_for_blackarch_repo
   prompt_for_trufflehog_install
   prompt_for_mullvad_usage
   prompt_for_auto_wordlists

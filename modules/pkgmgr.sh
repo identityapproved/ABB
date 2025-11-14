@@ -354,8 +354,12 @@ run_task_package_manager() {
     exit 1
   fi
 
-  install_blackarch_repo
-  log_info "BlackArch repository prerequisites satisfied."
+  if [[ "${ENABLE_BLACKARCH_REPO}" == "yes" ]]; then
+    install_blackarch_repo
+    log_info "BlackArch repository prerequisites satisfied."
+  else
+    log_info "Skipping BlackArch repository configuration per operator preference."
+  fi
   ensure_user_context
   log_info "Managed user context confirmed; proceeding to package manager selection."
   prompt_for_package_manager
