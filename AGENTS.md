@@ -36,7 +36,9 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ensure the resulting account belongs to `wheel`; warn if provisioning is still happening as `root`.
 
 ## 3. Package Manager
-- Before installing the helper, offer the operator the choice to integrate the BlackArch repository. If they decline, skip the rest of this section. When accepted:
+- Before installing the helper, offer the operator the choice to integrate the BlackArch repository. Always refresh the Arch mirror list beforehand:
+  - Install `reflector`, run `reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist`, and then run `pacman -Syyu`.
+  - If the operator agrees to enable BlackArch:
   - Write `/etc/pacman.d/blackarch.conf` with:
   ```
   [blackarch]

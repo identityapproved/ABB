@@ -347,6 +347,24 @@ ensure_package_manager_ready() {
   fi
 }
 
+refresh_pacman_mirrors() {
+  log_info "Installing reflector to refresh Arch mirror list."
+  pacman_install_packages reflector
+  if command_exists reflector; then
+    if reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist; then
+      log_info "Mirror list updated using reflector."
+    else
+      log_warn "Reflector failed to refresh mirrors."
+    fi
+  else
+    log_warn "Reflector binary unavailable after install attempt."
+  fi
+
+  if ! pacman --noconfirm -Syyu; then
+    log_warn "Pacman refresh after mirror update failed; rerun 'pacman -Syyu' manually."
+  fi
+}
+
 run_task_package_manager() {
   load_previous_answers
   if [[ -z "${NEW_USER}" ]]; then
@@ -354,6 +372,7 @@ run_task_package_manager() {
     exit 1
   fi
 
+  refresh_pacman_mirrors
   if [[ "${ENABLE_BLACKARCH_REPO}" == "yes" ]]; then
     install_blackarch_repo
     log_info "BlackArch repository prerequisites satisfied."
