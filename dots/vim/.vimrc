@@ -36,25 +36,28 @@ set cursorline
 " set cursorcolumn
 
 set encoding=UTF-8
-
-let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
-if empty(glob(data_dir . '/autoload/plug.vim'))
-  silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug
-  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
-endif
-
-" Install vim-plug if not found
-if empty(glob('~/.vim/autoload/plug.vim'))
-  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs
-    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-endif
-
-" Run PlugInstall if there are missing plugins
-autocmd VimEnter * if len(filter(values(g:plugs), '!isdirectory(v:val.dir)'))
-  \| PlugInstall --sync | source $MYVIMRC
-\| endif
+set timeout timeoutlen=500
+set lazyredraw
+set ttyfast
+set backspace=indent,eol,start
 
 call plug#begin('~/.vim/plugged')
+
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
+Plug 'liuchengxu/vim-which-key'
+Plug 'tpope/vim-surround'
+Plug 'tpope/vim-repeat'
+Plug 'majutsushi/tagbar'
+Plug 'andymass/vim-matchup'
+Plug 'jiangmiao/auto-pairs'
+Plug 'editorconfig/editorconfig-vim'
+Plug 'mhinz/vim-startify'
+Plug 'machakann/vim-highlightedyank'
+Plug 'tpope/vim-sensible'
+Plug 'RRethy/vim-illuminate'
+Plug 'dense-analysis/ale'
+Plug 'ojroques/vim-oscyank', {'branch': 'main'}
 
 Plug 'ghifarit53/tokyonight-vim'
 
@@ -67,6 +70,8 @@ Plug 'Yggdroot/indentLine'
 
 " Plug 'mhinz/vim-sayonara', { 'on': 'Sayonara' }
 
+" Frontend related
+Plug 'ap/vim-css-color'
 Plug 'ryanoasis/vim-devicons'
 Plug 'mattn/emmet-vim'
 
@@ -82,9 +87,30 @@ Plug 'Xuyuanp/nerdtree-git-plugin'
 
 Plug 'preservim/nerdcommenter'
 
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'sheerun/vim-polyglot'
 
 call plug#end()
+
+" OSC52 clipboard copy helpers
+nmap <leader>c <Plug>OSCYankOperator
+nmap <leader>cc <leader>c_
+vmap <leader>c <Plug>OSCYankVisual
+
+" CoC extensions
+let g:coc_global_extensions = [
+      \ 'coc-json',
+      \ 'coc-tsserver',
+      \ 'coc-pyright',
+      \ 'coc-html',
+      \ 'coc-css'
+      \ ]
+set updatetime=300
+autocmd CursorHold * silent call CocActionAsync('highlight')
+
+" Coc&NERDTree settings
+source $HOME/.vim/modules/coc.vim
+source $HOME/.vim/modules/nerdtree.vim
 
 " Airline
 let g:airline#extensions#tabline#enabled = 1 " Enable the list of buffers
@@ -94,11 +120,21 @@ let g:airline_theme='tokyonight'
 
 " Theme
 set termguicolors
+" set notermguicolors
+" set background=dark
+" set t_Co=256
+" hi clear
+" syntax on
 let g:tokyonight_style = 'night' " available: night, storm
 let g:tokyonight_enable_italic = 1
 let g:tokyonight_transparent_background = 1
 let g:tokyonight_menu_selection_background = 'blue'
 colorscheme tokyonight
+
+" Transparent background
+" hi Normal     ctermbg=NONE guibg=NONE
+" hi LineNr     ctermbg=NONE guibg=NONE
+" hi SignColumn ctermbg=NONE guibg=NONE
 
 " Indentation
 let g:indentLine_char_list = ['|', '¦', '┆', '┊']
@@ -123,6 +159,40 @@ nnoremap <silent><C-b> :NERDTreeToggle<CR>
 
 nnoremap <PageUp>   :bprevious<CR>
 nnoremap <PageDown> :bnext<CR>
+nnoremap <silent> <C-h> :vertical resize -2<CR>
+nnoremap <silent> <C-l> :vertical resize +2<CR>
+nnoremap <silent> <C-j> :resize +2<CR>
+nnoremap <silent> <C-k> :resize -2<CR>
+nnoremap <leader>tt :TagbarToggle<CR>
+
+" fzf keybindings
+command! FzfMaps call fzf#run(fzf#wrap({
+      \ 'source': split(execute('verbose map'), "\n"),
+      \ 'sink':   'echo',
+      \ 'options': '--prompt "Keymap> " --ansi --reverse'
+      \ }))
+nnoremap <leader>ff :Files<CR>
+nnoremap <leader>fg :Rg<CR>
+nnoremap <leader>fb :Buffers<CR>
+nnoremap <leader>fo :History<CR>
+nnoremap <leader>fm :FzfMaps<CR>
+
+" which-key configuration
+let g:which_key_map = {}
+let g:which_key_map['f'] = [ ':Files', 'Find files' ]
+let g:which_key_map['g'] = [ ':GFiles', 'Git files' ]
+let g:which_key_map['b'] = [ ':Buffers', 'Buffers' ]
+let g:which_key_map['o'] = [ ':History', 'History' ]
+let g:which_key_map['m'] = [ ':FzfMaps', 'Keymaps' ]
+let g:which_key_map.s = {
+      \ 'name' : '+search',
+      \ 'f' : [':Files', 'files'],
+      \ 'g' : [':GFiles', 'git files'],
+      \ 'r' : [':Rg', 'ripgrep'],
+      \ }
+nnoremap <silent> <leader> :WhichKey '<Space>'<CR>
+vnoremap <silent> <leader> :WhichKeyVisual '<Space>'<CR>
+call which_key#register('<Space>', 'g:which_key_map')
 
 vnoremap J :m '>+1<CR>gv=gv
 vnoremap K :m '<-2<CR>gv=gv
@@ -130,4 +200,3 @@ vnoremap K :m '<-2<CR>gv=gv
 " Emmet shortcuts
 let g:user_emmet_mode='n'
 let g:user_emmet_leader_key=','
-

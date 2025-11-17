@@ -57,3 +57,12 @@ wgup() {
   profile=$(grep -v '^[[:space:]]*$' "${list}" | fzf --prompt="Select WireGuard profile> " --height=40%) || return 1
   sudo wg-quick up "${profile}"
 }
+
+# Connect to a random OpenVPN config (runs in background)
+alias openvpnconnect='sudo openvpn --daemon --config "$(find /opt/openvpn-configs -maxdepth 1 -type f -name '\''*.ovpn'\'' | shuf -n 1)" --auth-user-pass /opt/openvpn-configs/credentials.txt'
+
+# Disconnect (kill all openvpn processes)
+alias openvpndisconnect='sudo killall openvpn'
+
+# Rotate: kill current OpenVPN and start a new random one (also daemonized)
+alias openvpnrotate='sudo killall openvpn; sudo openvpn --daemon --config "$(find /opt/openvpn-configs -maxdepth 1 -type f -name '\''*.ovpn'\'' | shuf -n 1)" --auth-user-pass /opt/openvpn-configs/credentials.txt'
