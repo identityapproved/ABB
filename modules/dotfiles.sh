@@ -86,6 +86,13 @@ configure_shells_and_editors() {
     else
       log_warn "Missing Vim template at ${VIMRC_TEMPLATE}"
     fi
+    if [[ -d "${VIMFILES_TEMPLATE}" ]]; then
+      rm -rf "${user_home}/.vim"
+      cp -a "${VIMFILES_TEMPLATE}" "${user_home}/.vim"
+      chown -R "${NEW_USER}:${NEW_USER}" "${user_home}/.vim"
+    else
+      log_warn "Missing Vim directory template at ${VIMFILES_TEMPLATE}"
+    fi
   fi
 
   if [[ "${EDITOR_CHOICE}" == "neovim" || "${EDITOR_CHOICE}" == "both" ]]; then
