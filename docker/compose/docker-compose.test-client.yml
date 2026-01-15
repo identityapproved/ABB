@@ -10,9 +10,9 @@ services:
       - sh
       - -c
       - |
-        : "${TEST_INTERVAL:=60}"
+        : "$${TEST_INTERVAL:=60}"
         while true; do
-          timestamp="$(date -Iseconds 2>/dev/null || date -u)"
-          echo "[$timestamp] Current egress IP: $(curl -s https://ifconfig.io)"
-          sleep "${TEST_INTERVAL}"
+          timestamp="$$(date -Iseconds 2>/dev/null || date -u)"
+          echo "[$$timestamp] Current egress IP: $$(curl -s https://ifconfig.io)"
+          sleep "$${TEST_INTERVAL}"
         done
