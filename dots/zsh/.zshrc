@@ -1,5 +1,6 @@
-if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-    tmux attach -t default || tmux new -s default
+# Auto-attach or create a default tmux session
+if command -v tmux >/dev/null 2>&1 && [ -z "$TMUX" ]; then
+  tmux attach -t default || tmux new -s default
 fi
 
 ZSH_THEME="random"
