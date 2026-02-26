@@ -130,11 +130,35 @@ setup_intrusion_detection() {
   fi
 }
 
+configure_resolved_hardening() {
+  local dropin_dir="/etc/systemd/resolved.conf.d"
+  local dropin_file="${dropin_dir}/no-mdns.conf"
+
+  mkdir -p "${dropin_dir}"
+  cat > "${dropin_file}" <<'EOF'
+[Resolve]
+MulticastDNS=no
+LLMNR=no
+EOF
+  chmod 0644 "${dropin_file}"
+
+  if systemd_available && systemctl list-unit-files systemd-resolved.service >/dev/null 2>&1; then
+    if systemctl restart systemd-resolved; then
+      log_info "Restarted systemd-resolved after disabling mDNS/LLMNR."
+    else
+      log_warn "Failed to restart systemd-resolved; review system logs."
+    fi
+  else
+    log_warn "systemd-resolved service not found; restart skipped."
+  fi
+}
+
 run_task_security() {
   ensure_user_context
   ensure_package_manager_ready
   ensure_system_updates
   verify_selinux
+  configure_resolved_hardening
   apply_optional_hardening
   setup_intrusion_detection
 }
