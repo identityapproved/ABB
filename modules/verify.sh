@@ -37,9 +37,10 @@ final_verification() {
   fi
 
   if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
-    command_exists amass >/dev/null 2>&1 || log_warn "Amass wrapper not detected. Re-run 'abb-setup.sh docker-tools' to install the Docker helper."
-    command_exists feroxbuster-docker >/dev/null 2>&1 || log_warn "feroxbuster Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
-    command_exists trufflehog-docker >/dev/null 2>&1 || log_warn "trufflehog Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
+    command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Re-run 'abb-setup.sh tools' or install via pacman."
+    [[ -f /opt/abb-docker/compose/docker-compose.vpn.yml ]] || log_warn "Docker compose assets not found at /opt/abb-docker. Re-run 'abb-setup.sh docker-tools'."
+    [[ -f /opt/abb-docker/compose/docker-compose.trufflehog.yml ]] || log_warn "trufflehog compose stack missing under /opt/abb-docker/compose. Re-run 'abb-setup.sh docker-tools'."
+    [[ -x /opt/abb-docker/scripts/rotate-wg.sh ]] || log_warn "rotate-wg helper missing or not executable under /opt/abb-docker/scripts. Re-run 'abb-setup.sh docker-tools'."
   fi
 
   case "${NODE_MANAGER}" in

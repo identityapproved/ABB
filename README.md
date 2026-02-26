@@ -10,14 +10,14 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, feroxbuster installation method `cargo`/`aur`, whether to install trufflehog via the upstream script).
+- Clone the repo and run `sudo ./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, feroxbuster installation method `cargo`/`aur`, whether to install trufflehog via the upstream script).
 - Execute `./abb-setup.sh accounts` to create the managed user, copy SSH keys from `admin`, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
-- After reconnecting as the managed user, run `./abb-setup.sh package-manager` to write `/etc/pacman.d/blackarch.conf`, append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf`, temporarily set `SigLevel = Never` to install `blackarch-keyring`, restore signature checking, enable multilib (if missing), force `pacman -Syyu`, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
-- Continue with `./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
-- If you chose Docker during prompts, run `./abb-setup.sh docker-tools` (included in `all`) to sync the compose stacks under `/opt/abb-docker`; manage containers with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
-- After `./abb-setup.sh mullvad` completes, review the generated WireGuard profiles, supply Mullvad account details during the one-time `mullvad-wg.sh` run, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
+- After reconnecting as the managed user, run `sudo ./abb-setup.sh package-manager` to write `/etc/pacman.d/blackarch.conf`, append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf`, temporarily set `SigLevel = Never` to install `blackarch-keyring`, restore signature checking, enable multilib (if missing), force `pacman -Syyu`, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
+- Continue with `sudo ./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
+- If you chose Docker during prompts, run `sudo ./abb-setup.sh docker-tools` (included in `all`) to sync the compose stacks under `/opt/abb-docker`; manage containers with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
+- After `sudo ./abb-setup.sh mullvad` completes, review the generated WireGuard profiles, supply Mullvad account details during the one-time `mullvad-wg.sh` run, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all` or `docker-tools`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
-- Execute individual tasks (see below) or run the entire workflow with `./abb-setup.sh all`.
+- Execute individual tasks (see below) or run the entire workflow with `sudo ./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
 ## Modular Tasks
