@@ -2,6 +2,20 @@
 
 Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, `docker-tools`, and `all`.
 
+## Related AGENTS Files
+
+- Architecture notes: `AGENTS/related/architecture.md`
+- AGENTS next steps and branch tasks: `AGENTS/related/next-steps.md`
+- Repo-level AGENTS rules: `AGENTS/related/rules.md`
+- Working memory:
+  - `AGENTS/memory/decisions.md`
+  - `AGENTS/memory/history.md`
+  - `AGENTS/memory/progress.md`
+- Task tracking:
+  - `AGENTS/tasks/active.md`
+  - `AGENTS/tasks/backlog.md`
+  - `AGENTS/tasks/done.md`
+
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
 - Skip SSH credential prompts. Contabo already injects keys.
