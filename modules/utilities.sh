@@ -112,7 +112,7 @@ install_container_engine() {
         done
         if [[ "${skip_docker}" == "true" || ( "${answer,,}" != "yes" && "${answer,,}" != "y" ) ]]; then
           SKIP_DOCKER_TASKS="true"
-          log_warn "Docker CLI or daemon unavailable; docker-tools task will be skipped. Reboot and rerun 'abb-setup.sh docker-tools' when ready."
+          log_warn "Docker CLI or daemon unavailable. Reboot and rerun 'abb-setup.sh utilities' or 'abb-setup.sh all' when ready."
         fi
       fi
       append_installed_tool "docker"

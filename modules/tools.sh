@@ -407,6 +407,10 @@ write_tool_overview() {
 
 run_task_tools() {
   ensure_user_context
+  if [[ "${INSTALL_TOOLS}" != "true" ]]; then
+    log_info "Skipping tools task because INSTALL_TOOLS=${INSTALL_TOOLS:-unset}."
+    return 0
+  fi
   ensure_package_manager_ready
   install_system_recon_packages
   install_aur_recon_packages
@@ -416,7 +420,11 @@ run_task_tools() {
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
-  wordlists_refresh_static_assets
+  if [[ "${INSTALL_WORDLISTS}" == "true" ]]; then
+    wordlists_refresh_static_assets
+  else
+    log_info "Skipping wordlist sync because INSTALL_WORDLISTS=${INSTALL_WORDLISTS:-unset}."
+  fi
   install_dnscEwl
   install_jshawk_release
   write_tool_overview
@@ -593,7 +601,7 @@ prompt_trufflehog_source_build() {
 
 notify_trufflehog_docker_fallback() {
   if [[ "${CONTAINER_ENGINE}" == "docker" ]] && command_exists docker && [[ "${SKIP_DOCKER_TASKS}" != "true" ]]; then
-    log_info "Trufflehog binary not installed; use 'trufflehog-docker' after running the docker-tools task."
+    log_info "Trufflehog binary not installed; use the compose stack from your external container repository."
   else
     log_warn "Trufflehog is unavailable. Review https://github.com/trufflesecurity/trufflehog for manual installation instructions."
   fi

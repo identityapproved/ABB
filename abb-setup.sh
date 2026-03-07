@@ -29,8 +29,6 @@ source "${MODULE_DIR}/tools.sh"
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
 source "${MODULE_DIR}/verify.sh"
-# shellcheck source=modules/docker_tools.sh
-source "${MODULE_DIR}/docker_tools.sh"
 # shellcheck source=modules/mullvad.sh
 source "${MODULE_DIR}/mullvad.sh"
 
@@ -61,7 +59,6 @@ Tasks:
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
   mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
-  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine (skipped if Docker was unavailable earlier).
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -89,11 +86,6 @@ run_task_all() {
   run_task_tools
   run_task_dotfiles
   run_task_verify
-  if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
-    log_warn "Skipping docker-tools task because Docker is unavailable."
-  else
-    run_task_docker_tools
-  fi
 }
 
 main() {
@@ -146,14 +138,6 @@ main() {
     log_info "Running verification task"
     run_task_verify
     ;;
-  docker-tools)
-    if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
-      log_warn "docker-tools task skipped because Docker was not ready. Reboot and rerun 'abb-setup.sh docker-tools'."
-    else
-      log_info "Running docker tools task"
-      run_task_docker_tools
-    fi
-      ;;
     all)
       log_info "Running full provisioning workflow"
       run_task_all
@@ -166,7 +150,7 @@ main() {
   esac
 
   log_info "Task '${task}' completed."
-  if [[ "${task}" == "all" || "${task}" == "docker-tools" ]]; then
+  if [[ "${task}" == "all" ]]; then
     show_next_steps
   fi
 }

@@ -194,9 +194,7 @@ prompt_for_package_manager() {
 
   local choice="" options="pacaur/pikaur/yay/aura/paru/aurman"
   while true; do
-    read -rp "Select AUR helper to install (${options}, default yay): " choice </dev/tty || { log_error "Unable to read package manager selection."; exit 1; }
-    choice="$(echo "${choice}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-    [[ -z "${choice}" ]] && choice="yay"
+    choice="$(prompt_pick_option "Select AUR helper to install: " "yay" pacaur pikaur yay aura paru aurman)" || { log_error "Unable to read package manager selection."; exit 1; }
     if helper_supported "${choice}"; then
       PACKAGE_MANAGER="${choice}"
       break

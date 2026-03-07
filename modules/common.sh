@@ -141,6 +141,8 @@ record_prompt_answers() {
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
     printf 'FEROX_INSTALL_METHOD=%q\n' "${FEROX_INSTALL_METHOD}"
     printf 'TRUFFLEHOG_INSTALL=%q\n' "${TRUFFLEHOG_INSTALL}"
+    printf 'INSTALL_TOOLS=%q\n' "${INSTALL_TOOLS}"
+    printf 'INSTALL_WORDLISTS=%q\n' "${INSTALL_WORDLISTS}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
@@ -161,7 +163,7 @@ init_installed_tracker() {
 }
 
 ensure_user_context() {
-  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 ferox_method_missing=0 trufflehog_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 ferox_method_missing=0 trufflehog_missing=0 tools_missing=0 wordlists_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
@@ -178,7 +180,13 @@ ensure_user_context() {
   if [[ -z "${TRUFFLEHOG_INSTALL}" ]]; then
     trufflehog_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${ferox_method_missing} -eq 1 || ${trufflehog_missing} -eq 1 ]]; then
+  if [[ "${INSTALL_TOOLS}" != "true" && "${INSTALL_TOOLS}" != "false" ]]; then
+    tools_missing=1
+  fi
+  if [[ "${INSTALL_WORDLISTS}" != "true" && "${INSTALL_WORDLISTS}" != "false" ]]; then
+    wordlists_missing=1
+  fi
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${ferox_method_missing} -eq 1 || ${trufflehog_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 
