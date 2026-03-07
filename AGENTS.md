@@ -1,20 +1,21 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, `docker-tools`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## Related AGENTS Files
 
-- Architecture notes: `AGENTS/related/architecture.md`
-- AGENTS next steps and branch tasks: `AGENTS/related/next-steps.md`
-- Repo-level AGENTS rules: `AGENTS/related/rules.md`
+- Architecture notes: `agents/architecture.md`
+- AGENTS next steps and branch tasks: `agents/next-steps.md`
+- Repo-level AGENTS rules: `agents/rules.md`
 - Working memory:
-  - `AGENTS/memory/decisions.md`
-  - `AGENTS/memory/history.md`
-  - `AGENTS/memory/progress.md`
+  - `agents/memory/branches.md`
+  - `agents/memory/decisions.md`
+  - `agents/memory/history.md`
+  - `agents/memory/progress.md`
 - Task tracking:
-  - `AGENTS/tasks/active.md`
-  - `AGENTS/tasks/backlog.md`
-  - `AGENTS/tasks/done.md`
+  - `agents/tasks/active.md`
+  - `agents/tasks/backlog.md`
+  - `agents/tasks/done.md`
 
 ## 1. Interactive Prompts
 - Ask for the target username. The VPS image ships with `admin`; capture the new account name and record it for automation.
@@ -117,17 +118,16 @@ sudo pacman -Syu --noconfirm
 
 ### 10.3 Trufflehog
 - Prompt the operator to decide whether to install trufflehog via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`). Honour the saved preference on reruns.
-- If the script fails (or the operator declines), offer to build from source or point to the docker-compose stack (`docker-compose.trufflehog.yml`) inside `/opt/abb-docker`.
+- If the script fails (or the operator declines), offer to build from source or point to the operator's external container/compose repository.
 
 ### 10.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.
 - Tools & data: teh_s3_bucketeers, lazys3, virtual-host-discovery, lazyrecon, massdns (build via `make`), masscan (build via `make -j && make install`), SecLists (trim Jhaddix wordlist and surface under `~/wordlists`), cent wordlists (symlink to `~/wordlists/cent`), permutations/resolvers text files, JSParser (install via pipx; wrapper under `/usr/local/bin/jsparser`), DNSCewl (downloaded to `/usr/local/bin/DNSCewl`), Aquatone from release binaries, etc.
 
 ### 10.5 Docker Assets
-- Instead of installing CLI wrappers, copy the entire `docker/` folder to `/opt/abb-docker` so the operator can run stacks with `docker compose -f /opt/abb-docker/compose/docker-compose.<tool>.yml ...`.
-- Provide compose files for the WireGuard VPN, ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog, CeWL, and Amass stacks. Asnlookup/dnsvalidator compose files rely on the accompanying Dockerfiles under `docker/images/`.
-- Ship helper scripts (e.g., `rotate-wg.sh`) under `docker/scripts/` and ensure they are executable after syncing.
-- Document that every stack uses `network_mode: "container:wg-vpn"` so traffic egresses through the Mullvad WireGuard container.
+- ABB only installs/configures the selected container engine (`docker`, `podman`, or none).
+- Docker/container assets, compose files, images, and helper scripts live outside ABB in the operator's dedicated container repository.
+- ABB must not sync compose files, Dockerfiles, or wrapper scripts into `/opt` or any ABB-owned path.
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).

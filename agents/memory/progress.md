@@ -10,4 +10,4 @@ Blocked:
 
 Next:
 
-- Populate tasks/active.md.
+- Populate agents/tasks/active.md.

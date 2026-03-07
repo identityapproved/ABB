@@ -29,6 +29,7 @@ Project rules live here and are referenced by AGENTS.md. Keep this file authorit
 - When working on docs/* or feature/* branches, ask whether to sync changes from other local branches to keep them current.
 - Only handle local git operations. For network operations like fetch, pull, or push, suggest the command and let the user run it.
 - Never stash unless the user explicitly asks.
+- Keep `agents/memory/branches.md` updated when branches are created, renamed, archived, or marked as active/current.
 - Ensure the repo uses hooks from .githooks by running:
   - git config core.hooksPath .githooks
 - Do not use absolute paths with the username; use ~ or $HOME instead.

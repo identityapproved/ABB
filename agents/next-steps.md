@@ -1,4 +1,4 @@
-# Tasks
+# Next Steps
 
 ## New Branch: Cleanup
 
@@ -24,7 +24,7 @@ Do not forget to review these findings:
 
 2. Medium: `verify` checks Docker wrapper binaries even though Docker is compose-only.
 - Policy says Docker assets should be compose-based without wrapper commands.
-- `modules/docker_tools.sh` syncs compose assets only.
+- Docker/container assets now live outside ABB; container engine setup stays in `modules/utilities.sh`.
 - `modules/verify.sh` checks wrapper-style commands, causing false warnings.
 
 3. Low: README quick start uses non-`sudo` examples for root-required tasks.
