@@ -468,6 +468,12 @@ tailscale_lockdown_already_applied() {
     if firewall-cmd --permanent --zone="${zone}" --query-service=ssh >/dev/null 2>&1; then
       return 1
     fi
+    if firewall-cmd --permanent --zone="${zone}" --query-port=22/tcp >/dev/null 2>&1; then
+      return 1
+    fi
+    if ! firewall-cmd --permanent --zone="${zone}" --query-rich-rule='rule family="ipv4" port port="22" protocol="tcp" reject' >/dev/null 2>&1; then
+      return 1
+    fi
   done < <(firewall-cmd --permanent --get-zones 2>/dev/null | tr ' ' '\n')
 
   return 0
@@ -491,11 +497,17 @@ restrict_public_ssh_to_tailscale() {
   while IFS= read -r zone; do
     [[ -z "${zone}" || "${zone}" == "trusted" ]] && continue
     firewall-cmd --permanent --zone="${zone}" --remove-service=ssh >/dev/null 2>&1 || true
+    firewall-cmd --permanent --zone="${zone}" --remove-port=22/tcp >/dev/null 2>&1 || true
+    firewall-cmd --permanent --zone="${zone}" --add-rich-rule='rule family="ipv4" port port="22" protocol="tcp" reject' >/dev/null 2>&1 || true
   done < <(firewall-cmd --permanent --get-zones 2>/dev/null | tr ' ' '\n')
 
   if firewall-cmd --reload >/dev/null 2>&1; then
-    log_info "Restricted public SSH to the Tailscale interface."
-    return 0
+    if tailscale_lockdown_already_applied; then
+      log_info "Restricted SSH access to the Tailscale interface."
+      return 0
+    fi
+    log_warn "firewalld reloaded, but SSH still appears exposed outside Tailscale."
+    return 1
   fi
 
   log_warn "Failed to reload firewalld; review firewall rules before disconnecting."
@@ -522,8 +534,14 @@ configure_tailscale_ssh_access() {
   fi
   append_installed_tool "tailscale"
   if show_tailscale_breakpoint; then
-    restrict_public_ssh_to_tailscale || true
-    apply_verified_ssh_hardening || true
+    if ! restrict_public_ssh_to_tailscale; then
+      log_warn "Tailscale SSH lockdown did not complete. Public SSH may still be reachable."
+      return 1
+    fi
+    if ! apply_verified_ssh_hardening; then
+      log_warn "SSH hardening did not complete after Tailscale verification."
+      return 1
+    fi
   fi
 }
 
