@@ -38,6 +38,13 @@ final_verification() {
 
   command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Re-run 'abb-setup.sh tools' or install via pacman."
 
+  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
+    command_exists tailscale >/dev/null 2>&1 || log_warn "tailscale not detected despite tailscale-ssh mode."
+    if systemd_available && ! systemctl is-active --quiet tailscaled.service; then
+      log_warn "tailscaled service is not active."
+    fi
+  fi
+
   case "${NODE_MANAGER}" in
     fnm)
       run_as_user "command -v fnm" >/dev/null 2>&1 || log_warn "fnm not detected despite selection."

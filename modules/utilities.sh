@@ -132,38 +132,9 @@ install_container_engine() {
   esac
 }
 
-configure_fail2ban_sshd() {
-  if ! systemd_available; then
-    log_warn "systemd not detected; skipping fail2ban sshd jail configuration."
-    return 0
-  fi
-
-  local jail_dir="/etc/fail2ban/jail.d"
-  local jail_file="${jail_dir}/sshd.conf"
-
-  mkdir -p "${jail_dir}"
-
-  if [[ -f "${jail_file}" ]]; then
-    log_info "Fail2ban sshd jail already configured at ${jail_file}."
-    return 0
-  fi
-
-  cat > "${jail_file}" <<'EOF'
-[sshd]
-enabled = true
-port = ssh
-backend = systemd
-EOF
-  chmod 0644 "${jail_file}"
-  log_info "Configured fail2ban sshd jail at ${jail_file}."
-}
-
 install_system_utilities() {
   ensure_package_manager_ready
   pacman_install_packages "${SYSTEM_PACKAGES[@]}"
-  enable_unit "firewalld.service" "firewalld" || true
-  configure_fail2ban_sshd
-  enable_unit "fail2ban.service" "fail2ban" || true
 
   ensure_node_manager
   install_container_engine

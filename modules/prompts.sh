@@ -173,6 +173,48 @@ prompt_for_container_engine() {
   log_info "Container engine selection: ${CONTAINER_ENGINE}"
 }
 
+prompt_for_network_access_mode() {
+  local choice=""
+  if [[ -n "${NETWORK_ACCESS_MODE}" ]]; then
+    log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
+    return
+  fi
+  while true; do
+    choice="$(prompt_pick_option "Use which remote access mode: " "plain-ssh" plain-ssh tailscale-ssh)" || { log_error "Unable to read network access mode."; exit 1; }
+    case "${choice,,}" in
+      plain-ssh|tailscale-ssh)
+        NETWORK_ACCESS_MODE="${choice,,}"
+        break
+        ;;
+      *)
+        echo "Please answer plain-ssh or tailscale-ssh." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
+}
+
+prompt_for_ssh_key_source() {
+  local choice=""
+  if [[ -n "${SSH_KEY_SOURCE}" ]]; then
+    log_info "SSH key source: ${SSH_KEY_SOURCE}"
+    return
+  fi
+  while true; do
+    choice="$(prompt_pick_option "Seed SSH access using: " "current-access" current-access admin paste skip)" || { log_error "Unable to read SSH key source."; exit 1; }
+    case "${choice,,}" in
+      current-access|admin|paste|skip)
+        SSH_KEY_SOURCE="${choice,,}"
+        break
+        ;;
+      *)
+        echo "Please answer current-access, admin, paste, or skip." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "SSH key source: ${SSH_KEY_SOURCE}"
+}
+
 prompt_for_ferox_method() {
   local choice=""
   if [[ -n "${FEROX_INSTALL_METHOD}" ]]; then
@@ -235,6 +277,8 @@ collect_prompt_answers() {
   prompt_for_hardening
   prompt_for_node_manager
   prompt_for_container_engine
+  prompt_for_network_access_mode
+  prompt_for_ssh_key_source
   prompt_for_ferox_method
   prompt_for_trufflehog_install
   prompt_for_tools_install

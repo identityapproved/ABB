@@ -21,6 +21,8 @@ source "${MODULE_DIR}/security.sh"
 source "${MODULE_DIR}/languages.sh"
 # shellcheck source=modules/utilities.sh
 source "${MODULE_DIR}/utilities.sh"
+# shellcheck source=modules/network_access.sh
+source "${MODULE_DIR}/network_access.sh"
 # shellcheck source=modules/wordlists.sh
 source "${MODULE_DIR}/wordlists.sh"
 # shellcheck source=modules/tools.sh
@@ -40,6 +42,8 @@ NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
+NETWORK_ACCESS_MODE="${NETWORK_ACCESS_MODE:-}"
+SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-}"
 FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
 TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
@@ -50,11 +54,12 @@ Usage: abb-setup.sh [task]
 
 Tasks:
   prompts     Collect answers for the managed user, editor preference, and optional hardening flags.
-  accounts    Create the managed user, copy SSH keys, enable sudo, and optionally retire the admin account.
+  accounts    Create the managed user, enable sudo, and optionally retire the admin account.
   package-manager Install and record the preferred AUR helper before continuing with provisioning.
-  security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
+  security    Apply pacman updates, resolver hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
+  network-access Configure SSH access keys, fail2ban/firewalld SSH exposure, and optional Tailscale access.
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
@@ -80,8 +85,9 @@ run_task_all() {
   run_task_accounts
   run_task_package_manager
   run_task_languages
-  run_task_security
   run_task_utilities
+  run_task_network_access
+  run_task_security
   run_task_mullvad
   run_task_tools
   run_task_dotfiles
@@ -121,6 +127,10 @@ main() {
     utilities)
       log_info "Running utilities task"
       run_task_utilities
+      ;;
+    network-access)
+      log_info "Running network access task"
+      run_task_network_access
       ;;
     mullvad)
       log_info "Running Mullvad WireGuard task"

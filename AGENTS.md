@@ -1,6 +1,6 @@
 # ABB – Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## Related AGENTS Files
 
@@ -22,6 +22,8 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
 - Ask which Node version manager to deploy (`nvm` or `fnm`).
+- Ask whether access should remain plain SSH or move to Tailscale-backed SSH.
+- Ask how ABB should seed `authorized_keys` for the managed user (`current-access`, `admin`, `paste`, or `skip`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -31,11 +33,6 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
   sudo passwd "${NEW_USER}"
   sudo usermod -aG wheel "${NEW_USER}"
   sudo sed -i 's/^[[:space:]]*#\s*\(%wheel ALL=(ALL:ALL) ALL\)/\1/' /etc/sudoers
-  sudo mkdir -p "/home/${NEW_USER}/.ssh"
-  sudo cp /home/admin/.ssh/authorized_keys "/home/${NEW_USER}/.ssh/"
-  sudo chown -R "${NEW_USER}:${NEW_USER}" "/home/${NEW_USER}/.ssh"
-  sudo chmod 700 "/home/${NEW_USER}/.ssh"
-  sudo chmod 600 "/home/${NEW_USER}/.ssh/authorized_keys"
   ```
 - Suggest reconnecting via SSH as `${NEW_USER}`, relocating the ABB repository under their home, and then offer to remove the legacy `admin` account:
   ```bash
@@ -78,9 +75,14 @@ sudo pacman -Syu --noconfirm
 ```
 - Reboot if the kernel updates. Re-run the script afterwards (state is cached).
 
-## 5. SSH & Hardening
-- Do **not** modify SSH keys or `sshd_config`; Contabo manages them.
-- Provide an optional network hardening step (sysctl + iptables) and offer it only on request. Skip vpntables if iptables/nftables are absent.
+## 5. Network Access
+- Keep SSH access management in a dedicated `network-access` task.
+- Do **not** modify `sshd_config`; Contabo manages it.
+- Support either plain SSH or Tailscale-backed SSH, driven by a prompt saved in `answers.env`.
+- Allow ABB to seed `authorized_keys` by copying from the current access user, copying from `admin`, or appending a pasted SSH public key.
+- If Tailscale is selected, install it via the official installer flow, bring up `tailscaled`, and pause for explicit operator confirmation before removing public SSH exposure.
+- Restrict SSH with firewall rules rather than `sshd_config`, allowing SSH on `tailscale0` while removing public SSH from the default zone only after the operator has validated a second session.
+- Optional sysctl hardening lives here, not in `security`.
 
 ## 6. Logging & Tracking
 - Log all stdout/stderr to `/var/log/vps-setup.log` using `tee` while still echoing key status messages.
