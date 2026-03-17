@@ -18,16 +18,16 @@ user@arch:~/ABB $ echo ">>======================================================
 </pre>
 </p>
 
-> **Warning:** The automation has been manually validated end-to-end only with the `yay` AUR helper. Other helpers are supported, but treat them as experimental and review output carefully.
+> **(｡ᵕ °ㅁ° ).ᐟ.ᐟ.ᐟ** The automation has been manually validated end-to-end only with the `yay` AUR helper. Other helpers are supported, but treat them as experimental and review output carefully.
 
 ABB is an Arch Linux-first automation toolkit for provisioning bug bounty VPS instances. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on guiding any account rename, installing required tooling, and keeping the process modular.
 
-## Prerequisites
+## Prerequisites ৻(  •̀ ᗜ •́  ৻)
 
 - Install `git` ahead of time so you can clone this repository.
 - Install `vim` on the VPS before running any ABB tasks: `sudo pacman -S --needed vim`.
 
-## Quick Start
+## Quick Start (ㅅ´ ˘ `)
 
 - Log in as `root` (or a wheel user) on the Arch VPS.
 - Clone the repo and run `sudo ./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, whether remote access should stay plain SSH or move to Tailscale-backed SSH, how to seed authorized keys, whether to configure a VPN, which VPN provider to use when enabled, whether to run the `tools` module now, and whether to sync wordlists now).
@@ -40,7 +40,7 @@ ABB is an Arch Linux-first automation toolkit for provisioning bug bounty VPS in
 - Execute individual tasks (see below) or run the entire workflow with `sudo ./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
-## Modular Tasks
+## Modular Tasks -ˋˏ✄┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 Each task can be executed independently:
 
@@ -58,7 +58,7 @@ Each task can be executed independently:
 | `dotfiles`        | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `verify`          | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
-## Highlights
+## ˗ˏˋ 𖤓 Highlights ✺ ˎˊ˗
 
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
@@ -73,13 +73,13 @@ Each task can be executed independently:
 - **Trufflehog fallback path:** The tools task installs the upstream trufflehog binary when possible; if that fails you can opt into a source build or fall back to the compose stack in your external container repository.
 - **Release-friendly tools:** JSParser installs through pipx while keeping a local checkout, and the latest JSHawk release script is downloaded directly into `/usr/local/bin/jshawk`.
 
-## WireGuard Helpers
+##  𓊆 𓊈 𓉘 WireGuard Helpers 𓉝 𓊉 𓊇 𓈖
 
 - Configs staged by `./abb-setup.sh vpn` are copied to `/opt/wg-configs/source` (pristine) and `/opt/wg-configs/pool` (mutated with SSH-preserving rules). The active config used by Docker lives at `/opt/wg-configs/active/wg0.conf`.
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` helper (defined in `.aliases`) uses the first listed profile and runs `sudo wg-quick up <profile>`.
 - Container-side VPN rotation lives outside ABB together with your compose assets.
 
-## Rerun Guidance
+## ↻ ◁ | Rerun Guidance | ▷ ↺
 
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.
 - If kernel or core packages update, reboot and rerun `verify` to confirm paths and versions.
