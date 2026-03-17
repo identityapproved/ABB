@@ -1,6 +1,8 @@
 # shellcheck shell=bash
 
 ACTIVE_ACCESS_USER=""
+readonly SSHD_DROPIN_DIR="/etc/ssh/sshd_config.d"
+readonly ABB_SSHD_HARDENING_FILE="${SSHD_DROPIN_DIR}/50-abb-hardening.conf"
 
 detect_active_access_user() {
   local candidate=""
@@ -215,39 +217,126 @@ ensure_tailscaled_running() {
   return 0
 }
 
-prompt_for_tailscale_auth_key() {
-  local auth_key=""
-  read -rsp "Paste a Tailscale auth key (leave blank for interactive login): " auth_key </dev/tty || auth_key=""
-  echo >/dev/tty
-  printf '%s\n' "${auth_key}"
-}
-
 tailscale_session_active() {
   tailscale ip -4 >/dev/null 2>&1
 }
 
 initialize_tailscale_session() {
-  local auth_key=""
-  local -a up_cmd=(tailscale up)
-
   if tailscale_session_active; then
     log_info "Tailscale session already active."
     return 0
   fi
 
-  auth_key="$(prompt_for_tailscale_auth_key)"
-  if [[ -n "${auth_key}" ]]; then
-    up_cmd+=("--authkey=${auth_key}")
-  fi
-
-  log_info "Running 'tailscale up'. Complete the Tailscale login flow if prompted."
-  if "${up_cmd[@]}"; then
+  log_info "Running 'tailscale up'. Follow the interactive login URL from the official Tailscale flow."
+  if tailscale up; then
     log_info "Tailscale session initialized."
     return 0
   fi
 
   log_warn "tailscale up did not complete successfully."
   return 1
+}
+
+prompt_for_ssh_hardening_confirmation() {
+  local choice=""
+  cat >/dev/tty <<EOF
+Before ABB disables SSH password login and root SSH access, verify a second session works:
+  ssh ${NEW_USER}@<host-or-ip>
+
+Return here only after that succeeds with your SSH key.
+EOF
+
+  choice="$(prompt_pick_option "Apply SSH hardening now? " "later" yes later no)" || {
+    log_warn "Unable to confirm SSH key validation; leaving SSH authentication unchanged."
+    return 1
+  }
+
+  case "${choice}" in
+    yes)
+      return 0
+      ;;
+    later)
+      log_info "Leaving SSH password/root access unchanged for now. Reconnect with the new user key, then rerun 'abb-setup.sh network-access'."
+      exit 0
+      ;;
+    no)
+      log_warn "SSH hardening skipped."
+      return 1
+      ;;
+  esac
+
+  return 1
+}
+
+sshd_supports_dropin_dir() {
+  sshd -T >/dev/null 2>&1
+}
+
+write_sshd_hardening_dropin() {
+  if ! command_exists sshd; then
+    log_warn "sshd is not available; skipping SSH hardening."
+    return 1
+  fi
+
+  if ! sshd_supports_dropin_dir; then
+    log_warn "Unable to validate sshd configuration; skipping SSH hardening."
+    return 1
+  fi
+
+  install -d -m 0755 "${SSHD_DROPIN_DIR}"
+  cat > "${ABB_SSHD_HARDENING_FILE}" <<'EOF'
+# Managed by ABB after SSH key verification.
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+EOF
+  chmod 0644 "${ABB_SSHD_HARDENING_FILE}"
+
+  if ! sshd -t; then
+    log_warn "sshd configuration test failed; removing ABB SSH hardening drop-in."
+    rm -f "${ABB_SSHD_HARDENING_FILE}"
+    return 1
+  fi
+
+  if systemd_available; then
+    systemctl reload sshd.service >/dev/null 2>&1 || systemctl reload ssh.service >/dev/null 2>&1 || {
+      log_warn "Unable to reload sshd automatically."
+      return 1
+    }
+  fi
+
+  log_info "Disabled SSH password authentication and root SSH login via ${ABB_SSHD_HARDENING_FILE}."
+  return 0
+}
+
+disable_root_authorized_keys() {
+  local root_keys="/root/.ssh/authorized_keys"
+  local backup="/root/.ssh/authorized_keys.abb-disabled"
+
+  if [[ ! -f "${root_keys}" ]]; then
+    return 0
+  fi
+  if [[ -f "${backup}" ]]; then
+    rm -f "${root_keys}"
+    log_info "Root authorized_keys already archived."
+    return 0
+  fi
+
+  mv "${root_keys}" "${backup}"
+  chmod 0600 "${backup}" || true
+  log_info "Archived root SSH authorized_keys to ${backup}."
+  return 0
+}
+
+apply_verified_ssh_hardening() {
+  if ! write_sshd_hardening_dropin; then
+    return 1
+  fi
+  disable_root_authorized_keys || true
+  return 0
 }
 
 show_tailscale_breakpoint() {
@@ -340,6 +429,9 @@ restrict_public_ssh_to_tailscale() {
 
 configure_plain_ssh_access() {
   log_info "Using plain SSH mode. Public SSH exposure remains unchanged."
+  if prompt_for_ssh_hardening_confirmation; then
+    apply_verified_ssh_hardening || true
+  fi
 }
 
 configure_tailscale_ssh_access() {
@@ -356,6 +448,7 @@ configure_tailscale_ssh_access() {
   append_installed_tool "tailscale"
   if show_tailscale_breakpoint; then
     restrict_public_ssh_to_tailscale || true
+    apply_verified_ssh_hardening || true
   fi
 }
 
