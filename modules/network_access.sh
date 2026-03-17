@@ -3,6 +3,9 @@
 ACTIVE_ACCESS_USER=""
 readonly SSHD_DROPIN_DIR="/etc/ssh/sshd_config.d"
 readonly ABB_SSHD_HARDENING_FILE="${SSHD_DROPIN_DIR}/50-abb-hardening.conf"
+readonly ABB_SSHD_CONFIG_FILE="/etc/ssh/sshd_config"
+readonly ABB_SSHD_BLOCK_BEGIN="# ABB SSH hardening begin"
+readonly ABB_SSHD_BLOCK_END="# ABB SSH hardening end"
 
 detect_active_access_user() {
   local candidate=""
@@ -272,6 +275,18 @@ sshd_supports_dropin_dir() {
   sshd -T >/dev/null 2>&1
 }
 
+sshd_effective_value() {
+  local key="$1"
+  sshd -T 2>/dev/null | awk -v key="${key}" '$1 == key { print $2; exit }'
+}
+
+sshd_hardening_is_effective() {
+  [[ "$(sshd_effective_value passwordauthentication)" == "no" ]] || return 1
+  [[ "$(sshd_effective_value kbdinteractiveauthentication)" == "no" ]] || return 1
+  [[ "$(sshd_effective_value permitrootlogin)" == "no" ]] || return 1
+  return 0
+}
+
 write_sshd_hardening_dropin() {
   if ! command_exists sshd; then
     log_warn "sshd is not available; skipping SSH hardening."
@@ -312,6 +327,58 @@ EOF
   return 0
 }
 
+write_sshd_hardening_main_config() {
+  local tmp_file
+
+  if [[ ! -f "${ABB_SSHD_CONFIG_FILE}" ]]; then
+    log_warn "Missing ${ABB_SSHD_CONFIG_FILE}; unable to apply SSH hardening fallback."
+    return 1
+  fi
+
+  tmp_file="$(mktemp)" || {
+    log_warn "Unable to create temporary file for sshd_config fallback."
+    return 1
+  }
+
+  awk -v begin="${ABB_SSHD_BLOCK_BEGIN}" -v end="${ABB_SSHD_BLOCK_END}" '
+    $0 == begin { skip = 1; next }
+    $0 == end { skip = 0; next }
+    skip != 1 { print }
+  ' "${ABB_SSHD_CONFIG_FILE}" > "${tmp_file}"
+
+  cat >> "${tmp_file}" <<EOF
+
+${ABB_SSHD_BLOCK_BEGIN}
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+${ABB_SSHD_BLOCK_END}
+EOF
+
+  if ! sshd -t -f "${tmp_file}"; then
+    log_warn "sshd_config fallback validation failed."
+    rm -f "${tmp_file}"
+    return 1
+  fi
+
+  cat "${tmp_file}" > "${ABB_SSHD_CONFIG_FILE}"
+  chmod 0600 "${ABB_SSHD_CONFIG_FILE}" || true
+  rm -f "${tmp_file}"
+
+  if systemd_available; then
+    systemctl reload sshd.service >/dev/null 2>&1 || systemctl reload ssh.service >/dev/null 2>&1 || {
+      log_warn "Unable to reload sshd after main-config hardening fallback."
+      return 1
+    }
+  fi
+
+  log_info "Applied SSH hardening fallback directly in ${ABB_SSHD_CONFIG_FILE}."
+  return 0
+}
+
 disable_root_authorized_keys() {
   local root_keys="/root/.ssh/authorized_keys"
   local backup="/root/.ssh/authorized_keys.abb-disabled"
@@ -333,6 +400,14 @@ disable_root_authorized_keys() {
 
 apply_verified_ssh_hardening() {
   if ! write_sshd_hardening_dropin; then
+    return 1
+  fi
+  if ! sshd_hardening_is_effective; then
+    log_warn "SSH hardening drop-in is not taking effect; applying fallback in ${ABB_SSHD_CONFIG_FILE}."
+    write_sshd_hardening_main_config || return 1
+  fi
+  if ! sshd_hardening_is_effective; then
+    log_warn "SSH hardening still is not effective after fallback."
     return 1
   fi
   disable_root_authorized_keys || true

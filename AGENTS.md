@@ -1,6 +1,6 @@
-# ABB – Arch Bugbounty Bootstrap Playbook
+# ABB - Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `dotfiles`, `verify`, and `all`.
 
 ## Related AGENTS Files
 
@@ -104,7 +104,7 @@ sudo pacman -Syu --noconfirm
 
 ## 9. VPN
 - VPN support must be opt-in and default to `no`.
-- Verify the kernel is ≥5.11 before configuring WireGuard-backed VPN access.
+- Verify the kernel is >=5.11 before configuring WireGuard-backed VPN access.
 - For Mullvad, download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
 - For ProtonVPN, prepare for manual WireGuard config import instead of forcing a desktop/client install path on a headless VPS.
 - Copy pristine profiles into `/opt/wg-configs/source`, duplicate them into `/opt/wg-configs/pool`, and inject the SSH-preserving `PostUp`/`PreDown` rules only into the pooled copies (leave `/etc/wireguard/*.conf` untouched). Point `/opt/wg-configs/active/wg0.conf` at the profile currently used by Docker.
