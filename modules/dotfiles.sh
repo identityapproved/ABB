@@ -3,9 +3,7 @@
 declare -A ZSH_PLUGIN_REPOS=(
   [zsh-vi-mode]='https://github.com/jeffreytse/zsh-vi-mode.git'
   [cd-ls]='https://github.com/zshzoo/cd-ls.git'
-  [zsh-git-fzf]='https://github.com/alexiszamanidis/zsh-git-fzf.git'
   [alias-tips]='https://github.com/djui/alias-tips.git'
-  [fzf-alias]='https://github.com/thirteen37/fzf-alias.git'
   [zsh-history-substring-search]='https://github.com/zsh-users/zsh-history-substring-search.git'
   [zsh-syntax-highlighting]='https://github.com/zsh-users/zsh-syntax-highlighting.git'
   [zsh-autosuggestions]='https://github.com/zsh-users/zsh-autosuggestions.git'

@@ -6,7 +6,6 @@ SYSTEM_PACKAGES=(
   ripgrep
   fd
   zsh
-  fzf
   bat
   htop
   iftop
@@ -145,7 +144,6 @@ install_system_utilities() {
   append_installed_tool "tmux"
   append_installed_tool "neovim"
   append_installed_tool "vim"
-  append_installed_tool "fzf"
   append_installed_tool "ripgrep"
   append_installed_tool "fd"
   append_installed_tool "bat"

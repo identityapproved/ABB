@@ -1,9 +1,5 @@
 # shellcheck shell=bash
 
-prompt_uses_fzf() {
-  command_exists fzf
-}
-
 prompt_pick_option() {
   local prompt="$1"
   local default_value="$2"
@@ -11,14 +7,6 @@ prompt_pick_option() {
   local options=("$@")
   local choice=""
   local option_list=""
-
-  if prompt_uses_fzf; then
-    choice="$(printf '%s\n' "${options[@]}" | fzf --prompt "${prompt}" --height 40% --reverse --border --select-1 --exit-0 </dev/tty)"
-    if [[ -n "${choice}" ]]; then
-      printf '%s\n' "${choice}"
-      return 0
-    fi
-  fi
 
   option_list="$(IFS=/; printf '%s' "${options[*]}")"
   read -rp "${prompt}${option_list}${default_value:+ [${default_value}]}: " choice </dev/tty || return 1

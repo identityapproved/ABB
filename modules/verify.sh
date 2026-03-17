@@ -4,7 +4,7 @@ final_verification() {
   log_info "Verification summary:"
 
   if command_exists pacman; then
-    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
+    if ! pacman -Q tree tealdeer ripgrep fd zsh bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
       log_warn "One or more core packages are missing. Review pacman output above."
     fi
   fi
