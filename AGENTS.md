@@ -119,8 +119,8 @@ sudo pacman -Syu --noconfirm
 - Deduplicate anything already managed by `pdtm`.
 
 ### 10.3 Trufflehog
-- Prompt the operator to decide whether to install trufflehog via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`). Honour the saved preference on reruns.
-- If the script fails (or the operator declines), offer to build from source or point to the operator's external container/compose repository.
+- Install trufflehog from the `tools` task via the official script (`curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin`).
+- If the script fails, offer to build from source or point to the operator's external container/compose repository.
 
 ### 10.4 Git/Binary Installs
 - Keep cloning into `/opt/vps-tools/<name>` (root:wheel 755). Add wrappers in `/usr/local/bin` when needed.

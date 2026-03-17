@@ -30,11 +30,7 @@ final_verification() {
     log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' to install it."
   fi
 
-  if [[ "${TRUFFLEHOG_INSTALL}" == "yes" ]]; then
-    if ! command_exists trufflehog; then
-      log_warn "trufflehog CLI not detected despite installation request."
-    fi
-  fi
+  command_exists trufflehog >/dev/null 2>&1 || log_warn "trufflehog CLI not detected. Re-run 'abb-setup.sh tools' to install it."
 
   command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Re-run 'abb-setup.sh tools' or install via pacman."
 

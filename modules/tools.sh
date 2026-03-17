@@ -489,10 +489,6 @@ EOF
 }
 
 install_trufflehog() {
-  if [[ "${TRUFFLEHOG_INSTALL}" != "yes" ]]; then
-    log_info "Trufflehog installation skipped by operator preference."
-    return
-  fi
   if command_exists trufflehog; then
     append_installed_tool "trufflehog"
     return

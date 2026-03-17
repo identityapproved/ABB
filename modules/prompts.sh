@@ -215,19 +215,6 @@ prompt_for_ssh_key_source() {
   log_info "SSH key source: ${SSH_KEY_SOURCE}"
 }
 
-prompt_for_trufflehog_install() {
-  if [[ -n "${TRUFFLEHOG_INSTALL}" ]]; then
-    log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
-    return
-  fi
-  if [[ "$(prompt_yes_no "Install trufflehog via official install script? " "yes")" == "true" ]]; then
-    TRUFFLEHOG_INSTALL="yes"
-  else
-    TRUFFLEHOG_INSTALL="no"
-  fi
-  log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
-}
-
 prompt_for_tools_install() {
   if [[ "${INSTALL_TOOLS}" == "true" || "${INSTALL_TOOLS}" == "false" ]]; then
     log_info "Tools installation enabled: ${INSTALL_TOOLS}"
@@ -254,7 +241,6 @@ collect_prompt_answers() {
   prompt_for_container_engine
   prompt_for_network_access_mode
   prompt_for_ssh_key_source
-  prompt_for_trufflehog_install
   prompt_for_tools_install
   prompt_for_wordlists_install
   record_prompt_answers
