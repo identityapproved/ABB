@@ -451,29 +451,15 @@ install_aur_recon_packages() {
 }
 
 install_feroxbuster() {
-  local method="${FEROX_INSTALL_METHOD:-cargo}"
   local user_home default_cfg cfg_dir
 
-  case "${method}" in
-    aur)
-      if [[ -z "${PACKAGE_MANAGER}" ]]; then
-        log_warn "Feroxbuster AUR installation requested but no helper configured."
-      elif aur_helper_install "feroxbuster"; then
-        log_info "Installed feroxbuster via ${PACKAGE_MANAGER}."
-      elif ! pacman -Qi feroxbuster >/dev/null 2>&1; then
-        log_warn "Failed to install feroxbuster via ${PACKAGE_MANAGER}."
-      fi
-      ;;
-    cargo|*)
-      if ! run_as_user "command -v cargo >/dev/null 2>&1"; then
-        log_warn "Cargo not available for ${NEW_USER}; skipping feroxbuster cargo install."
-      elif run_as_user "cargo install --locked --force feroxbuster"; then
-        log_info "Installed feroxbuster via cargo."
-      else
-        log_warn "Failed to install feroxbuster via cargo."
-      fi
-      ;;
-  esac
+  if ! run_as_user "command -v cargo >/dev/null 2>&1"; then
+    log_warn "Cargo not available for ${NEW_USER}; skipping feroxbuster installation."
+  elif run_as_user "cargo install --locked --force feroxbuster"; then
+    log_info "Installed feroxbuster via cargo."
+  else
+    log_warn "Failed to install feroxbuster via cargo."
+  fi
 
   if run_as_user "command -v feroxbuster >/dev/null 2>&1"; then
     append_installed_tool "feroxbuster"

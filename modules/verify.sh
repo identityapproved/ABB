@@ -27,7 +27,7 @@ final_verification() {
   if run_as_user "command -v feroxbuster" >/dev/null 2>&1; then
     run_as_user "feroxbuster --version" >/dev/null 2>&1 || true
   else
-    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' and select the preferred installation method."
+    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' to install it."
   fi
 
   if [[ "${TRUFFLEHOG_INSTALL}" == "yes" ]]; then

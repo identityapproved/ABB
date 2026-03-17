@@ -133,7 +133,7 @@ sudo pacman -Syu --noconfirm
 
 ### 10.6 Recon Packages
 - Install `amass` via pacman (`pacman --needed --noconfirm -S amass`).
-- Feroxbuster is handled separately based on the operator's chosen installation method (`cargo` or selected AUR helper). Document the prompt and ensure reruns honour the saved choice.
+- Install feroxbuster from the `tools` task without a separate prompt path.
 
 ## 11. Shells & Editors
 - After installing zsh + Oh My Zsh, copy the Arch-friendly `.zshrc` and `.aliases` from `dots/zsh/`.

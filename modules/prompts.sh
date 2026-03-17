@@ -215,31 +215,6 @@ prompt_for_ssh_key_source() {
   log_info "SSH key source: ${SSH_KEY_SOURCE}"
 }
 
-prompt_for_ferox_method() {
-  local choice=""
-  if [[ -n "${FEROX_INSTALL_METHOD}" ]]; then
-    log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
-    return
-  fi
-  while true; do
-    choice="$(prompt_pick_option "Install feroxbuster via: " "cargo" cargo aur)" || { log_error "Unable to read feroxbuster install choice."; exit 1; }
-    if [[ "${choice}" == "cargo" ]]; then
-      FEROX_INSTALL_METHOD="cargo"
-      break
-    fi
-    case "${choice}" in
-      aur)
-        FEROX_INSTALL_METHOD="aur"
-        break
-        ;;
-      *)
-        echo "Please answer cargo or aur." >/dev/tty
-        ;;
-    esac
-  done
-  log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
-}
-
 prompt_for_trufflehog_install() {
   if [[ -n "${TRUFFLEHOG_INSTALL}" ]]; then
     log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
@@ -279,7 +254,6 @@ collect_prompt_answers() {
   prompt_for_container_engine
   prompt_for_network_access_mode
   prompt_for_ssh_key_source
-  prompt_for_ferox_method
   prompt_for_trufflehog_install
   prompt_for_tools_install
   prompt_for_wordlists_install
