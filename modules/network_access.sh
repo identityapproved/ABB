@@ -34,6 +34,21 @@ ensure_managed_ssh_dir() {
   chown "${NEW_USER}:${NEW_USER}" "${target_home}/.ssh"
 }
 
+managed_authorized_keys_file() {
+  local target_home=""
+  target_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
+  if [[ -z "${target_home}" ]]; then
+    return 1
+  fi
+  printf '%s\n' "${target_home}/.ssh/authorized_keys"
+}
+
+managed_user_has_authorized_keys() {
+  local target_file=""
+  target_file="$(managed_authorized_keys_file)" || return 1
+  [[ -s "${target_file}" ]]
+}
+
 copy_authorized_keys_from_user() {
   local source_user="$1"
   local source_home="" target_home="" source_file="" target_file="" line=""
@@ -124,10 +139,16 @@ configure_ssh_access_keys() {
 
   case "${SSH_KEY_SOURCE}" in
     current-access)
-      copy_authorized_keys_from_user "${ACTIVE_ACCESS_USER}" || true
+      if ! copy_authorized_keys_from_user "${ACTIVE_ACCESS_USER}"; then
+        log_error "Unable to seed SSH keys from ${ACTIVE_ACCESS_USER}. Use 'paste' or 'admin' instead."
+        return 1
+      fi
       ;;
     admin)
-      copy_authorized_keys_from_user "admin" || true
+      if ! copy_authorized_keys_from_user "admin"; then
+        log_error "Unable to seed SSH keys from admin."
+        return 1
+      fi
       ;;
     paste)
       append_public_key_if_missing "$(prompt_for_public_key)"
@@ -139,6 +160,13 @@ configure_ssh_access_keys() {
       log_warn "Unknown SSH key source '${SSH_KEY_SOURCE}'."
       ;;
   esac
+
+  if [[ "${SSH_KEY_SOURCE}" != "skip" ]] && ! managed_user_has_authorized_keys; then
+    log_error "No authorized_keys were staged for ${NEW_USER}. Refusing to continue with SSH hardening."
+    return 1
+  fi
+
+  return 0
 }
 
 apply_network_sysctl_hardening() {
@@ -226,17 +254,17 @@ tailscale_session_active() {
 
 initialize_tailscale_session() {
   if tailscale_session_active; then
-    log_info "Tailscale session already active."
+    log_info "Tailscale session already active. Re-applying with '--ssh' enabled."
+  else
+    log_info "Running 'tailscale up --ssh'. Follow the interactive login URL from the official Tailscale flow."
+  fi
+
+  if tailscale up --ssh; then
+    log_info "Tailscale session initialized with Tailscale SSH enabled."
     return 0
   fi
 
-  log_info "Running 'tailscale up'. Follow the interactive login URL from the official Tailscale flow."
-  if tailscale up; then
-    log_info "Tailscale session initialized."
-    return 0
-  fi
-
-  log_warn "tailscale up did not complete successfully."
+  log_warn "tailscale up --ssh did not complete successfully."
   return 1
 }
 
@@ -549,7 +577,9 @@ run_task_network_access() {
   ensure_user_context
   ensure_package_manager_ready
   ensure_network_access_prerequisites
-  configure_ssh_access_keys
+  if ! configure_ssh_access_keys; then
+    exit 1
+  fi
   apply_network_sysctl_hardening
 
   case "${NETWORK_ACCESS_MODE}" in
