@@ -1,14 +1,38 @@
 # ABB - Arch Bugbounty Bootstrap
 
+<p align="center">
+<pre>
+user@arch:~/ABB $ ./abb-setup.sh all
+
+echo ">>===============================================================<<";
+echo "|| ||";
+echo "|| ||";
+echo "|| **\_**/\/\_\_**\_ \_/\/\/\/\/\_** \_/\/\/\/\/\_** ||";
+echo "|| \_**/\/\/\/\_** \_/\/\_\_**/\/\_ \_/\/\_**_/\/\_ ||";
+echo "|| _/\/\_\_**/\/\_ _/\/\/\/\/\_\_\_ _/\/\/\/\/\_** ||";
+echo "|| _/\/\/\/\/\/\_ _/\/\_\_**/\/\_ \_/\/\_**_/\/\_ ||";
+echo "|| _/\/\_\_**/\/\_ _/\/\/\/\/\_\_\_ _/\/\/\/\/\_** ||";
+echo "|| ****\_\_\_\_****** ******\_\_****** ******\_\_****** ||";
+echo "|| ||";
+echo "|| ||";
+echo ">>===============================================================<<";
+Arch Bug Bounty Bootstrap
+Provisioning for recon-first Arch VPS workflows
+
+</pre>
+</p>
+
 > **Warning:** The automation has been manually validated end-to-end only with the `yay` AUR helper. Other helpers are supported, but treat them as experimental and review output carefully.
 
 ABB is an Arch Linux-first automation toolkit for provisioning bug bounty VPS instances. The image provided by Contabo already creates an `admin` user and injects SSH keys, so the scripts focus on guiding any account rename, installing required tooling, and keeping the process modular.
 
 ## Prerequisites
+
 - Install `git` ahead of time so you can clone this repository.
 - Install `vim` on the VPS before running any ABB tasks: `sudo pacman -S --needed vim`.
 
 ## Quick Start
+
 - Log in as `root` (or a wheel user) on the Arch VPS.
 - Clone the repo and run `sudo ./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, whether remote access should stay plain SSH or move to Tailscale-backed SSH, how to seed authorized keys, whether to configure a VPN, which VPN provider to use when enabled, whether to run the `tools` module now, and whether to sync wordlists now).
 - Execute `./abb-setup.sh accounts` to create the managed user, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
@@ -21,22 +45,25 @@ ABB is an Arch Linux-first automation toolkit for provisioning bug bounty VPS in
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
 
 ## Modular Tasks
+
 Each task can be executed independently:
 
-| Task | Description |
-| ---- | ----------- |
-| `prompts` | Capture answers for the managed user, editor preference, hardening toggle, access mode, SSH key seeding method, and installation toggles for `tools` and wordlists; cache responses in `/var/lib/vps-setup/answers.env`. |
-| `accounts` | Create the managed user, ensure wheel access, prompt for password, instruct you to run `sudo pacman -Syu`, `sudo pacman -S linux`, and reboot before continuing, then offer to remove `admin` after switching. |
-| `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks. |
-| `security` | Run `pacman -Syu`, disable mDNS/LLMNR, and install/configure AIDE + rkhunter with sudo logging. |
-| `languages` | Install Python, pipx, setuptools, Go, Ruby, base build tools, and Rust via `rustup` (defaulting to the stable toolchain). |
-| `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, bat, htop, iftop, tmux, wireguard-tools/openresolv, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
-| `network-access` | Seed authorized keys for the managed user, apply optional sysctl hardening, configure fail2ban/firewalld for SSH, and optionally install/init Tailscale with a confirmation breakpoint before public SSH is closed. |
-| `vpn` | If VPN is enabled, configure the selected provider, stage WireGuard profiles, and keep SSH-preserving `PostUp`/`PreDown` rules in ABB-managed copies. |
-| `tools` | Use pipx for recon utilities (waymore, Sublist3r, webscreenshot, etc.), install `pdtm` via Go (ABB only installs the `pdtm` launcher; run `pdtm install ...` or `pdtm install-all` yourself to pull ProjectDiscovery binaries), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, fuzzuli, and more), handle recon packages via pacman (`amass`), install feroxbuster via `cargo install --locked --force feroxbuster`, install trufflehog via the official script with source/Docker fallbacks if needed, and clone/git-sync tooling and wordlists (massdns, masscan, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
-| `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
-| `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
+| Task              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prompts`         | Capture answers for the managed user, editor preference, hardening toggle, access mode, SSH key seeding method, and installation toggles for `tools` and wordlists; cache responses in `/var/lib/vps-setup/answers.env`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `accounts`        | Create the managed user, ensure wheel access, prompt for password, instruct you to run `sudo pacman -Syu`, `sudo pacman -S linux`, and reboot before continuing, then offer to remove `admin` after switching.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `package-manager` | Install the selected AUR helper once (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`) and cache the choice for later tasks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `security`        | Run `pacman -Syu`, disable mDNS/LLMNR, and install/configure AIDE + rkhunter with sudo logging.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `languages`       | Install Python, pipx, setuptools, Go, Ruby, base build tools, and Rust via `rustup` (defaulting to the stable toolchain).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `utilities`       | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, bat, htop, iftop, tmux, wireguard-tools/openresolv, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`).                                                                                                                                                                                                                                                                                                                                                                           |
+| `network-access`  | Seed authorized keys for the managed user, apply optional sysctl hardening, configure fail2ban/firewalld for SSH, and optionally install/init Tailscale with a confirmation breakpoint before public SSH is closed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `vpn`             | If VPN is enabled, configure the selected provider, stage WireGuard profiles, and keep SSH-preserving `PostUp`/`PreDown` rules in ABB-managed copies.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `tools`           | Use pipx for recon utilities (waymore, Sublist3r, webscreenshot, etc.), install `pdtm` via Go (ABB only installs the `pdtm` launcher; run `pdtm install ...` or `pdtm install-all` yourself to pull ProjectDiscovery binaries), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, fuzzuli, and more), handle recon packages via pacman (`amass`), install feroxbuster via `cargo install --locked --force feroxbuster`, install trufflehog via the official script with source/Docker fallbacks if needed, and clone/git-sync tooling and wordlists (massdns, masscan, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
+| `dotfiles`        | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `verify`          | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
 ## Highlights
+
 - **AUR helper first:** The package-manager stage installs and caches the selected helper (`yay` by default) before any tooling that depends on it.
 - **Tool tracking:** Each successful install is appended to `~<user>/installed-tools.txt` so you can review or diff between runs.
 - **Access isolation:** ABB keeps `sshd_config` untouched, moves SSH/firewall logic into `network-access`, and only restricts public SSH after you confirm a working Tailscale session from a second terminal.
@@ -57,6 +84,7 @@ Each task can be executed independently:
 - Container-side VPN rotation lives outside ABB together with your compose assets.
 
 ## Rerun Guidance
+
 - Re-running any task is safe; prompts are cached in `/var/lib/vps-setup/answers.env`.
 - If kernel or core packages update, reboot and rerun `verify` to confirm paths and versions.
 - Use your configured AUR helper (e.g., `yay -Syu`) between provisioning runs to keep AUR packages in sync.
