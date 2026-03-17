@@ -44,6 +44,8 @@ NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 NETWORK_ACCESS_MODE="${NETWORK_ACCESS_MODE:-}"
 SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-}"
+USE_VPN="${USE_VPN:-false}"
+VPN_PROVIDER="${VPN_PROVIDER:-}"
 INSTALL_TOOLS="${INSTALL_TOOLS:-}"
 INSTALL_WORDLISTS="${INSTALL_WORDLISTS:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
@@ -63,7 +65,8 @@ Tasks:
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
-  mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
+  vpn         Configure the selected VPN provider and WireGuard profile staging.
+  mullvad     Backward-compatible alias for the vpn task.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -88,7 +91,7 @@ run_task_all() {
   run_task_utilities
   run_task_network_access
   run_task_security
-  run_task_mullvad
+  run_task_vpn
   run_task_tools
   run_task_dotfiles
   run_task_verify
@@ -132,9 +135,9 @@ main() {
       log_info "Running network access task"
       run_task_network_access
       ;;
-    mullvad)
-      log_info "Running Mullvad WireGuard task"
-      run_task_mullvad
+    vpn|mullvad)
+      log_info "Running VPN task"
+      run_task_vpn
       ;;
     tools)
       log_info "Running tools task"

@@ -24,6 +24,8 @@ Arch Linux (btw ♥). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ask which Node version manager to deploy (`nvm` or `fnm`).
 - Ask whether access should remain plain SSH or move to Tailscale-backed SSH.
 - Ask how ABB should seed `authorized_keys` for the managed user (`current-access`, `admin`, `paste`, or `skip`).
+- Ask whether VPN support should be configured at all. Default to `no`.
+- If VPN is enabled, ask which provider to use (`mullvad` or `protonvpn`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -100,11 +102,13 @@ sudo pacman -Syu --noconfirm
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
 
-## 9. Mullvad WireGuard
-- Verify the kernel is ≥5.11 before configuring Mullvad WireGuard.
-- Download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
+## 9. VPN
+- VPN support must be opt-in and default to `no`.
+- Verify the kernel is ≥5.11 before configuring WireGuard-backed VPN access.
+- For Mullvad, download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
+- For ProtonVPN, prepare for manual WireGuard config import instead of forcing a desktop/client install path on a headless VPS.
 - Copy pristine profiles into `/opt/wg-configs/source`, duplicate them into `/opt/wg-configs/pool`, and inject the SSH-preserving `PostUp`/`PreDown` rules only into the pooled copies (leave `/etc/wireguard/*.conf` untouched). Point `/opt/wg-configs/active/wg0.conf` at the profile currently used by Docker.
-- Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config, and remind the operator to connect with `sudo wg-quick up <profile>` / `curl https://am.i.mullvad.net/json | jq`.
+- Maintain `~/wireguard-profiles.txt` (one profile per line) so helper scripts can pick a config.
 
 ## 10. Tool Catalogue
 ### 10.1 pipx & ProjectDiscovery

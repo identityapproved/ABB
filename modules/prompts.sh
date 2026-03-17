@@ -215,6 +215,40 @@ prompt_for_ssh_key_source() {
   log_info "SSH key source: ${SSH_KEY_SOURCE}"
 }
 
+prompt_for_vpn_usage() {
+  if [[ "${USE_VPN}" == "true" || "${USE_VPN}" == "false" ]]; then
+    log_info "VPN enabled: ${USE_VPN}"
+    return
+  fi
+  USE_VPN="$(prompt_yes_no "Configure a VPN now? " "no")"
+  log_info "VPN enabled: ${USE_VPN}"
+}
+
+prompt_for_vpn_provider() {
+  local choice=""
+  if [[ "${USE_VPN}" != "true" ]]; then
+    VPN_PROVIDER=""
+    return
+  fi
+  if [[ -n "${VPN_PROVIDER}" ]]; then
+    log_info "VPN provider: ${VPN_PROVIDER}"
+    return
+  fi
+  while true; do
+    choice="$(prompt_pick_option "Choose VPN provider: " "mullvad" mullvad protonvpn)" || { log_error "Unable to read VPN provider."; exit 1; }
+    case "${choice,,}" in
+      mullvad|protonvpn)
+        VPN_PROVIDER="${choice,,}"
+        break
+        ;;
+      *)
+        echo "Please answer mullvad or protonvpn." >/dev/tty
+        ;;
+    esac
+  done
+  log_info "VPN provider: ${VPN_PROVIDER}"
+}
+
 prompt_for_tools_install() {
   if [[ "${INSTALL_TOOLS}" == "true" || "${INSTALL_TOOLS}" == "false" ]]; then
     log_info "Tools installation enabled: ${INSTALL_TOOLS}"
@@ -241,6 +275,8 @@ collect_prompt_answers() {
   prompt_for_container_engine
   prompt_for_network_access_mode
   prompt_for_ssh_key_source
+  prompt_for_vpn_usage
+  prompt_for_vpn_provider
   prompt_for_tools_install
   prompt_for_wordlists_install
   record_prompt_answers

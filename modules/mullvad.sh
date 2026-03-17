@@ -132,8 +132,42 @@ configure_mullvad_wireguard() {
   log_info "WireGuard setup complete. Connect with 'sudo wg-quick up <config>' then verify via 'curl https://am.i.mullvad.net/json | jq'."
 }
 
-run_task_mullvad() {
+configure_protonvpn_wireguard() {
+  pacman_install_packages openresolv wireguard-tools
+  install -d -m 0700 /etc/wireguard
+  ensure_wireguard_kernel
+  copy_wireguard_profiles
+  cat >/dev/tty <<'EOF'
+ProtonVPN support is configured for manual WireGuard profiles.
+
+1. Download a WireGuard config from your Proton account portal.
+2. Copy the .conf file into /etc/wireguard/ with a short name.
+3. Re-run `./abb-setup.sh vpn` so ABB can stage the profile into /opt/wg-configs.
+4. Connect with `sudo wg-quick up <profile>`.
+EOF
+}
+
+run_task_vpn() {
   ensure_user_context
   ensure_package_manager_ready
-  configure_mullvad_wireguard
+  if [[ "${USE_VPN}" != "true" ]]; then
+    log_info "VPN setup skipped because USE_VPN=${USE_VPN}."
+    return 0
+  fi
+
+  case "${VPN_PROVIDER}" in
+    mullvad)
+      configure_mullvad_wireguard
+      ;;
+    protonvpn)
+      configure_protonvpn_wireguard
+      ;;
+    *)
+      log_warn "Unknown VPN provider '${VPN_PROVIDER}'."
+      ;;
+  esac
+}
+
+run_task_mullvad() {
+  run_task_vpn
 }

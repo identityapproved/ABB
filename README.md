@@ -10,12 +10,12 @@ ABB is an Arch Linux–first automation toolkit for provisioning bug bounty VPS 
 
 ## Quick Start
 - Log in as `root` (or a wheel user) on the Arch VPS.
-- Clone the repo and run `sudo ./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, whether remote access should stay plain SSH or move to Tailscale-backed SSH, how to seed authorized keys, whether to run the `tools` module now, and whether to sync wordlists now). Choice prompts use `fzf` automatically when available.
+- Clone the repo and run `sudo ./abb-setup.sh prompts` to answer the interactive questions (username, editor choice, hardening flag, Node manager preference `nvm` or `fnm`, container engine `docker`/`podman`/`none`, whether remote access should stay plain SSH or move to Tailscale-backed SSH, how to seed authorized keys, whether to configure a VPN, which VPN provider to use when enabled, whether to run the `tools` module now, and whether to sync wordlists now). Choice prompts use `fzf` automatically when available.
 - Execute `./abb-setup.sh accounts` to create the managed user, enable sudo, and optionally retire the legacy account. The task exits so you can reconnect as the new user. After reconnecting, run `sudo pacman -Syu`, `sudo pacman -S linux`, and `sudo reboot`; once the system is back up, log in as the managed user, rerun `sudo ./abb-setup.sh accounts` to remove `admin`, then move the ABB repo under the new home.
 - After reconnecting as the managed user, run `sudo ./abb-setup.sh package-manager` to write `/etc/pacman.d/blackarch.conf`, append `Include = /etc/pacman.d/blackarch.conf` to `/etc/pacman.conf`, temporarily set `SigLevel = Never` to install `blackarch-keyring`, restore signature checking, enable multilib (if missing), force `pacman -Syyu`, and install/cache your preferred AUR helper (`yay`, `paru`, `pacaur`, `pikaur`, `aura`, or `aurman`).
 - Run `sudo ./abb-setup.sh network-access` after `utilities` if you want ABB to seed SSH keys, configure fail2ban/firewalld SSH handling, and optionally install Tailscale before public SSH is restricted.
 - Continue with `sudo ./abb-setup.sh all` (or the individual tasks you need) to complete provisioning.
-- After `sudo ./abb-setup.sh mullvad` completes, review the generated WireGuard profiles, supply Mullvad account details during the one-time `mullvad-wg.sh` run, and connect with `sudo wg-quick up <config>`; verify the tunnel using `curl https://am.i.mullvad.net/json | jq`.
+- If you enable VPN support, run `sudo ./abb-setup.sh vpn` to configure the selected provider. Mullvad uses the upstream `mullvad-wg.sh` flow; ProtonVPN uses manual WireGuard profiles that you download from Proton and place in `/etc/wireguard`.
 - Review the guidance in `NEXT_STEPS.md` (automatically printed after `all`) for manual follow-ups such as seeding the AIDE database and installing ProjectDiscovery binaries via `pdtm`.
 - Execute individual tasks (see below) or run the entire workflow with `sudo ./abb-setup.sh all`.
 - Inspect `/var/log/vps-setup.log` for the consolidated log and `~<user>/installed-tools.txt` for a simple tool inventory.
@@ -32,7 +32,7 @@ Each task can be executed independently:
 | `languages` | Install Python, pipx, setuptools, Go, Ruby, base build tools, and Rust via `rustup` (defaulting to the stable toolchain). |
 | `utilities` | Install core system utilities (tree, tealdeer (`tldr`), ripgrep, fd, zsh, fzf, bat, htop, iftop, tmux, wireguard-tools/openresolv, yazi, lazygit, firewalld, fail2ban, zoxide, etc.), bootstrap the chosen Node manager (`nvm` or `fnm`), and configure the selected container engine (`docker` + `lazydocker` or `podman`). |
 | `network-access` | Seed authorized keys for the managed user, apply optional sysctl hardening, configure fail2ban/firewalld for SSH, and optionally install/init Tailscale with a confirmation breakpoint before public SSH is closed. |
-| `mullvad` | Ensure WireGuard prerequisites, run `mullvad-wg.sh` once (and remove it afterward), add SSH-preserving `PostUp`/`PreDown` rules, and remind you to verify connectivity. |
+| `vpn` | If VPN is enabled, configure the selected provider, stage WireGuard profiles, and keep SSH-preserving `PostUp`/`PreDown` rules in ABB-managed copies. |
 | `tools` | Use pipx for recon utilities (waymore, Sublist3r, webscreenshot, etc.), install `pdtm` via Go (ABB only installs the `pdtm` launcher; run `pdtm install …` or `pdtm install-all` yourself to pull ProjectDiscovery binaries), `go install` for the remaining recon/XSS helpers (anew, gauplus, ipcdn, s3scanner, fuzzuli, and more), handle recon packages via pacman (`amass`), install feroxbuster via `cargo install --locked --force feroxbuster`, install trufflehog via the official script with source/Docker fallbacks if needed, and clone/git-sync tooling and wordlists (massdns, masscan, SecLists, cent, permutations/resolvers, JSParser, lazyrecon, etc.) into `/opt/vps-tools`. |
 | `dotfiles` | Install Oh My Zsh, sync Arch-specific `.zshrc` and `.aliases`, install curated Zsh plugins, copy tmux/vim configs, and bootstrap LazyVim if requested. |
 | `verify` | Run post-install checks (`pacman -Q` for key packages, `<aur-helper> --version`, `pipx list`, `go version`) and point to log locations. |
@@ -43,7 +43,7 @@ Each task can be executed independently:
 - **Arch-friendly dotfiles:** Zsh configuration includes Arch paths, tealdeer integration for `tldr`, zoxide initialisation, guarded Node manager/LazyVim hooks, plus helpers like the `wgup` profile picker for WireGuard.
 - **tmux ready:** Configuration lands in `~/.config/tmux/tmux.conf`, keeps `C-b` as the prefix, enables clipboard sync, and bootstraps TPM automatically on first launch.
 - **Wordlist workspace:** `SecLists` lives in `/opt/vps-tools/SecLists` with a symlink at `~/wordlists/seclists`; the tools stage also syncs the cent repository and fetches permutations/resolvers lists alongside `~/wordlists/custom` for personal mutations.
-- **WireGuard ready:** Utilities install `wireguard-tools`/`openresolv`; the dedicated `mullvad` task runs `mullvad-wg.sh` once (removing the script afterwards), copies pristine configs to `/opt/wg-configs/source`, and only mutates the working copies under `/opt/wg-configs/pool`, keeping `/etc/wireguard` untouched.
+- **VPN is opt-in:** The prompt flow defaults VPN to `no`. If enabled, ABB asks for the provider and only then runs provider-specific setup.
 - **BlackArch repo:** The package-manager stage writes `/etc/pacman.d/blackarch.conf`, plugs it into `/etc/pacman.conf`, briefly disables signature checks to install `blackarch-keyring`, restores verification, enables multilib, forces `pacman -Syyu`, and then builds your chosen AUR helper.
 - **Container flexibility:** Pick Docker (with lazydocker) or Podman during prompts; utilities enables the requested engine and grants the managed user access, while compose files and other container assets live outside ABB in your dedicated container repository.
 - **Rust-ready toolchain:** Languages install `rustup`, set the default stable toolchain, and extend PATHs so cargo-built utilities like feroxbuster work out of the box.
@@ -52,7 +52,7 @@ Each task can be executed independently:
 
 ## WireGuard Helpers
 
-- Configs generated by `./abb-setup.sh mullvad` are copied to `/opt/wg-configs/source` (pristine) and `/opt/wg-configs/pool` (mutated with SSH-preserving rules). The active config used by Docker lives at `/opt/wg-configs/active/wg0.conf`.
+- Configs staged by `./abb-setup.sh vpn` are copied to `/opt/wg-configs/source` (pristine) and `/opt/wg-configs/pool` (mutated with SSH-preserving rules). The active config used by Docker lives at `/opt/wg-configs/active/wg0.conf`.
 - `~/wireguard-profiles.txt` lists every available profile. The `wgup` alias (defined in `.aliases`) lets you fuzzy-pick a profile via `fzf` and run `sudo wg-quick up <profile>` in one step.
 - Container-side VPN rotation lives outside ABB together with your compose assets.
 
