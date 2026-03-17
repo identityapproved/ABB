@@ -8,9 +8,7 @@ readonly RC_LOCAL="/etc/rc.local"
 readonly TEMPLATES_DIR="${REPO_ROOT}/dots"
 readonly ZSH_TEMPLATE_DIR="${TEMPLATES_DIR}/zsh"
 readonly TMUX_TEMPLATE="${TEMPLATES_DIR}/tmux/tmux.conf"
-readonly VIM_TEMPLATE_DIR="${TEMPLATES_DIR}/vim"
-readonly VIMRC_TEMPLATE="${VIM_TEMPLATE_DIR}/.vimrc"
-readonly VIMFILES_TEMPLATE="${VIM_TEMPLATE_DIR}/.vim"
+readonly VIMRC_TEMPLATE="${TEMPLATES_DIR}/vim/.vimrc"
 readonly ALIASES_TEMPLATE="${ZSH_TEMPLATE_DIR}/.aliases"
 readonly ZSHRC_TEMPLATE="${ZSH_TEMPLATE_DIR}/.zshrc"
 
@@ -141,9 +139,12 @@ record_prompt_answers() {
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
     printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
-    printf 'FEROX_INSTALL_METHOD=%q\n' "${FEROX_INSTALL_METHOD}"
-    printf 'TRUFFLEHOG_INSTALL=%q\n' "${TRUFFLEHOG_INSTALL}"
-    printf 'ENABLE_MULLVAD=%q\n' "${ENABLE_MULLVAD}"
+    printf 'NETWORK_ACCESS_MODE=%q\n' "${NETWORK_ACCESS_MODE}"
+    printf 'SSH_KEY_SOURCE=%q\n' "${SSH_KEY_SOURCE}"
+    printf 'USE_VPN=%q\n' "${USE_VPN}"
+    printf 'VPN_PROVIDER=%q\n' "${VPN_PROVIDER}"
+    printf 'INSTALL_TOOLS=%q\n' "${INSTALL_TOOLS}"
+    printf 'INSTALL_WORDLISTS=%q\n' "${INSTALL_WORDLISTS}"
   } > "${ANSWERS_FILE}"
   chmod 0600 "${ANSWERS_FILE}"
   log_info "Saved prompt answers to ${ANSWERS_FILE}"
@@ -163,33 +164,8 @@ init_installed_tracker() {
   log_info "Tracking installed tools in ${INSTALLED_TRACK_FILE}"
 }
 
-sync_repo_scripts() {
-  local src="${REPO_ROOT}/scripts"
-  local dest="/opt/abb-scripts"
-  local dns_helper="update-resolv-conf.sh"
-  if [[ ! -d "${src}" ]]; then
-    log_warn "No scripts directory detected at ${src}; skipping sync."
-    return 1
-  fi
-  install -d -m 0755 "${dest}" /usr/local/bin
-  rsync -a --delete "${src}/" "${dest}/"
-  shopt -s nullglob
-  local script base
-  for script in "${dest}"/*.sh; do
-    base="$(basename "${script}")"
-    install -m 0755 "${script}" "/usr/local/bin/${base}"
-  done
-  shopt -u nullglob
-  if [[ -f "${dest}/${dns_helper}" ]]; then
-    install -d -m 0755 /etc/openvpn
-    install -m 0755 "${dest}/${dns_helper}" /etc/openvpn/update-resolv-conf
-    log_info "DNS helper installed to /etc/openvpn/update-resolv-conf."
-  fi
-  log_info "Scripts synced to ${dest} and installed under /usr/local/bin."
-}
-
 ensure_user_context() {
-  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 ferox_method_missing=0 trufflehog_missing=0 mullvad_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 network_access_missing=0 ssh_key_source_missing=0 vpn_usage_missing=0 vpn_provider_missing=0 tools_missing=0 wordlists_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
@@ -200,16 +176,25 @@ ensure_user_context() {
   if [[ -z "${CONTAINER_ENGINE}" ]]; then
     container_engine_missing=1
   fi
-  if [[ -z "${FEROX_INSTALL_METHOD}" ]]; then
-    ferox_method_missing=1
+  if [[ -z "${NETWORK_ACCESS_MODE}" ]]; then
+    network_access_missing=1
   fi
-  if [[ -z "${TRUFFLEHOG_INSTALL}" ]]; then
-    trufflehog_missing=1
+  if [[ -z "${SSH_KEY_SOURCE}" ]]; then
+    ssh_key_source_missing=1
   fi
-  if [[ -z "${ENABLE_MULLVAD}" ]]; then
-    mullvad_missing=1
+  if [[ "${USE_VPN}" != "true" && "${USE_VPN}" != "false" ]]; then
+    vpn_usage_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${ferox_method_missing} -eq 1 || ${trufflehog_missing} -eq 1 || ${mullvad_missing} -eq 1 ]]; then
+  if [[ "${USE_VPN}" == "true" && -z "${VPN_PROVIDER}" ]]; then
+    vpn_provider_missing=1
+  fi
+  if [[ "${INSTALL_TOOLS}" != "true" && "${INSTALL_TOOLS}" != "false" ]]; then
+    tools_missing=1
+  fi
+  if [[ "${INSTALL_WORDLISTS}" != "true" && "${INSTALL_WORDLISTS}" != "false" ]]; then
+    wordlists_missing=1
+  fi
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${network_access_missing} -eq 1 || ${ssh_key_source_missing} -eq 1 || ${vpn_usage_missing} -eq 1 || ${vpn_provider_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 

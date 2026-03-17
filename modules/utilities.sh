@@ -6,7 +6,6 @@ SYSTEM_PACKAGES=(
   ripgrep
   fd
   zsh
-  fzf
   bat
   htop
   iftop
@@ -114,7 +113,7 @@ install_container_engine() {
         done
         if [[ "${skip_docker}" == "true" || ( "${answer,,}" != "yes" && "${answer,,}" != "y" ) ]]; then
           SKIP_DOCKER_TASKS="true"
-          log_warn "Docker CLI or daemon unavailable; docker-tools task will be skipped. Reboot and rerun 'abb-setup.sh docker-tools' when ready."
+          log_warn "Docker CLI or daemon unavailable. Reboot and rerun 'abb-setup.sh utilities' or 'abb-setup.sh all' when ready."
         fi
       fi
       append_installed_tool "docker"
@@ -138,8 +137,6 @@ install_container_engine() {
 install_system_utilities() {
   ensure_package_manager_ready
   pacman_install_packages "${SYSTEM_PACKAGES[@]}"
-  enable_unit "firewalld.service" "firewalld" || true
-  enable_unit "fail2ban.service" "fail2ban" || true
 
   ensure_node_manager
   install_container_engine
@@ -150,7 +147,6 @@ install_system_utilities() {
   append_installed_tool "tmux"
   append_installed_tool "neovim"
   append_installed_tool "vim"
-  append_installed_tool "fzf"
   append_installed_tool "ripgrep"
   append_installed_tool "fd"
   append_installed_tool "bat"
@@ -166,7 +162,7 @@ install_system_utilities() {
   append_installed_tool "yazi"
   append_installed_tool "lazygit"
 
-  log_info "WireGuard tooling installed. Run 'abb-setup.sh mullvad' to generate Mullvad WireGuard profiles."
+  log_info "WireGuard tooling installed. Run 'abb-setup.sh vpn' if you decide to configure a VPN provider."
 }
 
 run_task_utilities() {

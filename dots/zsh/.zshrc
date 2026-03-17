@@ -1,6 +1,5 @@
-# Auto-attach or create a default tmux session
-if command -v tmux >/dev/null 2>&1 && [ -z "$TMUX" ]; then
-  tmux attach -t default || tmux new -s default
+if command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+    tmux attach -t default || tmux new -s default
 fi
 
 ZSH_THEME="random"
@@ -33,10 +32,8 @@ COMPLETION_WAITING_DOTS="true"
 # Which plugins would you like to load?
 # Plugins
 # https://github.com/zshzoo/cd-ls
-# https://github.com/alexiszamanidis/zsh-git-fzf
 # https://github.com/jeffreytse/zsh-vi-mode
 # https://github.com/djui/alias-tips
-# https://github.com/thirteen37/fzf-alias
 # https://github.com/zsh-users/zsh-history-substring-search
 # https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/INSTALL.md
 # https://github.com/zsh-users/zsh-autosuggestions/blob/master/INSTALL.m
@@ -45,7 +42,7 @@ COMPLETION_WAITING_DOTS="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-[[ -z "${plugins[*]}" ]] && plugins=(git fzf tmux extract gitignore pip python docker docker-compose zsh-vi-mode cd-ls zsh-git-fzf alias-tips ufw themes fzf-alias zsh-history-substring-search zsh-syntax-highlighting zsh-autosuggestions archlinux zsh-aur-install)
+[[ -z "${plugins[*]}" ]] && plugins=(git extract gitignore pip python docker docker-compose zsh-vi-mode cd-ls alias-tips ufw themes zsh-history-substring-search zsh-syntax-highlighting zsh-autosuggestions archlinux zsh-aur-install)
 
 if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
   source "$ZSH/oh-my-zsh.sh"
@@ -90,14 +87,6 @@ export PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init --cmd cd zsh)"
 fi
-
-# FZF
-export FZF_BASE=/usr/share/fzf
-export FZF_DEFAULT_OPTS='--reverse --preview="bat {}" --info=inline --color=fg:#f8f8f2,bg:-1,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:-1,gutter:-1,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-# Loads FZF keybindings, replacing native reverse search etc with FZF
-[[ -e "/usr/share/fzf/key-bindings.zsh" ]] \
-  && source "/usr/share/fzf/key-bindings.zsh"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # bat 

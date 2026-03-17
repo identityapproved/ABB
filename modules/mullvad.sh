@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 
-readonly WG_PROFILE_LIST="wireguard-profiles.txt"
+readonly WG_ROOT="/opt/wg-configs"
+readonly WG_SOURCE_DIR="${WG_ROOT}/source"
+readonly WG_POOL_DIR="${WG_ROOT}/pool"
+readonly WG_ACTIVE_DIR="${WG_ROOT}/active"
 
 ensure_wireguard_kernel() {
   local kernel_raw kernel_version compare_result
@@ -60,48 +63,45 @@ normalize_wireguard_profile() {
   chmod 0600 "${cfg}" || true
 }
 
-update_vps_wireguard_rules() {
-  shopt -s nullglob
-  local configs=("/etc/wireguard/"*.conf)
-  shopt -u nullglob
-  if ((${#configs[@]} == 0)); then
-    log_warn "No WireGuard configuration files detected when updating SSH-preserving rules."
-    return
-  fi
-  for cfg in "${configs[@]}"; do
-    normalize_wireguard_profile "${cfg}"
-  done
-  log_info "Ensured SSH-preserving PostUp/PreDown rules exist in /etc/wireguard profiles for VPS use."
-}
-
-write_wireguard_profile_inventory() {
-  local user_home list_file
+copy_wireguard_profiles() {
+  local user_home list_file default_profile=""
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
   if [[ -z "${user_home}" ]]; then
-    log_warn "Unable to determine home directory for ${NEW_USER}; skipping wireguard profile list."
+    log_warn "Unable to determine home directory for ${NEW_USER}; skipping wireguard profile export."
     return
   fi
-  list_file="${user_home}/${WG_PROFILE_LIST}"
+  list_file="${user_home}/wireguard-profiles.txt"
+
+  install -d -m 0755 "${WG_SOURCE_DIR}" "${WG_POOL_DIR}" "${WG_ACTIVE_DIR}"
   : > "${list_file}"
 
   shopt -s nullglob
   local configs=("/etc/wireguard/"*.conf)
   shopt -u nullglob
   if ((${#configs[@]} == 0)); then
-    log_warn "No WireGuard configuration files detected in /etc/wireguard after mullvad-wg run."
+    log_warn "No WireGuard configuration files detected in /etc/wireguard."
     return
   fi
 
   for cfg in "${configs[@]}"; do
     local base
     base="$(basename "${cfg}")"
+    cp -f "${cfg}" "${WG_SOURCE_DIR}/${base}"
+    cp -f "${WG_SOURCE_DIR}/${base}" "${WG_POOL_DIR}/${base}"
+    normalize_wireguard_profile "${WG_POOL_DIR}/${base}"
     printf '%s\n' "${base%.conf}" >> "${list_file}"
+    [[ -z "${default_profile}" ]] && default_profile="${base}"
   done
+
+  if [[ -n "${default_profile}" ]]; then
+    cp -f "${WG_POOL_DIR}/${default_profile}" "${WG_ACTIVE_DIR}/wg0.conf"
+    chmod 0600 "${WG_ACTIVE_DIR}/wg0.conf" || true
+  fi
 
   sort -u -o "${list_file}" "${list_file}"
   chown "${NEW_USER}:${NEW_USER}" "${list_file}" || true
   chmod 0644 "${list_file}" || true
-  log_info "Recorded WireGuard profiles in ${list_file}."
+  log_info "Staged WireGuard profiles under ${WG_ROOT} (originals preserved in ${WG_SOURCE_DIR})."
 }
 
 run_mullvad_wg_script_once() {
@@ -128,18 +128,46 @@ configure_mullvad_wireguard() {
   pacman_install_packages openresolv wireguard-tools
   ensure_wireguard_kernel
   run_mullvad_wg_script_once || true
-  update_vps_wireguard_rules
-  write_wireguard_profile_inventory
-  log_info "WireGuard setup complete for the VPS host. Docker VPN configs are generated and rotated inside the dedicated container."
+  copy_wireguard_profiles
+  log_info "WireGuard setup complete. Connect with 'sudo wg-quick up <config>' then verify via 'curl https://am.i.mullvad.net/json | jq'."
+}
+
+configure_protonvpn_wireguard() {
+  pacman_install_packages openresolv wireguard-tools
+  install -d -m 0700 /etc/wireguard
+  ensure_wireguard_kernel
+  copy_wireguard_profiles
+  cat >/dev/tty <<'EOF'
+ProtonVPN support is configured for manual WireGuard profiles.
+
+1. Download a WireGuard config from your Proton account portal.
+2. Copy the .conf file into /etc/wireguard/ with a short name.
+3. Re-run `./abb-setup.sh vpn` so ABB can stage the profile into /opt/wg-configs.
+4. Connect with `sudo wg-quick up <profile>`.
+EOF
+}
+
+run_task_vpn() {
+  ensure_user_context
+  ensure_package_manager_ready
+  if [[ "${USE_VPN}" != "true" ]]; then
+    log_info "VPN setup skipped because USE_VPN=${USE_VPN}."
+    return 0
+  fi
+
+  case "${VPN_PROVIDER}" in
+    mullvad)
+      configure_mullvad_wireguard
+      ;;
+    protonvpn)
+      configure_protonvpn_wireguard
+      ;;
+    *)
+      log_warn "Unknown VPN provider '${VPN_PROVIDER}'."
+      ;;
+  esac
 }
 
 run_task_mullvad() {
-  load_previous_answers
-  if [[ "${ENABLE_MULLVAD}" != "yes" ]]; then
-    log_info "Skipping Mullvad WireGuard task (preference: ${ENABLE_MULLVAD:-no})."
-    return
-  fi
-  ensure_user_context
-  ensure_package_manager_ready
-  configure_mullvad_wireguard
+  run_task_vpn
 }

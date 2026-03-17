@@ -21,6 +21,8 @@ source "${MODULE_DIR}/security.sh"
 source "${MODULE_DIR}/languages.sh"
 # shellcheck source=modules/utilities.sh
 source "${MODULE_DIR}/utilities.sh"
+# shellcheck source=modules/network_access.sh
+source "${MODULE_DIR}/network_access.sh"
 # shellcheck source=modules/wordlists.sh
 source "${MODULE_DIR}/wordlists.sh"
 # shellcheck source=modules/tools.sh
@@ -29,8 +31,6 @@ source "${MODULE_DIR}/tools.sh"
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
 source "${MODULE_DIR}/verify.sh"
-# shellcheck source=modules/docker_tools.sh
-source "${MODULE_DIR}/docker_tools.sh"
 # shellcheck source=modules/mullvad.sh
 source "${MODULE_DIR}/mullvad.sh"
 
@@ -42,10 +42,13 @@ NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
-FEROX_INSTALL_METHOD="${FEROX_INSTALL_METHOD:-}"
-TRUFFLEHOG_INSTALL="${TRUFFLEHOG_INSTALL:-}"
+NETWORK_ACCESS_MODE="${NETWORK_ACCESS_MODE:-}"
+SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-}"
+USE_VPN="${USE_VPN:-false}"
+VPN_PROVIDER="${VPN_PROVIDER:-}"
+INSTALL_TOOLS="${INSTALL_TOOLS:-}"
+INSTALL_WORDLISTS="${INSTALL_WORDLISTS:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
-ENABLE_MULLVAD="${ENABLE_MULLVAD:-}"
 
 usage() {
   cat <<'EOF'
@@ -53,24 +56,21 @@ Usage: abb-setup.sh [task]
 
 Tasks:
   prompts     Collect answers for the managed user, editor preference, and optional hardening flags.
-  accounts    Create the managed user, copy SSH keys, enable sudo, and optionally retire the admin account.
+  accounts    Create the managed user, enable sudo, and optionally retire the admin account.
   package-manager Install and record the preferred AUR helper before continuing with provisioning.
-  security    Apply pacman updates, optional sysctl/iptables hardening, and install AIDE/rkhunter.
+  security    Apply pacman updates, resolver hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
-  wordlists   Clone or refresh curated wordlists (SecLists, cent, Auto_Wordlists, Assetnote, permutations/resolvers, rockyou, etc.).
+  network-access Configure SSH access keys, fail2ban/firewalld SSH exposure, and optional Tailscale access.
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
-  mullvad     Configure Mullvad WireGuard profiles and SSH-preserving rules.
-  docker-tools Install Docker-based utilities (ReconFTW, Asnlookup, dnsvalidator, feroxbuster, trufflehog) when Docker is the chosen engine (skipped if Docker was unavailable earlier).
+  vpn         Configure the selected VPN provider and WireGuard profile staging.
+  mullvad     Backward-compatible alias for the vpn task.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
 Each task reads cached answers from /var/lib/vps-setup/answers.env and will prompt for missing data.
-
-Flags:
-  --sync-scripts   Copy scripts/ into /opt/abb-scripts and install them under /usr/local/bin, then continue with the requested task (or exit if no task provided).
 EOF
 }
 
@@ -88,58 +88,19 @@ run_task_all() {
   run_task_accounts
   run_task_package_manager
   run_task_languages
-  run_task_security
   run_task_utilities
-  run_task_wordlists
-  run_task_mullvad
+  run_task_network_access
+  run_task_security
+  run_task_vpn
   run_task_tools
   run_task_dotfiles
   run_task_verify
-  if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
-    log_warn "Skipping docker-tools task because Docker is unavailable."
-  else
-    run_task_docker_tools
-  fi
 }
 
 main() {
   require_root
   ensure_log_targets
-
-  local sync_scripts="false"
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --sync-scripts)
-        sync_scripts="true"
-        shift
-        ;;
-      --help|-h)
-        usage
-        return 0
-        ;;
-      *)
-        break
-        ;;
-    esac
-  done
-
-  local task=""
-  if [[ $# -gt 0 ]]; then
-    task="$1"
-    shift || true
-  fi
-
-  if [[ "${sync_scripts}" == "true" ]]; then
-    sync_repo_scripts
-  fi
-
-  if [[ -z "${task}" ]]; then
-    if [[ "${sync_scripts}" == "true" ]]; then
-      log_info "Script sync completed. No task requested."
-      return 0
-    fi
-    task="all"
-  fi
+  local task="${1:-all}"
 
   case "${task}" in
     help|-h|--help)
@@ -170,17 +131,17 @@ main() {
       log_info "Running utilities task"
       run_task_utilities
       ;;
-    mullvad)
-      log_info "Running Mullvad WireGuard task"
-      run_task_mullvad
+    network-access)
+      log_info "Running network access task"
+      run_task_network_access
+      ;;
+    vpn|mullvad)
+      log_info "Running VPN task"
+      run_task_vpn
       ;;
     tools)
       log_info "Running tools task"
       run_task_tools
-      ;;
-    wordlists)
-      log_info "Running wordlists task"
-      run_task_wordlists
       ;;
     dotfiles)
       log_info "Running dotfiles task"
@@ -190,14 +151,6 @@ main() {
     log_info "Running verification task"
     run_task_verify
     ;;
-  docker-tools)
-    if [[ "${SKIP_DOCKER_TASKS}" == "true" ]]; then
-      log_warn "docker-tools task skipped because Docker was not ready. Reboot and rerun 'abb-setup.sh docker-tools'."
-    else
-      log_info "Running docker tools task"
-      run_task_docker_tools
-    fi
-      ;;
     all)
       log_info "Running full provisioning workflow"
       run_task_all
@@ -210,7 +163,7 @@ main() {
   esac
 
   log_info "Task '${task}' completed."
-  if [[ "${task}" == "all" || "${task}" == "docker-tools" ]]; then
+  if [[ "${task}" == "all" ]]; then
     show_next_steps
   fi
 }

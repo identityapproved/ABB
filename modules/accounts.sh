@@ -68,37 +68,6 @@ enable_wheel_sudoers() {
   rm -f "${tmp_file}"
 }
 
-copy_authorized_keys_from_admin() {
-  local admin_home="" target_home=""
-  if [[ "${NEW_USER}" == "admin" ]]; then
-    return
-  fi
-  if ! id -u admin >/dev/null 2>&1; then
-    log_warn "admin account not present; skipping authorized_keys copy."
-    return
-  fi
-  admin_home="$(getent passwd admin | cut -d: -f6)"
-  target_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
-  if [[ -z "${admin_home}" || -z "${target_home}" ]]; then
-    log_warn "Unable to determine home directories for key migration."
-    return
-  fi
-  if [[ ! -f "${admin_home}/.ssh/authorized_keys" ]]; then
-    log_warn "No authorized_keys found for admin; skipping key copy."
-    return
-  fi
-  install -d -m 0700 "${target_home}/.ssh"
-  if [[ -f "${target_home}/.ssh/authorized_keys" ]]; then
-    log_info "authorized_keys already exists for ${NEW_USER}; leaving as-is."
-  else
-    cp "${admin_home}/.ssh/authorized_keys" "${target_home}/.ssh/authorized_keys"
-    log_info "Copied admin authorized_keys to ${NEW_USER}."
-  fi
-  chown -R "${NEW_USER}:${NEW_USER}" "${target_home}/.ssh"
-  chmod 0700 "${target_home}/.ssh"
-  chmod 0600 "${target_home}/.ssh/authorized_keys"
-}
-
 sync_repo_to_user_home() {
   local user_home dest
   user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
@@ -141,7 +110,6 @@ ensure_primary_user() {
   create_managed_user
   ensure_wheel_group
   enable_wheel_sudoers
-  copy_authorized_keys_from_admin
   sync_repo_to_user_home
 }
 

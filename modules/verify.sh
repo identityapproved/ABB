@@ -4,7 +4,7 @@ final_verification() {
   log_info "Verification summary:"
 
   if command_exists pacman; then
-    if ! pacman -Q tree tealdeer ripgrep fd zsh fzf bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
+    if ! pacman -Q tree tealdeer ripgrep fd zsh bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
       log_warn "One or more core packages are missing. Review pacman output above."
     fi
   fi
@@ -24,22 +24,21 @@ final_verification() {
   fi
 
   command_exists masscan >/dev/null 2>&1 || log_warn "masscan not detected. Re-run 'abb-setup.sh tools' to install it via pacman."
-  command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Install it manually via 'yay -S amass', run 'sudo ./scripts/blackarch-enable.sh' followed by 'pacman -S amass', or use the Docker compose helper under /opt/abb-docker."
   if run_as_user "command -v feroxbuster" >/dev/null 2>&1; then
     run_as_user "feroxbuster --version" >/dev/null 2>&1 || true
   else
-    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' and select the preferred installation method."
+    log_warn "feroxbuster not detected. Re-run 'abb-setup.sh tools' to install it."
   fi
 
-  if [[ "${TRUFFLEHOG_INSTALL}" == "yes" ]]; then
-    if ! command_exists trufflehog; then
-      log_warn "trufflehog CLI not detected despite installation request."
+  command_exists trufflehog >/dev/null 2>&1 || log_warn "trufflehog CLI not detected. Re-run 'abb-setup.sh tools' to install it."
+
+  command_exists amass >/dev/null 2>&1 || log_warn "amass binary not detected. Re-run 'abb-setup.sh tools' or install via pacman."
+
+  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
+    command_exists tailscale >/dev/null 2>&1 || log_warn "tailscale not detected despite tailscale-ssh mode."
+    if systemd_available && ! systemctl is-active --quiet tailscaled.service; then
+      log_warn "tailscaled service is not active."
     fi
-  fi
-
-  if [[ "${CONTAINER_ENGINE}" == "docker" ]]; then
-    command_exists feroxbuster-docker >/dev/null 2>&1 || log_warn "feroxbuster Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
-    command_exists trufflehog-docker >/dev/null 2>&1 || log_warn "trufflehog Docker wrapper not detected. Re-run 'abb-setup.sh docker-tools'."
   fi
 
   case "${NODE_MANAGER}" in

@@ -1,5 +1,46 @@
 # shellcheck shell=bash
 
+prompt_pick_option() {
+  local prompt="$1"
+  local default_value="$2"
+  shift 2
+  local options=("$@")
+  local choice=""
+  local option_list=""
+
+  option_list="$(IFS=/; printf '%s' "${options[*]}")"
+  read -rp "${prompt}${option_list}${default_value:+ [${default_value}]}: " choice </dev/tty || return 1
+  choice="$(echo "${choice}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  if [[ -z "${choice}" ]]; then
+    choice="${default_value}"
+  fi
+  printf '%s\n' "${choice}"
+}
+
+prompt_yes_no() {
+  local prompt="$1"
+  local default_value="$2"
+  local choice=""
+
+  while true; do
+    choice="$(prompt_pick_option "${prompt}" "${default_value}" yes no)" || {
+      log_error "Unable to read yes/no choice."
+      exit 1
+    }
+    case "${choice,,}" in
+      yes|y)
+        printf 'true\n'
+        return 0
+        ;;
+      no|n)
+        printf 'false\n'
+        return 0
+        ;;
+    esac
+    echo "Please answer yes or no." >/dev/tty
+  done
+}
+
 prompt_for_user() {
   if [[ -n "${NEW_USER}" ]]; then
     log_info "Using existing user selection: ${NEW_USER}"
@@ -43,7 +84,7 @@ prompt_for_editor_choice() {
     return
   fi
   while true; do
-    read -rp "Configure which editor (vim/neovim/both): " choice </dev/tty || { log_error "Unable to read editor choice."; exit 1; }
+    choice="$(prompt_pick_option "Configure which editor: " "" vim neovim both)" || { log_error "Unable to read editor choice."; exit 1; }
     case "${choice,,}" in
       vim)
         EDITOR_CHOICE="vim"
@@ -66,27 +107,11 @@ prompt_for_editor_choice() {
 }
 
 prompt_for_hardening() {
-  local choice=""
   if [[ "${NEEDS_PENTEST_HARDENING}" == "true" || "${NEEDS_PENTEST_HARDENING}" == "false" ]]; then
     log_info "Pentest hardening flag: ${NEEDS_PENTEST_HARDENING}"
     return
   fi
-  while true; do
-    read -rp "Apply optional pentest VPN/sysctl hardening? (yes/no): " choice </dev/tty || { log_error "Unable to read hardening choice."; exit 1; }
-    case "${choice,,}" in
-      yes|y)
-        NEEDS_PENTEST_HARDENING="true"
-        break
-        ;;
-      no|n)
-        NEEDS_PENTEST_HARDENING="false"
-        break
-        ;;
-      *)
-        echo "Please answer yes or no." >/dev/tty
-        ;;
-    esac
-  done
+  NEEDS_PENTEST_HARDENING="$(prompt_yes_no "Apply optional pentest VPN/sysctl hardening? " "no")"
   log_info "Pentest hardening: ${NEEDS_PENTEST_HARDENING}"
 }
 
@@ -97,7 +122,7 @@ prompt_for_node_manager() {
     return
   fi
   while true; do
-    read -rp "Select Node version manager (nvm/fnm): " choice </dev/tty || { log_error "Unable to read Node manager choice."; exit 1; }
+    choice="$(prompt_pick_option "Select Node version manager: " "" nvm fnm)" || { log_error "Unable to read Node manager choice."; exit 1; }
     case "${choice,,}" in
       nvm|fnm)
         NODE_MANAGER="${choice,,}"
@@ -118,7 +143,7 @@ prompt_for_container_engine() {
     return
   fi
   while true; do
-    read -rp "Install which container engine (docker/podman/none): " choice </dev/tty || { log_error "Unable to read container engine choice."; exit 1; }
+    choice="$(prompt_pick_option "Install which container engine: " "" docker podman none)" || { log_error "Unable to read container engine choice."; exit 1; }
     case "${choice,,}" in
       docker|podman)
         CONTAINER_ENGINE="${choice,,}"
@@ -136,82 +161,98 @@ prompt_for_container_engine() {
   log_info "Container engine selection: ${CONTAINER_ENGINE}"
 }
 
-prompt_for_ferox_method() {
+prompt_for_network_access_mode() {
   local choice=""
-  if [[ -n "${FEROX_INSTALL_METHOD}" ]]; then
-    log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
+  if [[ -n "${NETWORK_ACCESS_MODE}" ]]; then
+    log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
     return
   fi
   while true; do
-    read -rp "Install feroxbuster via cargo or AUR helper? (cargo/aur) [cargo]: " choice </dev/tty || { log_error "Unable to read feroxbuster install choice."; exit 1; }
-    choice="${choice,,}"
-    if [[ -z "${choice}" || "${choice}" == "cargo" ]]; then
-      FEROX_INSTALL_METHOD="cargo"
-      break
-    fi
-    case "${choice}" in
-      aur)
-        FEROX_INSTALL_METHOD="aur"
+    choice="$(prompt_pick_option "Use which remote access mode: " "plain-ssh" plain-ssh tailscale-ssh)" || { log_error "Unable to read network access mode."; exit 1; }
+    case "${choice,,}" in
+      plain-ssh|tailscale-ssh)
+        NETWORK_ACCESS_MODE="${choice,,}"
         break
         ;;
       *)
-        echo "Please answer cargo or aur." >/dev/tty
+        echo "Please answer plain-ssh or tailscale-ssh." >/dev/tty
         ;;
     esac
   done
-  log_info "Feroxbuster installation method: ${FEROX_INSTALL_METHOD}"
+  log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
 }
 
-prompt_for_trufflehog_install() {
+prompt_for_ssh_key_source() {
   local choice=""
-  if [[ -n "${TRUFFLEHOG_INSTALL}" ]]; then
-    log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
+  if [[ -n "${SSH_KEY_SOURCE}" ]]; then
+    log_info "SSH key source: ${SSH_KEY_SOURCE}"
     return
   fi
   while true; do
-    read -rp "Install trufflehog via official install script? (yes/no) [yes]: " choice </dev/tty || { log_error "Unable to read trufflehog preference."; exit 1; }
-    choice="${choice,,}"
-    if [[ -z "${choice}" || "${choice}" == "yes" || "${choice}" == "y" ]]; then
-      TRUFFLEHOG_INSTALL="yes"
-      break
-    fi
-    case "${choice}" in
-      no|n)
-        TRUFFLEHOG_INSTALL="no"
+    choice="$(prompt_pick_option "Seed SSH access using: " "current-access" current-access admin paste skip)" || { log_error "Unable to read SSH key source."; exit 1; }
+    case "${choice,,}" in
+      current-access|admin|paste|skip)
+        SSH_KEY_SOURCE="${choice,,}"
         break
         ;;
       *)
-        echo "Please answer yes or no." >/dev/tty
+        echo "Please answer current-access, admin, paste, or skip." >/dev/tty
         ;;
     esac
   done
-  log_info "Trufflehog installation preference: ${TRUFFLEHOG_INSTALL}"
+  log_info "SSH key source: ${SSH_KEY_SOURCE}"
 }
 
-prompt_for_mullvad_usage() {
+prompt_for_vpn_usage() {
+  if [[ "${USE_VPN}" == "true" || "${USE_VPN}" == "false" ]]; then
+    log_info "VPN enabled: ${USE_VPN}"
+    return
+  fi
+  USE_VPN="$(prompt_yes_no "Configure a VPN now? " "no")"
+  log_info "VPN enabled: ${USE_VPN}"
+}
+
+prompt_for_vpn_provider() {
   local choice=""
-  if [[ -n "${ENABLE_MULLVAD}" ]]; then
-    log_info "Mullvad configuration preference: ${ENABLE_MULLVAD}"
+  if [[ "${USE_VPN}" != "true" ]]; then
+    VPN_PROVIDER=""
+    return
+  fi
+  if [[ -n "${VPN_PROVIDER}" ]]; then
+    log_info "VPN provider: ${VPN_PROVIDER}"
     return
   fi
   while true; do
-    read -rp "Configure Mullvad WireGuard profiles on this host? (yes/no) [no]: " choice </dev/tty || { log_error "Unable to read Mullvad preference."; exit 1; }
-    choice="${choice,,}"
-    if [[ -z "${choice}" || "${choice}" == "no" || "${choice}" == "n" ]]; then
-      ENABLE_MULLVAD="no"
-      break
-    fi
-    case "${choice}" in
-      yes|y)
-        ENABLE_MULLVAD="yes"
+    choice="$(prompt_pick_option "Choose VPN provider: " "mullvad" mullvad protonvpn)" || { log_error "Unable to read VPN provider."; exit 1; }
+    case "${choice,,}" in
+      mullvad|protonvpn)
+        VPN_PROVIDER="${choice,,}"
         break
         ;;
       *)
-        echo "Please answer yes or no." >/dev/tty
+        echo "Please answer mullvad or protonvpn." >/dev/tty
         ;;
     esac
   done
-  log_info "Mullvad configuration preference: ${ENABLE_MULLVAD}"
+  log_info "VPN provider: ${VPN_PROVIDER}"
+}
+
+prompt_for_tools_install() {
+  if [[ "${INSTALL_TOOLS}" == "true" || "${INSTALL_TOOLS}" == "false" ]]; then
+    log_info "Tools installation enabled: ${INSTALL_TOOLS}"
+    return
+  fi
+  INSTALL_TOOLS="$(prompt_yes_no "Install the tools module now? " "no")"
+  log_info "Tools installation enabled: ${INSTALL_TOOLS}"
+}
+
+prompt_for_wordlists_install() {
+  if [[ "${INSTALL_WORDLISTS}" == "true" || "${INSTALL_WORDLISTS}" == "false" ]]; then
+    log_info "Wordlist installation enabled: ${INSTALL_WORDLISTS}"
+    return
+  fi
+  INSTALL_WORDLISTS="$(prompt_yes_no "Install/sync wordlists now? " "no")"
+  log_info "Wordlist installation enabled: ${INSTALL_WORDLISTS}"
 }
 
 collect_prompt_answers() {
@@ -220,9 +261,12 @@ collect_prompt_answers() {
   prompt_for_hardening
   prompt_for_node_manager
   prompt_for_container_engine
-  prompt_for_ferox_method
-  prompt_for_trufflehog_install
-  prompt_for_mullvad_usage
+  prompt_for_network_access_mode
+  prompt_for_ssh_key_source
+  prompt_for_vpn_usage
+  prompt_for_vpn_provider
+  prompt_for_tools_install
+  prompt_for_wordlists_install
   record_prompt_answers
 }
 

@@ -72,6 +72,7 @@ GO_TOOLS=(
 )
 
 RECON_PACKAGES=(
+  amass
 )
 
 AUR_RECON_PACKAGES=(
@@ -84,6 +85,7 @@ declare -A GIT_TOOLS=(
   [lazyrecon]='https://github.com/nahamsec/lazyrecon.git'
   [massdns]='https://github.com/blechschmidt/massdns.git'
   [masscan]='https://github.com/robertdavidgraham/masscan.git'
+  [SecLists]='https://github.com/danielmiessler/SecLists.git'
   [JSParser]='https://github.com/nahamsec/JSParser.git'
 )
 
@@ -205,11 +207,6 @@ install_git_python_tools() {
   for tool in "${!GIT_TOOLS[@]}"; do
     repo="${GIT_TOOLS[$tool]}"
     dest="${TOOL_BASE_DIR}/${tool}"
-    if [[ "${tool}" == "SecLists" ]]; then
-      if wordlists_require_root; then
-        dest="${WORDLIST_ROOT}/seclists"
-      fi
-    fi
     if ensure_git_repo "${repo}" "${dest}"; then
       chown -R root:wheel "${dest}" || true
       chmod -R 0755 "${dest}" || true
@@ -234,6 +231,13 @@ install_git_python_tools() {
           else
             log_warn "Failed to compile masscan."
           fi
+          ;;
+        SecLists)
+          if [[ -f "${dest}/Discovery/DNS/dns-Jhaddix.txt" ]]; then
+            head -n -14 "${dest}/Discovery/DNS/dns-Jhaddix.txt" > "${dest}/Discovery/DNS/clean-jhaddix-dns.txt"
+          fi
+          append_installed_tool "SecLists"
+          wordlists_register_seclists "${dest}"
           ;;
         JSParser)
           if ensure_jsparser_env; then
@@ -403,6 +407,10 @@ write_tool_overview() {
 
 run_task_tools() {
   ensure_user_context
+  if [[ "${INSTALL_TOOLS}" != "true" ]]; then
+    log_info "Skipping tools task because INSTALL_TOOLS=${INSTALL_TOOLS:-unset}."
+    return 0
+  fi
   ensure_package_manager_ready
   install_system_recon_packages
   install_aur_recon_packages
@@ -412,6 +420,11 @@ run_task_tools() {
   install_projectdiscovery_tools
   install_go_tools
   install_git_python_tools
+  if [[ "${INSTALL_WORDLISTS}" == "true" ]]; then
+    wordlists_refresh_static_assets
+  else
+    log_info "Skipping wordlist sync because INSTALL_WORDLISTS=${INSTALL_WORDLISTS:-unset}."
+  fi
   install_dnscEwl
   install_jshawk_release
   write_tool_overview
@@ -438,29 +451,15 @@ install_aur_recon_packages() {
 }
 
 install_feroxbuster() {
-  local method="${FEROX_INSTALL_METHOD:-cargo}"
   local user_home default_cfg cfg_dir
 
-  case "${method}" in
-    aur)
-      if [[ -z "${PACKAGE_MANAGER}" ]]; then
-        log_warn "Feroxbuster AUR installation requested but no helper configured."
-      elif aur_helper_install "feroxbuster"; then
-        log_info "Installed feroxbuster via ${PACKAGE_MANAGER}."
-      elif ! pacman -Qi feroxbuster >/dev/null 2>&1; then
-        log_warn "Failed to install feroxbuster via ${PACKAGE_MANAGER}."
-      fi
-      ;;
-    cargo|*)
-      if ! run_as_user "command -v cargo >/dev/null 2>&1"; then
-        log_warn "Cargo not available for ${NEW_USER}; skipping feroxbuster cargo install."
-      elif run_as_user "cargo install --locked --force feroxbuster"; then
-        log_info "Installed feroxbuster via cargo."
-      else
-        log_warn "Failed to install feroxbuster via cargo."
-      fi
-      ;;
-  esac
+  if ! run_as_user "command -v cargo >/dev/null 2>&1"; then
+    log_warn "Cargo not available for ${NEW_USER}; skipping feroxbuster installation."
+  elif run_as_user "cargo install --locked --force feroxbuster"; then
+    log_info "Installed feroxbuster via cargo."
+  else
+    log_warn "Failed to install feroxbuster via cargo."
+  fi
 
   if run_as_user "command -v feroxbuster >/dev/null 2>&1"; then
     append_installed_tool "feroxbuster"
@@ -490,22 +489,9 @@ EOF
 }
 
 install_trufflehog() {
-  if [[ "${TRUFFLEHOG_INSTALL}" != "yes" ]]; then
-    log_info "Trufflehog installation skipped by operator preference."
-    return
-  fi
   if command_exists trufflehog; then
     append_installed_tool "trufflehog"
     return
-  fi
-
-  if [[ -n "${PACKAGE_MANAGER}" ]] && command_exists "${PACKAGE_MANAGER}"; then
-    if aur_helper_install "trufflehog"; then
-      append_installed_tool "trufflehog"
-      log_info "Installed trufflehog via ${PACKAGE_MANAGER}."
-      return
-    fi
-    log_warn "Failed to install trufflehog via ${PACKAGE_MANAGER}; falling back to alternate methods."
   fi
 
   if run_trufflehog_install_script; then
@@ -514,11 +500,17 @@ install_trufflehog() {
     return
   fi
 
-  if install_trufflehog_from_source; then
-    append_installed_tool "trufflehog"
-    log_info "Installed trufflehog from source."
-    return
-  fi
+  prompt_trufflehog_source_build
+  case $? in
+    0)
+      append_installed_tool "trufflehog"
+      log_info "Installed trufflehog from source."
+      return
+      ;;
+    1)
+      return
+      ;;
+  esac
 
   notify_trufflehog_docker_fallback
 }
@@ -567,9 +559,31 @@ EOF
   return 1
 }
 
+prompt_trufflehog_source_build() {
+  local answer=""
+  while true; do
+    read -rp "Trufflehog install script failed. Build from source now? (y/n): " answer </dev/tty || { answer="n"; }
+    case "${answer,,}" in
+      y|yes)
+        if install_trufflehog_from_source; then
+          return 0
+        fi
+        return 2
+        ;;
+      n|no)
+        notify_trufflehog_docker_fallback
+        return 1
+        ;;
+      *)
+        echo "Please answer y or n." >/dev/tty
+        ;;
+    esac
+  done
+}
+
 notify_trufflehog_docker_fallback() {
   if [[ "${CONTAINER_ENGINE}" == "docker" ]] && command_exists docker && [[ "${SKIP_DOCKER_TASKS}" != "true" ]]; then
-    log_info "Trufflehog binary not installed; use 'trufflehog-docker' after running the docker-tools task."
+    log_info "Trufflehog binary not installed; use the compose stack from your external container repository."
   else
     log_warn "Trufflehog is unavailable. Review https://github.com/trufflesecurity/trufflehog for manual installation instructions."
   fi

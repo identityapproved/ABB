@@ -13,13 +13,7 @@ alias ...='cd ../../'
 alias ....='cd ../../../'
 alias .....='cd ../../../../'
 
-alias fman="compgen -c | fzf --height 40% --layout reverse --border --no-preview |  xargs man"
-alias ftldr="compgen -c | fzf --height 40% --layout reverse --border --no-preview |  xargs tldr"
-
-alias fcd="cd ~ && cd \$(fzf | sed 's/\/[^\/]*$//')"
-
 alias v='nvim' # default Neovim config
-alias fv="nvim \$(fzf)"
 alias em="emacsclient -c -a 'emacs'"
 alias dmt="doom run -nw"
 
@@ -42,19 +36,20 @@ alias jctl="journalctl -p 3 -xb"
 # Recent installed packages
 alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
 
-# WireGuard profile picker
+# WireGuard helper
 wgup() {
   local list="$HOME/wireguard-profiles.txt"
   if [[ ! -r "${list}" ]]; then
     echo "WireGuard profile list not found at ${list}" >&2
     return 1
   fi
-  if ! command -v fzf >/dev/null 2>&1; then
-    echo "fzf is required for wgup; install it first." >&2
+  local profile
+  profile=$(grep -v '^[[:space:]]*$' "${list}" | head -n1) || return 1
+  if [[ -z "${profile}" ]]; then
+    echo "No WireGuard profiles are available in ${list}" >&2
     return 1
   fi
-  local profile
-  profile=$(grep -v '^[[:space:]]*$' "${list}" | fzf --prompt="Select WireGuard profile> " --height=40%) || return 1
+  echo "Using WireGuard profile: ${profile}"
   sudo wg-quick up "${profile}"
 }
 
