@@ -9,6 +9,19 @@ declare -A ZSH_PLUGIN_REPOS=(
   [zsh-autosuggestions]='https://github.com/zsh-users/zsh-autosuggestions.git'
 )
 
+sync_neovim_overlay() {
+  local user_home="$1"
+  local overlay_dir="${REPO_ROOT}/dots/nvim"
+  local target_dir="${user_home}/.config/nvim"
+
+  [[ -d "${overlay_dir}" ]] || return
+  [[ -d "${target_dir}" ]] || return
+
+  run_as_user "$(printf 'mkdir -p %q' "${target_dir}/lua/plugins")"
+  cp -a "${overlay_dir}/." "${target_dir}/"
+  chown -R "${NEW_USER}:${NEW_USER}" "${target_dir}/lua"
+}
+
 install_custom_zsh_plugins() {
   local user_home="$1"
   local zsh_custom="${user_home}/.oh-my-zsh/custom"
@@ -103,6 +116,7 @@ configure_shells_and_editors() {
     else
       run_as_user "git -C ~/.config/nvim pull --ff-only" || log_warn "Unable to update LazyVim starter."
     fi
+    sync_neovim_overlay "${user_home}"
     run_as_user "nvim --headless '+Lazy! sync' +qa" || log_warn "Neovim plugin sync did not complete cleanly."
   fi
 

@@ -146,7 +146,7 @@ sudo pacman -Syu --noconfirm
 - Update plugin installer to match the curated plugin list (cd-ls, alias-tips, zsh-vi-mode, zsh-history-substring-search, zsh-syntax-highlighting, zsh-autosuggestions, zsh-aur-install).
 - Editors:
   - `vim`: copy `dots/vim/.vimrc`.
-  - `neovim`: clone LazyVim starter with `git clone https://github.com/LazyVim/starter ~/.config/nvim` and run `nvim --headless '+Lazy! sync' +qa`.
+  - `neovim`: clone LazyVim starter with `git clone https://github.com/LazyVim/starter ~/.config/nvim`, overlay ABB-managed plugin files from `dots/nvim/`, and run `nvim --headless '+Lazy! sync' +qa`.
 - Copy the tmux config to `~/.config/tmux/tmux.conf` and bootstrap TPM if missing.
 
 ## 12. README
