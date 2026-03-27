@@ -1,6 +1,6 @@
 # ABB - Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `ai-tools`, `dotfiles`, `verify`, and `all`.
 
 ## Related AGENTS Files
 

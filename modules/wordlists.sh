@@ -1,169 +1,211 @@
 # shellcheck shell=bash
 
-WORDLIST_ROOT=""
+WORDLISTS_HOME=""
+WORDLISTS_OWNER=""
+WORDLISTS_READY=0
+WORDLISTS_AUTO_CHOICE=""
+WORDLISTS_ASSETNOTE_CHOICE=""
 
-wordlists_require_root() {
-  if [[ -n "${WORDLIST_ROOT}" ]]; then
-    return 0
-  fi
-  local user_home
-  user_home="$(getent passwd "${NEW_USER}" | cut -d: -f6)"
-  if [[ -z "${user_home}" ]]; then
-    log_warn "Unable to determine home directory for ${NEW_USER}; skipping wordlist bootstrap."
-    return 1
-  fi
-  WORDLIST_ROOT="${user_home}/wordlists"
-  if ! run_as_user "$(printf 'mkdir -p %q %q' "${WORDLIST_ROOT}" "${WORDLIST_ROOT}/custom")"; then
-    log_warn "Failed to create wordlist directories under ${WORDLIST_ROOT}."
-    WORDLIST_ROOT=""
-    return 1
-  fi
-  return 0
-}
-
-wordlists_symlink_repo() {
-  local source="$1" link_name="$2"
-  if [[ ! -d "${source}" ]]; then
-    log_warn "Wordlist source ${source} not found; skipping ${link_name} symlink."
-    return 1
-  fi
-  if ! wordlists_require_root; then
-    return 1
-  fi
-  if ! run_as_user "$(printf 'ln -snf %q %q' "${source}" "${WORDLIST_ROOT}/${link_name}")"; then
-    log_warn "Failed to link ${link_name} wordlist directory."
-    return 1
-  fi
-  return 0
-}
-
-wordlists_register_seclists() {
-  local repo_path="$1"
-  wordlists_symlink_repo "${repo_path}" "seclists" || true
-}
-
-wordlists_fetch_cent_repo() {
-  if ! wordlists_require_root; then
+wordlists_detect_home() {
+  if [[ -n "${WORDLISTS_HOME}" ]]; then
     return
   fi
-  local repo="https://github.com/xm1k3/cent.git"
-  local dest="${TOOL_BASE_DIR}/cent"
-  if ensure_git_repo "${repo}" "${dest}"; then
-    chown -R root:wheel "${dest}" || true
-    chmod -R 0755 "${dest}" || true
-    if wordlists_symlink_repo "${dest}" "cent"; then
-      append_installed_tool "wordlist-cent"
-    fi
-  else
-    log_warn "Unable to clone cent wordlist repository."
+  if [[ -n "${WORDLISTS_HOME_OVERRIDE:-}" ]]; then
+    WORDLISTS_HOME="${WORDLISTS_HOME_OVERRIDE}"
+    WORDLISTS_OWNER=""
+    return
   fi
+  local candidate="" home=""
+  if [[ -n "${NEW_USER:-}" ]]; then
+    candidate="${NEW_USER}"
+  elif [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    candidate="${SUDO_USER}"
+  fi
+  if [[ -n "${candidate}" ]]; then
+    home="$(getent passwd "${candidate}" | cut -d: -f6)"
+    WORDLISTS_OWNER="${candidate}"
+  fi
+  if [[ -z "${home}" ]]; then
+    home="${HOME:-/root}"
+    WORDLISTS_OWNER=""
+  fi
+  WORDLISTS_HOME="${home}"
+}
+
+wordlists_chown() {
+  local path="$1"
+  if [[ -n "${WORDLISTS_OWNER}" ]]; then
+    chown -R "${WORDLISTS_OWNER}:${WORDLISTS_OWNER}" "${path}" 2>/dev/null || true
+  fi
+}
+
+wordlists_require_root() {
+  if ((WORDLISTS_READY)); then
+    return 0
+  fi
+  wordlists_detect_home
+  local root_path="${WORDLISTS_HOME}/wordlists"
+  install -d -m 0755 "${root_path}" "${root_path}/custom"
+  wordlists_chown "${root_path}"
+  WORDLISTS_ROOT="${root_path}"
+  WORDLISTS_READY=1
+  return 0
 }
 
 wordlists_download_asset() {
-  local url="$1" dest="$2" label="$3" tool_name="$4"
-  if ! wordlists_require_root; then
-    return
-  fi
-  if run_as_user "$(printf 'test -f %q' "${dest}")"; then
+  local url="$1" dest="$2" label="$3" tool_name="$4" tmp
+  wordlists_require_root || return
+  if [[ -f "${dest}" ]]; then
     log_info "${label} already present at ${dest}."
     return
   fi
-  if run_as_user "$(printf 'curl -fsSL %q -o %q' "${url}" "${dest}")"; then
+  tmp="$(mktemp)" || { log_warn "Unable to allocate temporary file for ${label}."; return; }
+  if curl -fsSL "${url}" -o "${tmp}"; then
+    install -D -m 0644 "${tmp}" "${dest}"
+    wordlists_chown "${dest}"
     append_installed_tool "${tool_name}"
     log_info "Fetched ${label}."
   else
     log_warn "Failed to download ${label}."
   fi
+  rm -f "${tmp}"
 }
 
 wordlists_fetch_permutations() {
-  local target
-  if ! wordlists_require_root; then
-    return
-  fi
-  target="${WORDLIST_ROOT}/permutations.txt"
   wordlists_download_asset \
     "https://gist.github.com/six2dez/ffc2b14d283e8f8eff6ac83e20a3c4b4/raw" \
-    "${target}" \
+    "${WORDLISTS_ROOT}/permutations.txt" \
     "permutations wordlist" \
     "wordlist-permutations"
 }
 
 wordlists_fetch_resolvers() {
-  local target
-  if ! wordlists_require_root; then
-    return
-  fi
-  target="${WORDLIST_ROOT}/resolvers.txt"
   wordlists_download_asset \
     "https://raw.githubusercontent.com/trickest/resolvers/master/resolvers.txt" \
-    "${target}" \
+    "${WORDLISTS_ROOT}/resolvers.txt" \
     "Trickest resolvers list" \
     "wordlist-resolvers"
 }
 
-wordlists_refresh_static_assets() {
-  wordlists_fetch_cent_repo
-  wordlists_fetch_permutations
-  wordlists_fetch_resolvers
-  wordlists_fetch_rockyou
-  wordlists_fetch_auto_wordlists
-  wordlists_fetch_assetnote
-}
-
-wordlists_refresh_static_assets() {
-  wordlists_fetch_cent_repo
-  wordlists_fetch_permutations
-  wordlists_fetch_resolvers
-  wordlists_fetch_rockyou
-  wordlists_fetch_auto_wordlists
-  wordlists_fetch_assetnote
-}
-
 wordlists_fetch_rockyou() {
-  local target
-  if ! wordlists_require_root; then
-    return
+  wordlists_download_asset \
+    "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" \
+    "${WORDLISTS_ROOT}/rockyou.txt" \
+    "rockyou wordlist" \
+    "wordlist-rockyou"
+}
+
+wordlists_fetch_cent_repo() {
+  wordlists_require_root || return
+  local repo="https://github.com/xm1k3/cent.git"
+  local dest="${WORDLISTS_ROOT}/cent"
+  if ensure_git_repo "${repo}" "${dest}"; then
+    wordlists_chown "${dest}"
+    append_installed_tool "wordlist-cent"
+  else
+    log_warn "Unable to clone cent wordlist repository."
   fi
-  target="${WORDLIST_ROOT}/rockyou.txt"
-  wordlists_download_asset     "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt"     "${target}"     "rockyou wordlist"     "wordlist-rockyou"
+}
+
+wordlists_fetch_seclists_repo() {
+  wordlists_require_root || return
+  local repo="https://github.com/danielmiessler/SecLists.git"
+  local dest="${WORDLISTS_ROOT}/SecLists"
+  if ensure_git_repo "${repo}" "${dest}"; then
+    if [[ -f "${dest}/Discovery/DNS/dns-Jhaddix.txt" ]]; then
+      head -n -14 "${dest}/Discovery/DNS/dns-Jhaddix.txt" > "${dest}/Discovery/DNS/clean-jhaddix-dns.txt"
+    fi
+    wordlists_chown "${dest}"
+    append_installed_tool "SecLists"
+  else
+    log_warn "Unable to clone SecLists repository."
+  fi
 }
 
 wordlists_fetch_auto_wordlists() {
-  if ! wordlists_require_root; then
+  if [[ "${WORDLISTS_AUTO_CHOICE}" != "yes" ]]; then
+    log_info "Skipping Auto_Wordlists clone (preference: ${WORDLISTS_AUTO_CHOICE:-no})."
     return
   fi
+  wordlists_require_root || return
   local repo="https://github.com/carlospolop/Auto_Wordlists.git"
-  local dest="${TOOL_BASE_DIR}/Auto_Wordlists"
+  local dest="${WORDLISTS_ROOT}/Auto_Wordlists"
   if ensure_git_repo "${repo}" "${dest}"; then
-    chown -R root:wheel "${dest}" || true
-    chmod -R 0755 "${dest}" || true
-    if wordlists_symlink_repo "${dest}" "auto-wordlists"; then
-      append_installed_tool "wordlist-auto-wordlists"
-    fi
+    wordlists_chown "${dest}"
+    append_installed_tool "wordlist-auto-wordlists"
   else
     log_warn "Unable to clone Auto_Wordlists repository."
   fi
 }
 
 wordlists_fetch_assetnote() {
-  if ! wordlists_require_root; then
+  if [[ "${WORDLISTS_ASSETNOTE_CHOICE}" != "yes" ]]; then
+    log_info "Skipping Assetnote wordlist mirror (preference: ${WORDLISTS_ASSETNOTE_CHOICE:-no})."
     return
   fi
+  wordlists_require_root || return
   if ! command_exists wget; then
     log_warn "wget not available; skipping Assetnote wordlist sync."
     return
   fi
   local base_url="https://wordlists-cdn.assetnote.io/data/"
-  local dest="${TOOL_BASE_DIR}/assetnote-wordlists"
+  local dest="${WORDLISTS_ROOT}/assetnote"
   mkdir -p "${dest}"
   if wget -r --no-parent -R "index.html*" -e robots=off "${base_url}" -nH -P "${dest}" >/dev/null 2>&1; then
-    chown -R root:wheel "${dest}" || true
-    chmod -R 0755 "${dest}" || true
-    if wordlists_symlink_repo "${dest}/data" "assetnote"; then
-      append_installed_tool "wordlist-assetnote"
-    fi
+    wordlists_chown "${dest}"
+    append_installed_tool "wordlist-assetnote"
   else
     log_warn "Failed to mirror Assetnote wordlists. Check network access and rerun later."
   fi
+}
+
+wordlists_prompt_preferences() {
+  local answer=""
+  if [[ -z "${WORDLISTS_AUTO_CHOICE}" ]]; then
+    while true; do
+      read -rp "Clone the Auto_Wordlists repository (large download)? (yes/no) [no]: " answer </dev/tty || { WORDLISTS_AUTO_CHOICE="no"; break; }
+      answer="${answer,,}"
+      if [[ -z "${answer}" || "${answer}" == "no" || "${answer}" == "n" ]]; then
+        WORDLISTS_AUTO_CHOICE="no"
+        break
+      fi
+      if [[ "${answer}" == "yes" || "${answer}" == "y" ]]; then
+        WORDLISTS_AUTO_CHOICE="yes"
+        break
+      fi
+      echo "Please answer yes or no." >/dev/tty
+    done
+  fi
+
+  if [[ -z "${WORDLISTS_ASSETNOTE_CHOICE}" ]]; then
+    while true; do
+      read -rp "Mirror the Assetnote wordlists (very large download)? (yes/no) [no]: " answer </dev/tty || { WORDLISTS_ASSETNOTE_CHOICE="no"; break; }
+      answer="${answer,,}"
+      if [[ -z "${answer}" || "${answer}" == "no" || "${answer}" == "n" ]]; then
+        WORDLISTS_ASSETNOTE_CHOICE="no"
+        break
+      fi
+      if [[ "${answer}" == "yes" || "${answer}" == "y" ]]; then
+        WORDLISTS_ASSETNOTE_CHOICE="yes"
+        break
+      fi
+      echo "Please answer yes or no." >/dev/tty
+    done
+  fi
+}
+
+wordlists_refresh_static_assets() {
+  wordlists_require_root || return
+  wordlists_fetch_seclists_repo
+  wordlists_fetch_cent_repo
+  wordlists_fetch_permutations
+  wordlists_fetch_resolvers
+  wordlists_fetch_rockyou
+  wordlists_fetch_auto_wordlists
+  wordlists_fetch_assetnote
+}
+
+run_task_wordlists() {
+  wordlists_prompt_preferences
+  wordlists_refresh_static_assets
 }

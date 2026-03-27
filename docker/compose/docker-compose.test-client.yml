@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  vpn-tester:
+    image: curlimages/curl:8.10.1
+    container_name: vpn-tester
+    environment:
+      - TEST_INTERVAL=${TEST_INTERVAL:-60}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        : "$${TEST_INTERVAL:=60}"
+        while true; do
+          timestamp="$$(date -Iseconds 2>/dev/null || date -u)"
+          echo "[$$timestamp] Current egress IP: $$(curl -s https://ifconfig.io)"
+          sleep "$${TEST_INTERVAL}"
+        done

@@ -15,46 +15,6 @@ declare -A HELPER_AUR_FALLBACKS=(
   [yay]=yay-git
 )
 
-normalize_pacman_testing_includes() {
-  local conf="/etc/pacman.conf"
-  local tmp changed=0
-  tmp="$(mktemp)"
-  awk '
-    BEGIN { commented_section = 0; changed = 0 }
-    {
-      line = $0
-      if ($0 ~ /^[[:space:]]*#[[:space:]]*\[[^]]+\]/) {
-        commented_section = 1
-      } else if ($0 ~ /^[[:space:]]*\[[^]]+\]/) {
-        commented_section = 0
-      }
-      if (commented_section && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
-        sub(/Include =/, "#Include =")
-        changed = 1
-      }
-      print
-    }
-    END { if (changed) exit 2 }
-  ' "${conf}" > "${tmp}"
-  case $? in
-    0)
-      rm -f "${tmp}"
-      ;;
-    2)
-      if ! cmp -s "${conf}" "${tmp}"; then
-        cat "${tmp}" > "${conf}"
-        log_info "Commented inactive testing mirror Includes in /etc/pacman.conf."
-      fi
-      rm -f "${tmp}"
-      ;;
-    *)
-      rm -f "${tmp}"
-      log_warn "Unable to normalise testing repository Includes in /etc/pacman.conf."
-      ;;
-  esac
-  return 0
-}
-
 helper_supported() {
   local helper="$1" candidate
   for candidate in "${SUPPORTED_HELPERS[@]}"; do
@@ -63,127 +23,6 @@ helper_supported() {
     fi
   done
   return 1
-}
-
-enable_multilib_repo() {
-  local conf="/etc/pacman.conf"
-  if awk '
-      BEGIN { found = 0 }
-      /^\[multilib\]/ {
-        if (getline > 0 && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
-          found = 1
-        }
-      }
-      END { exit(found ? 0 : 1) }
-    ' "${conf}" >/dev/null 2>&1; then
-    log_info "multilib repository already enabled."
-    return 1
-  fi
-
-  if perl -0pi -e 's/^\s*#\s*\[multilib\]\s*\n\s*#\s*Include = \/etc\/pacman\.d\/mirrorlist/[multilib]\nInclude = \/etc\/pacman\.d\/mirrorlist/m' "${conf}"; then
-    if awk '
-        BEGIN { found = 0 }
-        /^\[multilib\]/ {
-          if (getline > 0 && $0 ~ /^[[:space:]]*Include = \/etc\/pacman\.d\/mirrorlist/) {
-            found = 1
-          }
-        }
-        END { exit(found ? 0 : 1) }
-      ' "${conf}" >/dev/null 2>&1; then
-      log_info "Enabled multilib repository in /etc/pacman.conf."
-      return 0
-    fi
-  fi
-
-  log_warn "Unable to enable multilib repository automatically. Review /etc/pacman.conf."
-  return 2
-}
-
-install_blackarch_repo() {
-  local need_refresh=0
-  local conf_file="/etc/pacman.d/blackarch.conf"
-  local result
-
-  local conf_needs_update=0
-  if [[ ! -f "${conf_file}" ]]; then
-    conf_needs_update=1
-  elif ! grep -Fxq 'Server = https://www.blackarch.org/blackarch/$repo/os/$arch' "${conf_file}"; then
-    conf_needs_update=1
-  elif grep -Fxq 'Include = /etc/pacman.d/mirrorlist' "${conf_file}"; then
-    conf_needs_update=1
-  fi
-
-  if ((conf_needs_update)); then
-    cat <<'EOF' > "${conf_file}"
-[blackarch]
-Server = https://www.blackarch.org/blackarch/$repo/os/$arch
-EOF
-    chmod 0644 "${conf_file}"
-    log_info "Configured BlackArch repository definition in ${conf_file}."
-    need_refresh=1
-  else
-    log_info "BlackArch repository definition already present at ${conf_file}."
-  fi
-
-  if ! grep -Eq '^\s*Include\s*=\s*/etc/pacman\.d/blackarch\.conf' /etc/pacman.conf; then
-    printf '\n# Include BlackArch repository configuration\nInclude = /etc/pacman.d/blackarch.conf\n' >> /etc/pacman.conf
-    log_info "Linked ${conf_file} from /etc/pacman.conf."
-    need_refresh=1
-  else
-    log_info "/etc/pacman.conf already references ${conf_file}."
-  fi
-
-  local need_keyring=0
-  local siglevel_added=0
-  if ! pacman -Qi blackarch-keyring >/dev/null 2>&1; then
-    need_keyring=1
-  fi
-
-  if ((need_keyring)); then
-    if ! grep -Eq '^\s*SigLevel\s*=\s*Never\s*$' "${conf_file}"; then
-      sed -i '1a SigLevel = Never' "${conf_file}"
-      siglevel_added=1
-      log_warn "Temporarily disabling signature checks for BlackArch to install blackarch-keyring."
-    else
-      log_warn "Using existing SigLevel = Never override to install blackarch-keyring."
-    fi
-
-    if pacman --noconfirm -Sy blackarch-keyring; then
-      log_info "Installed blackarch-keyring package."
-      need_refresh=1
-    else
-      if ((siglevel_added)); then
-        sed -i '/^\s*SigLevel\s*=\s*Never\s*$/d' "${conf_file}"
-        log_info "Restored BlackArch signature settings after failed keyring installation."
-      fi
-      log_error "Failed to install blackarch-keyring. Verify network connectivity and rerun."
-      exit 1
-    fi
-
-    sed -i '/^\s*SigLevel\s*=\s*Never\s*$/d' "${conf_file}"
-    log_info "Re-enabled signature verification for the BlackArch repository."
-  else
-    log_info "BlackArch keyring already trusted."
-  fi
-
-  enable_multilib_repo
-  result=$?
-  if [[ ${result} -eq 0 ]]; then
-    need_refresh=1
-  elif [[ ${result} -eq 2 ]]; then
-    log_warn "Proceeding without multilib automatically enabled."
-  fi
-
-  normalize_pacman_testing_includes
-
-  if ((need_refresh)); then
-    log_info "Refreshing package databases after BlackArch configuration."
-    if ! pacman --noconfirm -Syyu; then
-      log_warn "Pacman refresh failed after BlackArch setup; rerun 'pacman -Syyu' manually."
-    fi
-  fi
-
-  return 0
 }
 
 prompt_for_package_manager() {
@@ -312,6 +151,24 @@ ensure_package_manager_ready() {
   fi
 }
 
+refresh_pacman_mirrors() {
+  log_info "Installing reflector to refresh Arch mirror list."
+  pacman_install_packages reflector
+  if command_exists reflector; then
+    if reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist; then
+      log_info "Mirror list updated using reflector."
+    else
+      log_warn "Reflector failed to refresh mirrors."
+    fi
+  else
+    log_warn "Reflector binary unavailable after install attempt."
+  fi
+
+  if ! pacman --noconfirm -Syyu; then
+    log_warn "Pacman refresh after mirror update failed; rerun 'pacman -Syyu' manually."
+  fi
+}
+
 run_task_package_manager() {
   load_previous_answers
   if [[ -z "${NEW_USER}" ]]; then
@@ -319,8 +176,7 @@ run_task_package_manager() {
     exit 1
   fi
 
-  install_blackarch_repo
-  log_info "BlackArch repository prerequisites satisfied."
+  refresh_pacman_mirrors
   ensure_user_context
   log_info "Managed user context confirmed; proceeding to package manager selection."
   prompt_for_package_manager

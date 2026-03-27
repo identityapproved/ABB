@@ -9,6 +9,7 @@ SYSTEM_PACKAGES=(
   bat
   htop
   iftop
+  lsof
   tmux
   vim
   neovim
@@ -23,6 +24,7 @@ SYSTEM_PACKAGES=(
   jq
   wireguard-tools
   openresolv
+  openvpn
   rsync
   yazi
   lazygit
@@ -74,7 +76,7 @@ ensure_node_manager() {
 install_container_engine() {
   case "${CONTAINER_ENGINE}" in
     docker)
-      pacman_install_packages docker lazydocker
+      pacman_install_packages docker docker-compose lazydocker
       groupadd -f docker >/dev/null 2>&1 || true
       if getent group docker >/dev/null 2>&1; then
         if usermod -aG docker "${NEW_USER}" >/dev/null 2>&1; then
@@ -115,6 +117,7 @@ install_container_engine() {
         fi
       fi
       append_installed_tool "docker"
+      append_installed_tool "docker-compose"
       append_installed_tool "lazydocker"
       ;;
     podman)
