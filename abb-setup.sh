@@ -52,7 +52,6 @@ USE_VPN="${USE_VPN:-false}"
 VPN_PROVIDER="${VPN_PROVIDER:-}"
 USE_MONITORING="${USE_MONITORING:-false}"
 ENABLE_SYSTEM_MONITORING="${ENABLE_SYSTEM_MONITORING:-false}"
-ENABLE_NETWORK_MONITORING="${ENABLE_NETWORK_MONITORING:-false}"
 INSTALL_TOOLS="${INSTALL_TOOLS:-}"
 INSTALL_WORDLISTS="${INSTALL_WORDLISTS:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
@@ -75,7 +74,7 @@ Tasks:
   verify      Run post-install sanity checks for the managed user.
   vpn         Configure the selected VPN provider and WireGuard profile staging.
   mullvad     Backward-compatible alias for the vpn task.
-  monitoring  Install and configure optional system/network monitoring.
+  monitoring  Install and configure optional system monitoring.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 

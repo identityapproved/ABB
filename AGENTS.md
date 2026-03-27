@@ -27,7 +27,7 @@ Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ask whether VPN support should be configured at all. Default to `no`.
 - If VPN is enabled, ask which provider to use (`mullvad` or `protonvpn`).
 - Ask whether monitoring should be installed at all. Default to `no`.
-- If monitoring is enabled, ask separately whether to enable system monitoring (`auditd`) and network monitoring (Falco).
+- If monitoring is enabled, ask whether to enable system monitoring (`auditd` / `auditctl`).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -166,7 +166,4 @@ sudo pacman -Syu --noconfirm
 
 ## 14. Monitoring
 - Monitoring must be a dedicated final-stage module that runs after the other installation/configuration work.
-- Split monitoring into:
-  - system monitoring via `auditd/auditctl`
-  - network/runtime monitoring via Falco
-- Keep Arch package installation native where possible; Falco can use the configured AUR helper on Arch.
+- Keep monitoring focused on system auditing via `auditd/auditctl`.

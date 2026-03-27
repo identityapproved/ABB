@@ -41,15 +41,6 @@ final_verification() {
     fi
   fi
 
-  if [[ "${USE_MONITORING}" == "true" && "${ENABLE_NETWORK_MONITORING}" == "true" ]]; then
-    command_exists falco >/dev/null 2>&1 || log_warn "falco not detected despite network monitoring selection."
-    if systemd_available; then
-      systemctl is-active --quiet falco-modern-bpf.service >/dev/null 2>&1 || \
-      systemctl is-active --quiet falco.service >/dev/null 2>&1 || \
-      log_warn "Falco service is not active."
-    fi
-  fi
-
   if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
     command_exists tailscale >/dev/null 2>&1 || log_warn "tailscale not detected despite tailscale-ssh mode."
     if systemd_available && ! systemctl is-active --quiet tailscaled.service; then

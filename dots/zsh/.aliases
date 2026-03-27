@@ -44,9 +44,6 @@ alias audit-shadow='sudo ausearch -k shadow_file -i | bat -l log'
 alias audit-recent='sudo ausearch -ts recent -i | bat -l log'
 alias audit-json='sudo ausearch --format json -ts recent | jq | bat -l json'
 alias audit-load='sudo augenrules --load && sudo systemctl restart auditd'
-alias falco-status='sudo systemctl status falco-modern-bpf.service --no-pager || sudo systemctl status falco.service --no-pager'
-alias falco-log='sudo journalctl -u falco-modern-bpf.service -u falco.service -f -o cat'
-alias falco-rules='sudo nvim /etc/falco/rules.d/abb-network-rules.yaml'
 
 # WireGuard helper
 wgup() {

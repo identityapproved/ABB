@@ -259,19 +259,6 @@ prompt_for_system_monitoring() {
   log_info "System monitoring enabled: ${ENABLE_SYSTEM_MONITORING}"
 }
 
-prompt_for_network_monitoring() {
-  if [[ "${USE_MONITORING}" != "true" ]]; then
-    ENABLE_NETWORK_MONITORING="false"
-    return
-  fi
-  if [[ "${ENABLE_NETWORK_MONITORING}" == "true" || "${ENABLE_NETWORK_MONITORING}" == "false" ]]; then
-    log_info "Network monitoring enabled: ${ENABLE_NETWORK_MONITORING}"
-    return
-  fi
-  ENABLE_NETWORK_MONITORING="$(prompt_yes_no "Enable network/runtime monitoring with Falco? " "yes")"
-  log_info "Network monitoring enabled: ${ENABLE_NETWORK_MONITORING}"
-}
-
 prompt_for_tools_install() {
   if [[ "${INSTALL_TOOLS}" == "true" || "${INSTALL_TOOLS}" == "false" ]]; then
     log_info "Tools installation enabled: ${INSTALL_TOOLS}"
@@ -302,7 +289,6 @@ collect_prompt_answers() {
   prompt_for_vpn_provider
   prompt_for_monitoring_usage
   prompt_for_system_monitoring
-  prompt_for_network_monitoring
   prompt_for_tools_install
   prompt_for_wordlists_install
   record_prompt_answers
