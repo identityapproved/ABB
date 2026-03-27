@@ -27,6 +27,8 @@ source "${MODULE_DIR}/network_access.sh"
 source "${MODULE_DIR}/wordlists.sh"
 # shellcheck source=modules/tools.sh
 source "${MODULE_DIR}/tools.sh"
+# shellcheck source=modules/ai_tools.sh
+source "${MODULE_DIR}/ai_tools.sh"
 # shellcheck source=modules/dotfiles.sh
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
@@ -63,6 +65,7 @@ Tasks:
   utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
   network-access Configure SSH access keys, fail2ban/firewalld SSH exposure, and optional Tailscale access.
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
+  ai-tools    Install optional AI tooling for the managed user.
   dotfiles    Install Oh My Zsh, custom plugins, dotfiles, and editor configuration.
   verify      Run post-install sanity checks for the managed user.
   vpn         Configure the selected VPN provider and WireGuard profile staging.
@@ -142,6 +145,10 @@ main() {
     tools)
       log_info "Running tools task"
       run_task_tools
+      ;;
+    ai-tools)
+      log_info "Running AI tools task"
+      run_task_ai_tools
       ;;
     dotfiles)
       log_info "Running dotfiles task"
