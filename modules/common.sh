@@ -143,6 +143,9 @@ record_prompt_answers() {
     printf 'SSH_KEY_SOURCE=%q\n' "${SSH_KEY_SOURCE}"
     printf 'USE_VPN=%q\n' "${USE_VPN}"
     printf 'VPN_PROVIDER=%q\n' "${VPN_PROVIDER}"
+    printf 'USE_MONITORING=%q\n' "${USE_MONITORING}"
+    printf 'ENABLE_SYSTEM_MONITORING=%q\n' "${ENABLE_SYSTEM_MONITORING}"
+    printf 'ENABLE_NETWORK_MONITORING=%q\n' "${ENABLE_NETWORK_MONITORING}"
     printf 'INSTALL_TOOLS=%q\n' "${INSTALL_TOOLS}"
     printf 'INSTALL_WORDLISTS=%q\n' "${INSTALL_WORDLISTS}"
   } > "${ANSWERS_FILE}"
@@ -165,7 +168,7 @@ init_installed_tracker() {
 }
 
 ensure_user_context() {
-  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 network_access_missing=0 ssh_key_source_missing=0 vpn_usage_missing=0 vpn_provider_missing=0 tools_missing=0 wordlists_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 network_access_missing=0 ssh_key_source_missing=0 vpn_usage_missing=0 vpn_provider_missing=0 monitoring_usage_missing=0 system_monitoring_missing=0 network_monitoring_missing=0 tools_missing=0 wordlists_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
@@ -188,13 +191,22 @@ ensure_user_context() {
   if [[ "${USE_VPN}" == "true" && -z "${VPN_PROVIDER}" ]]; then
     vpn_provider_missing=1
   fi
+  if [[ "${USE_MONITORING}" != "true" && "${USE_MONITORING}" != "false" ]]; then
+    monitoring_usage_missing=1
+  fi
+  if [[ "${USE_MONITORING}" == "true" && "${ENABLE_SYSTEM_MONITORING}" != "true" && "${ENABLE_SYSTEM_MONITORING}" != "false" ]]; then
+    system_monitoring_missing=1
+  fi
+  if [[ "${USE_MONITORING}" == "true" && "${ENABLE_NETWORK_MONITORING}" != "true" && "${ENABLE_NETWORK_MONITORING}" != "false" ]]; then
+    network_monitoring_missing=1
+  fi
   if [[ "${INSTALL_TOOLS}" != "true" && "${INSTALL_TOOLS}" != "false" ]]; then
     tools_missing=1
   fi
   if [[ "${INSTALL_WORDLISTS}" != "true" && "${INSTALL_WORDLISTS}" != "false" ]]; then
     wordlists_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${network_access_missing} -eq 1 || ${ssh_key_source_missing} -eq 1 || ${vpn_usage_missing} -eq 1 || ${vpn_provider_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${network_access_missing} -eq 1 || ${ssh_key_source_missing} -eq 1 || ${vpn_usage_missing} -eq 1 || ${vpn_provider_missing} -eq 1 || ${monitoring_usage_missing} -eq 1 || ${system_monitoring_missing} -eq 1 || ${network_monitoring_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 

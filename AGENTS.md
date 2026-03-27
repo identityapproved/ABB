@@ -1,6 +1,6 @@
 # ABB - Arch Bugbounty Bootstrap Playbook
 
-Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `ai-tools`, `dotfiles`, `verify`, and `all`.
+Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leverage `pacman` for core packages, the selected AUR helper for community packages, and keep the automation modular: `abb-setup.sh` must accept `prompts`, `accounts`, `package-manager`, `security`, `languages`, `utilities`, `network-access`, `tools`, `ai-tools`, `dotfiles`, `monitoring`, `verify`, and `all`.
 
 ## Related AGENTS Files
 
@@ -26,6 +26,8 @@ Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Ask how ABB should seed `authorized_keys` for the managed user (`current-access`, `admin`, `paste`, or `skip`).
 - Ask whether VPN support should be configured at all. Default to `no`.
 - If VPN is enabled, ask which provider to use (`mullvad` or `protonvpn`).
+- Ask whether monitoring should be installed at all. Default to `no`.
+- If monitoring is enabled, ask separately whether to enable system monitoring (`auditd`) and network monitoring (Falco).
 - Persist answers to `/var/lib/vps-setup/answers.env` so re-runs stay idempotent.
 
 ## 2. Account Handling
@@ -161,3 +163,10 @@ sudo pacman -Syu --noconfirm
   - `pipx list` output.
   - Location of `installed-tools.txt` and `/var/log/vps-setup.log`.
 - Encourage a reboot after full provisioning.
+
+## 14. Monitoring
+- Monitoring must be a dedicated final-stage module that runs after the other installation/configuration work.
+- Split monitoring into:
+  - system monitoring via `auditd/auditctl`
+  - network/runtime monitoring via Falco
+- Keep Arch package installation native where possible; Falco can use the configured AUR helper on Arch.

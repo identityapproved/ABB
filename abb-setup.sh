@@ -29,6 +29,8 @@ source "${MODULE_DIR}/wordlists.sh"
 source "${MODULE_DIR}/tools.sh"
 # shellcheck source=modules/ai_tools.sh
 source "${MODULE_DIR}/ai_tools.sh"
+# shellcheck source=modules/monitoring.sh
+source "${MODULE_DIR}/monitoring.sh"
 # shellcheck source=modules/dotfiles.sh
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
@@ -48,6 +50,9 @@ NETWORK_ACCESS_MODE="${NETWORK_ACCESS_MODE:-}"
 SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-}"
 USE_VPN="${USE_VPN:-false}"
 VPN_PROVIDER="${VPN_PROVIDER:-}"
+USE_MONITORING="${USE_MONITORING:-false}"
+ENABLE_SYSTEM_MONITORING="${ENABLE_SYSTEM_MONITORING:-false}"
+ENABLE_NETWORK_MONITORING="${ENABLE_NETWORK_MONITORING:-false}"
 INSTALL_TOOLS="${INSTALL_TOOLS:-}"
 INSTALL_WORDLISTS="${INSTALL_WORDLISTS:-}"
 SKIP_DOCKER_TASKS="${SKIP_DOCKER_TASKS:-false}"
@@ -70,6 +75,7 @@ Tasks:
   verify      Run post-install sanity checks for the managed user.
   vpn         Configure the selected VPN provider and WireGuard profile staging.
   mullvad     Backward-compatible alias for the vpn task.
+  monitoring  Install and configure optional system/network monitoring.
   all         Run every task in the order above (default if no task provided).
   help        Display this message.
 
@@ -96,7 +102,9 @@ run_task_all() {
   run_task_security
   run_task_vpn
   run_task_tools
+  run_task_ai_tools
   run_task_dotfiles
+  run_task_monitoring
   run_task_verify
 }
 
@@ -149,6 +157,10 @@ main() {
     ai-tools)
       log_info "Running AI tools task"
       run_task_ai_tools
+      ;;
+    monitoring)
+      log_info "Running monitoring task"
+      run_task_monitoring
       ;;
     dotfiles)
       log_info "Running dotfiles task"
