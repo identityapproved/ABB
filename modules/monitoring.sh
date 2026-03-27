@@ -133,12 +133,31 @@ EOF
 }
 
 enable_falco_service() {
-  if enable_unit "falco-modern-bpf.service" "Falco modern BPF"; then
-    return 0
+  if systemd_available; then
+    if systemctl list-unit-files "falco-modern-bpf.service" >/dev/null 2>&1; then
+      if enable_unit "falco-modern-bpf.service" "Falco modern BPF"; then
+        sleep 2
+        if systemctl is-active --quiet falco-modern-bpf.service; then
+          log_info "Falco modern BPF service is active."
+          return 0
+        fi
+        log_warn "Falco modern BPF service failed after startup; falling back to falco.service."
+        systemctl disable --now falco-modern-bpf.service >/dev/null 2>&1 || true
+      fi
+    fi
+
+    if systemctl list-unit-files "falco.service" >/dev/null 2>&1; then
+      if enable_unit "falco.service" "Falco"; then
+        sleep 2
+        if systemctl is-active --quiet falco.service; then
+          log_info "Falco service is active."
+          return 0
+        fi
+        log_warn "Falco service failed after startup."
+      fi
+    fi
   fi
-  if enable_unit "falco.service" "Falco"; then
-    return 0
-  fi
+
   log_warn "Falco service unit could not be enabled automatically."
   return 1
 }
