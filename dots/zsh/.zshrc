@@ -49,6 +49,10 @@ if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
 fi
 source $HOME/.aliases
 
+# Keep vi keybindings enabled even if the plugin is unavailable or slow to load.
+bindkey -v
+export KEYTIMEOUT=1
+
 # User configuration
 
 # HIST_STAMPS="dd.mm.yyyy"
