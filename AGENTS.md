@@ -134,6 +134,7 @@ sudo pacman -Syu --noconfirm
 
 ### 10.5 Docker Assets
 - ABB only installs/configures the selected container engine (`docker`, `podman`, or none).
+- When Docker is selected, install `docker-compose`; when Podman is selected, install `podman-compose`.
 - Docker/container assets, compose files, images, and helper scripts live outside ABB in the operator's dedicated container repository.
 - ABB must not sync compose files, Dockerfiles, or wrapper scripts into `/opt` or any ABB-owned path.
 

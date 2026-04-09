@@ -121,9 +121,10 @@ install_container_engine() {
       append_installed_tool "lazydocker"
       ;;
     podman)
-      pacman_install_packages podman
+      pacman_install_packages podman podman-compose
       enable_unit "podman.socket" "Podman socket" || true
       append_installed_tool "podman"
+      append_installed_tool "podman-compose"
       ;;
     none)
       log_info "Container engine installation skipped."
