@@ -168,3 +168,14 @@ sudo pacman -Syu --noconfirm
 ## 14. Monitoring
 - Monitoring must be a dedicated final-stage module that runs after the other installation/configuration work.
 - Keep monitoring focused on system auditing via `auditd/auditctl`.
+- The rules file must open with `-D`, `-b 8192`, `-f 1`. The kernel keeps rules in load order and rejects duplicates with "Rule exists", so without the flush `augenrules --load` fails on every re-run and rules can never be reordered without a reboot.
+- `never` exclusions come before the `always` rules they override, because the kernel stops at the first match.
+- Exclude the container healthcheck chain by `exe`. An unfiltered `root_action` plus `cred_changes` pair generates roughly 290,000 records a day against a 5s healthcheck, which destroys the audit trail in about 36 hours under the 50MB x 10 rotation this module configures. The healthcheck interval itself belongs to the container repo, so exclusion is the only lever ABB has.
+- Pair every syscall rule `b64`/`b32`; multilib is enabled, so a b64-only rule never sees a 32-bit caller. `-w` watch rules need no pair, they match on path.
+- End the ruleset with `--loginuid-immutable` and then `-e 2`, in that order and last. `-e 2` must be the final line of the concatenated ruleset.
+- Because `-e 2` freezes the rules until reboot, the loader must detect `enabled 2` and ask for a reboot rather than reporting a load failure. Re-runs stay idempotent that way.
+
+## 15. AI Tools
+- Keep the `ai-tools` task to CLI agents installed for the managed user, not system-wide.
+- Install Node via pacman and the agent CLIs via npm under the user's own prefix (`NPM_CONFIG_PREFIX="$HOME/.local"`), never with a root npm.
+- Install `bubblewrap` alongside the runtime: the agent CLIs shell out to it to sandbox untrusted commands and silently run unsandboxed without it.

@@ -5,7 +5,9 @@ AI_NPM_PACKAGES=(
 )
 
 ensure_ai_runtime() {
-  pacman_install_packages nodejs npm
+  # bubblewrap is the sandbox the agent CLIs shell out to for untrusted
+  # commands; without it they fall back to running unsandboxed.
+  pacman_install_packages nodejs npm bubblewrap
 }
 
 install_npm_global_for_user() {

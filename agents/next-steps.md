@@ -13,6 +13,13 @@
 - Add a new `vpn` module that can manage Mullvad and/or Tailscale.
 - Install and initialize Tailscale using the official Tailscale script path (opt-in behavior).
 
+## Monitoring Hardening (2026-10-19)
+
+- Done in `modules/monitoring.sh`: `-D`/`-b 8192`/`-f 1` preamble, `never` exclusions for the container healthcheck chain, b64/b32 pairs for every syscall rule, `--loginuid-immutable` and `-e 2`, and `load_system_audit_rules` for the immutable re-run case.
+- Pending verification after the next reboot; see `agents/tasks/active.md`.
+- Still open: the aide database has never been re-initialised, so intrusion detection is installed and running but producing no usable signal.
+- Out of scope for ABB: the 5s container healthcheck that caused the audit flood. Raising it to 60s in the container repo would cut the volume twelvefold at the source and allow the `busybox`/`runc` exclusions to be dropped, restoring in-container exec visibility.
+
 ## Notification: Review Before Merge
 
 Do not forget to review these findings:
