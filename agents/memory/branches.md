@@ -3,8 +3,8 @@
 Current branch context:
 
 - main_branch: main
-- active_branch: main
-- last_checked: 2026-10-19
+- active_branch: fix/tmux-osc52-yank
+- last_checked: 2026-10-24
 
 ## Branch registry
 
@@ -19,6 +19,11 @@ Use this list to track branches and their intent/state.
   purpose: account/network/VPN hardening and prompt cleanup
   status: merged
   notes: merged into main at commit 0da5017 on 2026-03-17
+
+- branch: fix/tmux-osc52-yank
+  purpose: replace the nonexistent ojroques/tmux-yank plugin with native copy-mode-vi yank binds over OSC 52
+  status: active
+  notes: created 2026-10-24
 
 ## Branch workflow notes
 
