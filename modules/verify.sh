@@ -41,10 +41,27 @@ final_verification() {
     fi
   fi
 
-  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
-    command_exists tailscale >/dev/null 2>&1 || log_warn "tailscale not detected despite tailscale-ssh mode."
-    if systemd_available && ! systemctl is-active --quiet tailscaled.service; then
-      log_warn "tailscaled service is not active."
+  if tailscale_access_mode; then
+    if ! command_exists tailscale; then
+      log_warn "tailscale not detected despite ${NETWORK_ACCESS_MODE} mode."
+    else
+      if systemd_available && ! systemctl is-active --quiet tailscaled.service; then
+        log_warn "tailscaled service is not active."
+      fi
+      if [[ "$(wanted_tailscale_ssh)" == "true" ]]; then
+        tailscale_runssh_enabled || log_warn "Tailscale SSH is off despite tailscale-ssh mode."
+      else
+        tailscale_runssh_enabled && log_warn "Tailscale SSH is still on despite tailscale-sshd mode."
+      fi
+    fi
+  fi
+
+  if command_exists sshd; then
+    ABB_SSH_PORTS=("${SSH_PORT:-22}")
+    [[ "$(sshd_effective_ports | tr '\n' ' ')" == "${SSH_PORT:-22} " ]] || log_warn "sshd listens on $(sshd_effective_ports | tr '\n' ' '), expected ${SSH_PORT:-22}."
+    sshd_hardening_is_effective || log_warn "sshd hardening (key-only, no root, AllowUsers ${NEW_USER}, forwarding $(sshd_forwarding_value)) is not fully effective."
+    if tailscale_access_mode && [[ "${PUBLIC_SSH_LOCKDOWN}" == "true" ]]; then
+      tailscale_lockdown_already_applied || log_warn "Public SSH lockdown expected but SSH is still reachable outside tailscale0."
     fi
   fi
 

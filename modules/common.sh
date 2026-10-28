@@ -142,6 +142,10 @@ record_prompt_answers() {
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
     printf 'NETWORK_ACCESS_MODE=%q\n' "${NETWORK_ACCESS_MODE}"
     printf 'SSH_KEY_SOURCE=%q\n' "${SSH_KEY_SOURCE}"
+    printf 'PUBLIC_SSH_LOCKDOWN=%q\n' "${PUBLIC_SSH_LOCKDOWN}"
+    printf 'SSH_FORWARDING=%q\n' "${SSH_FORWARDING}"
+    printf 'SSH_PORT=%q\n' "${SSH_PORT}"
+    printf 'TAILSCALE_SSH_RISK_ACCEPTED=%q\n' "${TAILSCALE_SSH_RISK_ACCEPTED}"
     printf 'USE_VPN=%q\n' "${USE_VPN}"
     printf 'VPN_PROVIDER=%q\n' "${VPN_PROVIDER}"
     printf 'USE_MONITORING=%q\n' "${USE_MONITORING}"
@@ -179,7 +183,7 @@ ensure_user_context() {
   if [[ -z "${CONTAINER_ENGINE}" ]]; then
     container_engine_missing=1
   fi
-  if [[ -z "${NETWORK_ACCESS_MODE}" ]]; then
+  if network_access_answers_incomplete; then
     network_access_missing=1
   fi
   if [[ -z "${SSH_KEY_SOURCE}" ]]; then

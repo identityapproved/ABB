@@ -22,7 +22,7 @@ Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
 - Ask which Node version manager to deploy (`nvm` or `fnm`).
-- Ask whether access should remain plain SSH or move to Tailscale-backed SSH.
+- Ask for the access mode (`plain-ssh`, `tailscale-sshd`, `tailscale-ssh`), whether to close public SSH (tailscale modes), whether to allow SSH forwarding, and the SSH port.
 - Ask how ABB should seed `authorized_keys` for the managed user (`current-access`, `admin`, `paste`, or `skip`).
 - Ask whether VPN support should be configured at all. Default to `no`.
 - If VPN is enabled, ask which provider to use (`mullvad` or `protonvpn`).
@@ -81,8 +81,13 @@ sudo pacman -Syu --noconfirm
 
 ## 5. Network Access
 - Keep SSH access management in a dedicated `network-access` task.
-- Do **not** modify `sshd_config`; Contabo manages it.
-- Support either plain SSH or Tailscale-backed SSH, driven by a prompt saved in `answers.env`.
+- Do not edit the main `sshd_config` (Contabo manages it). ABB owns two drop-ins in `/etc/ssh/sshd_config.d/`: `40-abb-port.conf` (`Port`) and `50-abb-hardening.conf` (key-only, no root, `AllowUsers`, forwarding). The main-config block is only a fallback when drop-ins are not included.
+- Access mode is a prompt saved in `answers.env` (`NETWORK_ACCESS_MODE`):
+  - `plain-ssh`: public sshd.
+  - `tailscale-sshd` (default): tailnet transport, OpenSSH sshd authenticates, `tailscale set --ssh=false`.
+  - `tailscale-ssh`: Tailscale SSH (tailscaled authenticates). Warn about Tailworm (forwarding runs as root in tailscaled; public 25.10.2026, unfixed as of 1.104.x) and save `TAILSCALE_SSH_RISK_ACCEPTED=true` when kept.
+- Further saved answers: `PUBLIC_SSH_LOCKDOWN` (tailscale modes; `false` keeps public sshd open next to the tailnet), `SSH_FORWARDING` (default `false`: TCP, unix-socket, agent and X11 forwarding off), `SSH_PORT` (default `22`).
+- Never close the only working way in. Turning Tailscale SSH off arms `abb-ts-ssh-revert` (systemd-run, 10 min) and needs a confirmed OpenSSH session; from inside a Tailscale SSH session the switch is scheduled and confirmed on the next run. A port change keeps the old port open until a session on the new one is confirmed. fail2ban, firewalld and the VPN `sport` rules follow `SSH_PORT`.
 - Allow ABB to seed `authorized_keys` by copying from the current access user, copying from `admin`, or appending a pasted SSH public key.
 - If Tailscale is selected, install it via the official installer flow, bring up `tailscaled`, and pause for explicit operator confirmation before removing public SSH exposure.
 - Restrict SSH with firewall rules rather than `sshd_config`, allowing SSH on `tailscale0` while removing public SSH from the default zone only after the operator has validated a second session.

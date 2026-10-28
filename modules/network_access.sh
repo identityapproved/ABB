@@ -195,6 +195,31 @@ EOF
   log_info "Applied network/sysctl hardening profile."
 }
 
+
+readonly ABB_SSHD_PORT_FILE="${SSHD_DROPIN_DIR}/40-abb-port.conf"
+readonly ABB_TS_REVERT_UNIT="abb-ts-ssh-revert"
+readonly ABB_TS_SWITCH_UNIT="abb-ts-ssh-off"
+
+# Ports sshd must listen on this run: the chosen one, plus the current ones while a change is unconfirmed.
+ABB_SSH_PORTS=()
+ABB_SSH_PORT_CHANGE_PENDING="false"
+
+sshd_effective_ports() {
+  sshd -T 2>/dev/null | awk '$1 == "port" { print $2 }' | sort -un
+}
+
+join_by_comma() {
+  local IFS=,
+  printf '%s\n' "$*"
+}
+
+reload_sshd() {
+  if systemd_available; then
+    systemctl reload sshd.service >/dev/null 2>&1 || systemctl reload ssh.service >/dev/null 2>&1 || return 1
+  fi
+  return 0
+}
+
 configure_fail2ban_sshd() {
   if ! systemd_available; then
     log_warn "systemd not detected; skipping fail2ban sshd jail configuration."
@@ -203,25 +228,82 @@ configure_fail2ban_sshd() {
 
   local jail_dir="/etc/fail2ban/jail.d"
   local jail_file="${jail_dir}/sshd.conf"
+  local -a ports=("$@")
+  ((${#ports[@]})) || ports=("${SSH_PORT:-22}")
 
   mkdir -p "${jail_dir}"
-  cat > "${jail_file}" <<'EOF'
+  cat > "${jail_file}" <<EOF
 [sshd]
 enabled = true
-port = ssh
+port = $(join_by_comma "${ports[@]}")
 backend = systemd
 EOF
   chmod 0644 "${jail_file}"
-  log_info "Configured fail2ban sshd jail at ${jail_file}."
+  if systemctl is-active --quiet fail2ban.service; then
+    systemctl restart fail2ban.service >/dev/null 2>&1 || log_warn "Unable to restart fail2ban after updating ${jail_file}."
+  fi
+  log_info "Configured fail2ban sshd jail at ${jail_file} (ports ${ports[*]})."
 }
 
 ensure_network_access_prerequisites() {
   pacman_install_packages firewalld fail2ban curl
   enable_unit "firewalld.service" "firewalld" || true
-  configure_fail2ban_sshd
   enable_unit "fail2ban.service" "fail2ban" || true
   append_installed_tool "firewalld"
   append_installed_tool "fail2ban"
+}
+
+plan_ssh_ports() {
+  local desired="${SSH_PORT:-22}" port=""
+  local -a current=()
+
+  mapfile -t current < <(sshd_effective_ports)
+  ((${#current[@]} == 0)) && current=(22)
+
+  if [[ "${#current[@]}" -eq 1 && "${current[0]}" == "${desired}" ]]; then
+    ABB_SSH_PORTS=("${desired}")
+    ABB_SSH_PORT_CHANGE_PENDING="false"
+    return 0
+  fi
+
+  ABB_SSH_PORTS=("${desired}")
+  for port in "${current[@]}"; do
+    [[ "${port}" != "${desired}" ]] && ABB_SSH_PORTS+=("${port}")
+  done
+  ABB_SSH_PORT_CHANGE_PENDING="true"
+  log_info "SSH port change pending: sshd listens on ${current[*]}, target ${desired}. Both stay open until a session on ${desired} is confirmed."
+}
+
+write_sshd_port_dropin() {
+  local port=""
+
+  if ! command_exists sshd || ! sshd_supports_dropin_dir; then
+    log_warn "Unable to validate sshd configuration; leaving SSH port unchanged."
+    return 1
+  fi
+
+  install -d -m 0755 "${SSHD_DROPIN_DIR}"
+  {
+    echo "# Managed by ABB network-access (SSH_PORT)."
+    for port in "${ABB_SSH_PORTS[@]}"; do
+      echo "Port ${port}"
+    done
+  } > "${ABB_SSHD_PORT_FILE}"
+  chmod 0644 "${ABB_SSHD_PORT_FILE}"
+
+  if ! sshd -t; then
+    log_warn "sshd rejected ${ABB_SSHD_PORT_FILE}; removing it."
+    rm -f "${ABB_SSHD_PORT_FILE}"
+    return 1
+  fi
+  reload_sshd || { log_warn "Unable to reload sshd after writing ${ABB_SSHD_PORT_FILE}."; return 1; }
+
+  if [[ "$(sshd_effective_ports | sort -n | tr '\n' ' ')" != "$(printf '%s\n' "${ABB_SSH_PORTS[@]}" | sort -un | tr '\n' ' ')" ]]; then
+    log_warn "sshd listens on $(sshd_effective_ports | tr '\n' ' '), expected ${ABB_SSH_PORTS[*]}. An uncommented Port line in ${ABB_SSHD_CONFIG_FILE} adds to the drop-in; remove it."
+    return 1
+  fi
+  log_info "sshd ports: ${ABB_SSH_PORTS[*]}"
+  return 0
 }
 
 install_tailscale() {
@@ -252,27 +334,158 @@ tailscale_session_active() {
   tailscale ip -4 >/dev/null 2>&1
 }
 
-initialize_tailscale_session() {
-  if tailscale_session_active; then
-    log_info "Tailscale session already active. Re-applying with '--ssh' enabled."
-  else
-    log_info "Running 'tailscale up --ssh'. Follow the interactive login URL from the official Tailscale flow."
-  fi
+tailscale_runssh_enabled() {
+  tailscale debug prefs 2>/dev/null | grep -Eq '"RunSSH":[[:space:]]*true'
+}
 
-  if tailscale up --ssh; then
-    log_info "Tailscale session initialized with Tailscale SSH enabled."
+wanted_tailscale_ssh() {
+  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
+    printf 'true\n'
+  else
+    printf 'false\n'
+  fi
+}
+
+# A Tailscale SSH login has tailscaled as an ancestor instead of sshd.
+session_served_by_tailscaled() {
+  local pid="$$" comm=""
+
+  while [[ -n "${pid}" && "${pid}" -gt 1 ]]; do
+    comm="$(ps -o comm= -p "${pid}" 2>/dev/null | tr -d '[:space:]')"
+    [[ "${comm}" == "tailscaled" ]] && return 0
+    [[ "${comm}" == "sshd" || "${comm}" == sshd-* ]] && return 1
+    pid="$(ps -o ppid= -p "${pid}" 2>/dev/null | tr -d '[:space:]')"
+  done
+  return 1
+}
+
+tailscale_revert_armed() {
+  systemctl is-active --quiet "${ABB_TS_REVERT_UNIT}.timer" 2>/dev/null
+}
+
+disarm_tailscale_revert() {
+  systemctl stop "${ABB_TS_REVERT_UNIT}.timer" >/dev/null 2>&1 || true
+  systemctl reset-failed "${ABB_TS_REVERT_UNIT}.service" >/dev/null 2>&1 || true
+}
+
+confirm_openssh_over_tailnet() {
+  local tailscale_ip="" choice="" ts_bin=""
+
+  tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+  ts_bin="$(command -v tailscale)"
+  cat >/dev/tty <<EOF
+Tailscale SSH is off; sshd now answers on the tailnet. From a second terminal:
+  ssh -v -p ${SSH_PORT:-22} ${NEW_USER}@${tailscale_ip:-<tailscale-ip>} true
+It must show "remote software version OpenSSH_" and "Authenticated ... publickey".
+A key that Tailscale SSH never needed may have a passphrase you no longer know;
+check it first with: ssh-keygen -y -f <key> >/dev/null   (or ssh-add it).
+An automatic undo (${ABB_TS_REVERT_UNIT}) turns Tailscale SSH back on unless you confirm.
+EOF
+
+  choice="$(prompt_pick_option "Did the OpenSSH session work? " "no" yes no)" || choice="no"
+  if [[ "${choice}" == "yes" ]]; then
+    disarm_tailscale_revert
+    log_info "OpenSSH over the tailnet confirmed; automatic undo disarmed."
     return 0
   fi
 
-  log_warn "tailscale up --ssh did not complete successfully."
+  "${ts_bin}" set --ssh=true || log_warn "Unable to re-enable Tailscale SSH; the ${ABB_TS_REVERT_UNIT} timer still will."
+  disarm_tailscale_revert
+  log_warn "Tailscale SSH re-enabled. Fix sshd/key access, then rerun 'abb-setup.sh network-access'."
   return 1
+}
+
+# Tailworm: turning Tailscale SSH off moves logins to sshd; armed with a timed undo so a bad key cannot lock the box.
+switch_tailscale_ssh_off_safely() {
+  local ts_bin="" tailscale_ip=""
+
+  ts_bin="$(command -v tailscale)"
+  if ! systemd_available || ! command_exists systemd-run; then
+    log_warn "systemd-run unavailable; refusing to turn Tailscale SSH off without an automatic undo."
+    return 1
+  fi
+  if ! systemctl is-active --quiet sshd.service; then
+    log_warn "sshd is not running; leaving Tailscale SSH on."
+    return 1
+  fi
+  if ! managed_user_has_authorized_keys; then
+    log_warn "${NEW_USER} has no authorized_keys; leaving Tailscale SSH on."
+    return 1
+  fi
+
+  disarm_tailscale_revert
+  systemd-run --quiet --unit="${ABB_TS_REVERT_UNIT}" --on-active=10min "${ts_bin}" set --ssh=true || {
+    log_warn "Unable to arm the automatic undo; leaving Tailscale SSH on."
+    return 1
+  }
+
+  if session_served_by_tailscaled; then
+    systemctl stop "${ABB_TS_SWITCH_UNIT}.timer" >/dev/null 2>&1 || true
+    systemd-run --quiet --unit="${ABB_TS_SWITCH_UNIT}" --on-active=20s "${ts_bin}" set --ssh=false || {
+      disarm_tailscale_revert
+      log_warn "Unable to schedule the switch; leaving Tailscale SSH on."
+      return 1
+    }
+    tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+    cat >/dev/tty <<EOF
+This session runs over Tailscale SSH and will drop in about 20 seconds, when
+Tailscale SSH is turned off. Then reconnect through sshd:
+  ssh -v -p ${SSH_PORT:-22} ${NEW_USER}@${tailscale_ip:-<tailscale-ip>}
+and rerun 'sudo ./abb-setup.sh network-access' within 10 minutes to confirm.
+Without that, ${ABB_TS_REVERT_UNIT} turns Tailscale SSH back on.
+EOF
+    exit 0
+  fi
+
+  "${ts_bin}" set --ssh=false || {
+    disarm_tailscale_revert
+    log_warn "tailscale set --ssh=false failed."
+    return 1
+  }
+  confirm_openssh_over_tailnet
+}
+
+initialize_tailscale_session() {
+  local want=""
+  want="$(wanted_tailscale_ssh)"
+
+  if [[ "${want}" == "true" ]]; then
+    log_warn "${TAILWORM_NOTE}"
+  fi
+
+  if ! tailscale_session_active; then
+    log_info "Running 'tailscale up --ssh=${want}'. Follow the interactive login URL from the official Tailscale flow."
+    if tailscale up --ssh="${want}"; then
+      log_info "Tailscale session initialized (Tailscale SSH: ${want})."
+      return 0
+    fi
+    log_warn "tailscale up --ssh=${want} did not complete successfully."
+    return 1
+  fi
+
+  if [[ "${want}" == "true" ]]; then
+    tailscale_runssh_enabled || tailscale set --ssh=true || return 1
+    log_info "Tailscale session active with Tailscale SSH enabled."
+    return 0
+  fi
+
+  if tailscale_runssh_enabled; then
+    switch_tailscale_ssh_off_safely
+    return
+  fi
+  if tailscale_revert_armed; then
+    confirm_openssh_over_tailnet
+    return
+  fi
+  log_info "Tailscale session active; Tailscale SSH off, sshd serves the tailnet."
+  return 0
 }
 
 prompt_for_ssh_hardening_confirmation() {
   local choice=""
   cat >/dev/tty <<EOF
 Before ABB disables SSH password login and root SSH access, verify a second session works:
-  ssh ${NEW_USER}@<host-or-ip>
+  ssh -p ${SSH_PORT:-22} ${NEW_USER}@<host-or-ip>
 
 Return here only after that succeeds with your SSH key.
 EOF
@@ -308,10 +521,41 @@ sshd_effective_value() {
   sshd -T 2>/dev/null | awk -v key="${key}" '$1 == key { print $2; exit }'
 }
 
+sshd_forwarding_value() {
+  if [[ "${SSH_FORWARDING}" == "true" ]]; then
+    printf 'yes\n'
+  else
+    printf 'no\n'
+  fi
+}
+
+sshd_hardening_lines() {
+  local fwd=""
+  fwd="$(sshd_forwarding_value)"
+  cat <<EOF
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+AllowUsers ${NEW_USER}
+AllowTcpForwarding ${fwd}
+AllowStreamLocalForwarding ${fwd}
+AllowAgentForwarding ${fwd}
+X11Forwarding ${fwd}
+EOF
+}
+
 sshd_hardening_is_effective() {
+  local fwd=""
+  fwd="$(sshd_forwarding_value)"
   [[ "$(sshd_effective_value passwordauthentication)" == "no" ]] || return 1
   [[ "$(sshd_effective_value kbdinteractiveauthentication)" == "no" ]] || return 1
   [[ "$(sshd_effective_value permitrootlogin)" == "no" ]] || return 1
+  [[ "$(sshd_effective_value allowusers)" == "${NEW_USER}" ]] || return 1
+  [[ "$(sshd_effective_value allowtcpforwarding)" == "${fwd}" ]] || return 1
+  [[ "$(sshd_effective_value allowstreamlocalforwarding)" == "${fwd}" ]] || return 1
   return 0
 }
 
@@ -327,15 +571,10 @@ write_sshd_hardening_dropin() {
   fi
 
   install -d -m 0755 "${SSHD_DROPIN_DIR}"
-  cat > "${ABB_SSHD_HARDENING_FILE}" <<'EOF'
-# Managed by ABB after SSH key verification.
-PubkeyAuthentication yes
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-ChallengeResponseAuthentication no
-PermitRootLogin no
-PermitEmptyPasswords no
-EOF
+  {
+    echo "# Managed by ABB after SSH key verification."
+    sshd_hardening_lines
+  } > "${ABB_SSHD_HARDENING_FILE}"
   chmod 0644 "${ABB_SSHD_HARDENING_FILE}"
 
   if ! sshd -t; then
@@ -344,14 +583,9 @@ EOF
     return 1
   fi
 
-  if systemd_available; then
-    systemctl reload sshd.service >/dev/null 2>&1 || systemctl reload ssh.service >/dev/null 2>&1 || {
-      log_warn "Unable to reload sshd automatically."
-      return 1
-    }
-  fi
+  reload_sshd || { log_warn "Unable to reload sshd automatically."; return 1; }
 
-  log_info "Disabled SSH password authentication and root SSH login via ${ABB_SSHD_HARDENING_FILE}."
+  log_info "Applied SSH hardening via ${ABB_SSHD_HARDENING_FILE} (key-only, no root, AllowUsers ${NEW_USER}, forwarding $(sshd_forwarding_value))."
   return 0
 }
 
@@ -374,17 +608,12 @@ write_sshd_hardening_main_config() {
     skip != 1 { print }
   ' "${ABB_SSHD_CONFIG_FILE}" > "${tmp_file}"
 
-  cat >> "${tmp_file}" <<EOF
-
-${ABB_SSHD_BLOCK_BEGIN}
-PubkeyAuthentication yes
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-ChallengeResponseAuthentication no
-PermitRootLogin no
-PermitEmptyPasswords no
-${ABB_SSHD_BLOCK_END}
-EOF
+  {
+    echo
+    echo "${ABB_SSHD_BLOCK_BEGIN}"
+    sshd_hardening_lines
+    echo "${ABB_SSHD_BLOCK_END}"
+  } >> "${tmp_file}"
 
   if ! sshd -t -f "${tmp_file}"; then
     log_warn "sshd_config fallback validation failed."
@@ -396,12 +625,7 @@ EOF
   chmod 0600 "${ABB_SSHD_CONFIG_FILE}" || true
   rm -f "${tmp_file}"
 
-  if systemd_available; then
-    systemctl reload sshd.service >/dev/null 2>&1 || systemctl reload ssh.service >/dev/null 2>&1 || {
-      log_warn "Unable to reload sshd after main-config hardening fallback."
-      return 1
-    }
-  fi
+  reload_sshd || { log_warn "Unable to reload sshd after main-config hardening fallback."; return 1; }
 
   log_info "Applied SSH hardening fallback directly in ${ABB_SSHD_CONFIG_FILE}."
   return 0
@@ -450,7 +674,7 @@ show_tailscale_breakpoint() {
 Tailscale is configured.
 
 Before ABB closes public SSH, verify a second session works over Tailscale:
-  ssh ${NEW_USER}@${tailscale_ip:-<tailscale-ip>}
+  ssh -p ${SSH_PORT:-22} ${NEW_USER}@${tailscale_ip:-<tailscale-ip>}
 
 Return here only after that succeeds.
 EOF
@@ -469,7 +693,7 @@ EOF
       exit 0
       ;;
     no)
-      log_warn "Public SSH will remain enabled."
+      log_warn "Public SSH stays enabled for this run. Set PUBLIC_SSH_LOCKDOWN=false in ${ANSWERS_FILE} to keep it open permanently."
       return 1
       ;;
   esac
@@ -477,41 +701,36 @@ EOF
   return 1
 }
 
+ssh_reject_rule() {
+  printf 'rule family="ipv4" port port="%s" protocol="tcp" reject\n' "$1"
+}
+
+non_trusted_zones() {
+  firewall-cmd --permanent --get-zones 2>/dev/null | tr ' ' '\n' | grep -vx -e '' -e trusted
+}
+
 tailscale_lockdown_already_applied() {
-  local zone=""
+  local zone="" port=""
 
-  if ! command_exists firewall-cmd; then
-    return 1
-  fi
-
-  if ! firewall-cmd --permanent --zone=trusted --query-interface=tailscale0 >/dev/null 2>&1; then
-    return 1
-  fi
-  if ! firewall-cmd --permanent --zone=trusted --query-service=ssh >/dev/null 2>&1; then
-    return 1
-  fi
+  command_exists firewall-cmd || return 1
+  firewall-cmd --permanent --zone=trusted --query-interface=tailscale0 >/dev/null 2>&1 || return 1
 
   while IFS= read -r zone; do
-    [[ -z "${zone}" || "${zone}" == "trusted" ]] && continue
-    if firewall-cmd --permanent --zone="${zone}" --query-service=ssh >/dev/null 2>&1; then
-      return 1
-    fi
-    if firewall-cmd --permanent --zone="${zone}" --query-port=22/tcp >/dev/null 2>&1; then
-      return 1
-    fi
-    if ! firewall-cmd --permanent --zone="${zone}" --query-rich-rule='rule family="ipv4" port port="22" protocol="tcp" reject' >/dev/null 2>&1; then
-      return 1
-    fi
-  done < <(firewall-cmd --permanent --get-zones 2>/dev/null | tr ' ' '\n')
+    firewall-cmd --permanent --zone="${zone}" --query-service=ssh >/dev/null 2>&1 && return 1
+    for port in "${ABB_SSH_PORTS[@]}"; do
+      firewall-cmd --permanent --zone="${zone}" --query-port="${port}/tcp" >/dev/null 2>&1 && return 1
+      firewall-cmd --permanent --zone="${zone}" --query-rich-rule="$(ssh_reject_rule "${port}")" >/dev/null 2>&1 || return 1
+    done
+  done < <(non_trusted_zones)
 
   return 0
 }
 
 restrict_public_ssh_to_tailscale() {
-  local zone=""
+  local zone="" port=""
 
   if tailscale_lockdown_already_applied; then
-    log_info "Public SSH is already restricted to Tailscale."
+    log_info "Public SSH is already restricted to Tailscale (ports ${ABB_SSH_PORTS[*]})."
     return 0
   fi
 
@@ -520,14 +739,15 @@ restrict_public_ssh_to_tailscale() {
     return 1
   fi
 
+  # tailscale0 sits in the trusted zone, which accepts every port, so sshd on any port stays reachable over the tailnet.
   firewall-cmd --permanent --zone=trusted --add-interface=tailscale0 >/dev/null 2>&1 || true
-  firewall-cmd --permanent --zone=trusted --add-service=ssh >/dev/null 2>&1 || true
   while IFS= read -r zone; do
-    [[ -z "${zone}" || "${zone}" == "trusted" ]] && continue
     firewall-cmd --permanent --zone="${zone}" --remove-service=ssh >/dev/null 2>&1 || true
-    firewall-cmd --permanent --zone="${zone}" --remove-port=22/tcp >/dev/null 2>&1 || true
-    firewall-cmd --permanent --zone="${zone}" --add-rich-rule='rule family="ipv4" port port="22" protocol="tcp" reject' >/dev/null 2>&1 || true
-  done < <(firewall-cmd --permanent --get-zones 2>/dev/null | tr ' ' '\n')
+    for port in "${ABB_SSH_PORTS[@]}"; do
+      firewall-cmd --permanent --zone="${zone}" --remove-port="${port}/tcp" >/dev/null 2>&1 || true
+      firewall-cmd --permanent --zone="${zone}" --add-rich-rule="$(ssh_reject_rule "${port}")" >/dev/null 2>&1 || true
+    done
+  done < <(non_trusted_zones)
 
   if firewall-cmd --reload >/dev/null 2>&1; then
     if tailscale_lockdown_already_applied; then
@@ -542,14 +762,100 @@ restrict_public_ssh_to_tailscale() {
   return 1
 }
 
+open_public_ssh() {
+  local zone="" port="" default_zone=""
+
+  if ! command_exists firewall-cmd; then
+    log_warn "firewall-cmd not available; public SSH ports are not managed."
+    return 1
+  fi
+
+  default_zone="$(firewall-cmd --get-default-zone 2>/dev/null)"
+  while IFS= read -r zone; do
+    for port in "${ABB_SSH_PORTS[@]}"; do
+      firewall-cmd --permanent --zone="${zone}" --remove-rich-rule="$(ssh_reject_rule "${port}")" >/dev/null 2>&1 || true
+    done
+  done < <(non_trusted_zones)
+  for port in "${ABB_SSH_PORTS[@]}"; do
+    if [[ "${port}" == "22" ]]; then
+      firewall-cmd --permanent --zone="${default_zone}" --add-service=ssh >/dev/null 2>&1 || true
+    else
+      firewall-cmd --permanent --zone="${default_zone}" --add-port="${port}/tcp" >/dev/null 2>&1 || true
+    fi
+  done
+
+  firewall-cmd --reload >/dev/null 2>&1 || { log_warn "Failed to reload firewalld."; return 1; }
+  log_info "Public SSH open in zone ${default_zone} on ports ${ABB_SSH_PORTS[*]}."
+  return 0
+}
+
+# After the new port is confirmed: drop the old ones from firewalld (the reject rules for them stay, harmless).
+close_old_ssh_ports() {
+  local zone="" port="" desired="${SSH_PORT:-22}"
+  command_exists firewall-cmd || return 0
+
+  while IFS= read -r zone; do
+    for port in "$@"; do
+      [[ "${port}" == "${desired}" ]] && continue
+      firewall-cmd --permanent --zone="${zone}" --remove-port="${port}/tcp" >/dev/null 2>&1 || true
+      [[ "${port}" == "22" ]] && firewall-cmd --permanent --zone="${zone}" --remove-service=ssh >/dev/null 2>&1 || true
+    done
+  done < <(non_trusted_zones)
+  firewall-cmd --reload >/dev/null 2>&1 || log_warn "Failed to reload firewalld after closing old SSH ports."
+}
+
+apply_ssh_firewall() {
+  if tailscale_access_mode && [[ "${PUBLIC_SSH_LOCKDOWN}" == "true" ]]; then
+    if tailscale_lockdown_already_applied; then
+      restrict_public_ssh_to_tailscale
+      return
+    fi
+    show_tailscale_breakpoint || return 1
+    restrict_public_ssh_to_tailscale
+    return
+  fi
+  open_public_ssh
+}
+
+finish_ssh_port_change() {
+  local choice="" desired="${SSH_PORT:-22}" host_hint="<host-or-ip>"
+  local -a old_ports=()
+
+  [[ "${ABB_SSH_PORT_CHANGE_PENDING}" == "true" ]] || return 0
+  old_ports=("${ABB_SSH_PORTS[@]:1}")
+  tailscale_access_mode && host_hint="$(tailscale ip -4 2>/dev/null | head -n1 || echo '<tailscale-ip>')"
+
+  cat >/dev/tty <<EOF
+sshd now listens on ${ABB_SSH_PORTS[*]}. From a second terminal:
+  ssh -p ${desired} ${NEW_USER}@${host_hint} true
+Update the client too (Port ${desired} in ~/.ssh/config). Port(s) ${old_ports[*]} close only after you confirm.
+EOF
+  choice="$(prompt_pick_option "Did the session on port ${desired} work? " "later" yes later)" || choice="later"
+  if [[ "${choice}" != "yes" ]]; then
+    log_info "Old SSH port(s) ${old_ports[*]} stay open. Rerun 'abb-setup.sh network-access' after testing port ${desired}."
+    return 0
+  fi
+
+  ABB_SSH_PORTS=("${desired}")
+  ABB_SSH_PORT_CHANGE_PENDING="false"
+  write_sshd_port_dropin || return 1
+  configure_fail2ban_sshd "${desired}"
+  close_old_ssh_ports "${old_ports[@]}"
+  log_info "SSH moved to port ${desired}; closed ${old_ports[*]}."
+  if [[ "${USE_VPN}" == "true" ]]; then
+    log_warn "VPN profiles still carry 'sport ${old_ports[*]}' rules. Rerun 'abb-setup.sh vpn' and restart the tunnel (or ssh-bypass.sh setup) so replies on port ${desired} leave via the main table."
+  fi
+}
+
 configure_plain_ssh_access() {
-  log_info "Using plain SSH mode. Public SSH exposure remains unchanged."
-  if prompt_for_ssh_hardening_confirmation; then
+  log_info "Using plain SSH mode (public sshd)."
+  open_public_ssh || true
+  if sshd_hardening_is_effective || prompt_for_ssh_hardening_confirmation; then
     apply_verified_ssh_hardening || true
   fi
 }
 
-configure_tailscale_ssh_access() {
+configure_tailscale_access() {
   if ! install_tailscale; then
     return 1
   fi
@@ -561,11 +867,12 @@ configure_tailscale_ssh_access() {
     return 1
   fi
   append_installed_tool "tailscale"
-  if show_tailscale_breakpoint; then
-    if ! restrict_public_ssh_to_tailscale; then
-      log_warn "Tailscale SSH lockdown did not complete. Public SSH may still be reachable."
-      return 1
-    fi
+  if ! apply_ssh_firewall; then
+    log_warn "SSH firewall changes did not complete. Public SSH may still be reachable."
+    return 1
+  fi
+  # With lockdown the breakpoint (or an earlier run) already proved a second session; otherwise ask as plain-ssh does.
+  if [[ "${PUBLIC_SSH_LOCKDOWN}" == "true" ]] || sshd_hardening_is_effective || prompt_for_ssh_hardening_confirmation; then
     if ! apply_verified_ssh_hardening; then
       log_warn "SSH hardening did not complete after Tailscale verification."
       return 1
@@ -582,15 +889,21 @@ run_task_network_access() {
   fi
   apply_network_sysctl_hardening
 
+  plan_ssh_ports
+  write_sshd_port_dropin || log_warn "SSH port drop-in not applied; continuing on the current port."
+  configure_fail2ban_sshd "${ABB_SSH_PORTS[@]}"
+
   case "${NETWORK_ACCESS_MODE}" in
     plain-ssh)
       configure_plain_ssh_access
       ;;
-    tailscale-ssh)
-      configure_tailscale_ssh_access
+    tailscale-sshd|tailscale-ssh)
+      configure_tailscale_access
       ;;
     *)
       log_warn "Unknown network access mode '${NETWORK_ACCESS_MODE}'."
       ;;
   esac
+
+  finish_ssh_port_change
 }

@@ -3,8 +3,8 @@
 Current branch context:
 
 - main_branch: main
-- active_branch: main
-- last_checked: 2026-10-19
+- active_branch: feature/network-access-modes
+- last_checked: 2026-10-28
 
 ## Branch registry
 
@@ -19,6 +19,11 @@ Use this list to track branches and their intent/state.
   purpose: account/network/VPN hardening and prompt cleanup
   status: merged
   notes: merged into main at commit 0da5017 on 2026-03-17
+
+- branch: feature/network-access-modes
+  purpose: selectable SSH transport/auth modes (plain-ssh, tailscale-sshd, tailscale-ssh), public lockdown, forwarding and port prompts; move the contabo VPS off Tailscale SSH via ABB
+  status: active
+  notes: created 2026-10-28 from main
 
 ## Branch workflow notes
 
