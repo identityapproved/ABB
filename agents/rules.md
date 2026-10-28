@@ -44,9 +44,3 @@ All filesystem paths must be presented using:
 Never expose:
 - Absolute home directory paths
 - Usernames embedded in paths
-
-## Codex Utilities
-
-- Codex utility scripts are global and live under `$HOME/.codex/scripts`.
-- Do not call Codex utilities as repo-local `scripts/...` paths.
-- Use `$HOME/.codex/scripts/init-repo-router.sh` when referring to the repo router bootstrap script.

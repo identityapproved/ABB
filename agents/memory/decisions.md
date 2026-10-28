@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-10-28
+
+- Default access mode is now `tailscale-sshd`: the tailnet carries the traffic, OpenSSH authenticates. Reason: Tailworm (public 25.10.2026, unfixed as of 1.104.x) runs Tailscale SSH forwarding as root inside tailscaled. `tailscale-ssh` stays available behind a warning and a saved `TAILSCALE_SSH_RISK_ACCEPTED`; `plain-ssh` is unchanged.
+- Replaces the 2026-03-17 "always `tailscale up --ssh`" decision. Already-up nodes use `tailscale set --ssh=<bool>` rather than `tailscale up`, which demands every non-default flag again.
+- New saved answers: `PUBLIC_SSH_LOCKDOWN`, `SSH_FORWARDING` (default off), `SSH_PORT` (default 22). sshd gets `AllowUsers <managed user>` and explicit forwarding lines in `50-abb-hardening.conf`; the port lives in its own `40-abb-port.conf`.
+- Lockout safety over speed: every change that can remove the current way in is two-phase (Tailscale SSH off with a systemd-run undo after 10 min; port change keeps the old port until the new one is confirmed). The contabo VPS lesson: a key Tailscale SSH never used turned out to have a forgotten-looking passphrase, so the breakpoint now says to check it.
+
 ## 2026-01-22
 
 - Adopted the "router, not storage" AGENTS.md pattern.

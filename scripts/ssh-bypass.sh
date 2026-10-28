@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT="${SSH_BYPASS_PORT:-22}"
+ANSWERS_FILE="/var/lib/vps-setup/answers.env"
+# Default to the sshd port ABB configured (SSH_PORT in answers.env).
+answers_ssh_port="$(sed -n 's/^SSH_PORT=//p' "${ANSWERS_FILE}" 2>/dev/null | tr -d "'\"" | head -n1)"
+PORT="${SSH_BYPASS_PORT:-${answers_ssh_port:-22}}"
 MARK="${SSH_BYPASS_MARK:-22}"
 TABLE="${SSH_BYPASS_TABLE:-128}"
 

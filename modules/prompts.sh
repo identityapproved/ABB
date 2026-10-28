@@ -161,25 +161,122 @@ prompt_for_container_engine() {
   log_info "Container engine selection: ${CONTAINER_ENGINE}"
 }
 
+readonly TAILWORM_NOTE="Tailscale SSH runs forwarding as root inside tailscaled (Tailworm, public 25.10.2026, unfixed as of 1.104.x); prefer tailscale-sshd."
+
+tailscale_access_mode() {
+  [[ "${NETWORK_ACCESS_MODE}" == "tailscale-sshd" || "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]
+}
+
+network_access_answers_incomplete() {
+  case "${NETWORK_ACCESS_MODE}" in
+    plain-ssh|tailscale-sshd) ;;
+    tailscale-ssh) [[ "${TAILSCALE_SSH_RISK_ACCEPTED}" == "true" ]] || return 0 ;;
+    *) return 0 ;;
+  esac
+  if tailscale_access_mode && [[ "${PUBLIC_SSH_LOCKDOWN}" != "true" && "${PUBLIC_SSH_LOCKDOWN}" != "false" ]]; then
+    return 0
+  fi
+  [[ "${SSH_FORWARDING}" != "true" && "${SSH_FORWARDING}" != "false" ]] && return 0
+  [[ -z "${SSH_PORT}" ]] && return 0
+  return 1
+}
+
 prompt_for_network_access_mode() {
   local choice=""
-  if [[ -n "${NETWORK_ACCESS_MODE}" ]]; then
-    log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
-    return
+  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" && "${TAILSCALE_SSH_RISK_ACCEPTED}" != "true" ]]; then
+    echo "Saved access mode is tailscale-ssh. ${TAILWORM_NOTE}" >/dev/tty
+    choice="$(prompt_pick_option "Keep tailscale-ssh or switch to tailscale-sshd? " "tailscale-sshd" tailscale-ssh tailscale-sshd)" || { log_error "Unable to read network access mode."; exit 1; }
+    if [[ "${choice,,}" == "tailscale-ssh" ]]; then
+      TAILSCALE_SSH_RISK_ACCEPTED="true"
+    else
+      NETWORK_ACCESS_MODE="tailscale-sshd"
+    fi
   fi
+  case "${NETWORK_ACCESS_MODE}" in
+    plain-ssh|tailscale-sshd|tailscale-ssh)
+      log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
+      return
+      ;;
+  esac
+  cat >/dev/tty <<'EOF'
+Remote access modes:
+  plain-ssh       public sshd only
+  tailscale-sshd  tailnet transport, OpenSSH sshd authenticates (recommended)
+  tailscale-ssh   tailnet transport, tailscaled authenticates (Tailscale SSH)
+EOF
   while true; do
-    choice="$(prompt_pick_option "Use which remote access mode: " "plain-ssh" plain-ssh tailscale-ssh)" || { log_error "Unable to read network access mode."; exit 1; }
+    choice="$(prompt_pick_option "Use which remote access mode: " "tailscale-sshd" plain-ssh tailscale-sshd tailscale-ssh)" || { log_error "Unable to read network access mode."; exit 1; }
     case "${choice,,}" in
-      plain-ssh|tailscale-ssh)
+      plain-ssh|tailscale-sshd)
         NETWORK_ACCESS_MODE="${choice,,}"
         break
         ;;
+      tailscale-ssh)
+        echo "${TAILWORM_NOTE}" >/dev/tty
+        NETWORK_ACCESS_MODE="tailscale-ssh"
+        TAILSCALE_SSH_RISK_ACCEPTED="true"
+        break
+        ;;
       *)
-        echo "Please answer plain-ssh or tailscale-ssh." >/dev/tty
+        echo "Please answer plain-ssh, tailscale-sshd, or tailscale-ssh." >/dev/tty
         ;;
     esac
   done
   log_info "Network access mode: ${NETWORK_ACCESS_MODE}"
+}
+
+prompt_for_public_ssh_lockdown() {
+  if ! tailscale_access_mode; then
+    PUBLIC_SSH_LOCKDOWN="false"
+    return
+  fi
+  if [[ "${PUBLIC_SSH_LOCKDOWN}" == "true" || "${PUBLIC_SSH_LOCKDOWN}" == "false" ]]; then
+    log_info "Close public SSH (tailnet only): ${PUBLIC_SSH_LOCKDOWN}"
+    return
+  fi
+  PUBLIC_SSH_LOCKDOWN="$(prompt_yes_no "Close public SSH so it is reachable over the tailnet only? " "yes")"
+  log_info "Close public SSH (tailnet only): ${PUBLIC_SSH_LOCKDOWN}"
+}
+
+prompt_for_ssh_forwarding() {
+  if [[ "${SSH_FORWARDING}" == "true" || "${SSH_FORWARDING}" == "false" ]]; then
+    log_info "SSH forwarding allowed: ${SSH_FORWARDING}"
+    return
+  fi
+  SSH_FORWARDING="$(prompt_yes_no "Allow SSH TCP/unix-socket/agent/X11 forwarding (ssh -L/-R/-A)? " "no")"
+  log_info "SSH forwarding allowed: ${SSH_FORWARDING}"
+}
+
+valid_ssh_port() {
+  [[ "$1" =~ ^[0-9]+$ ]] && (( $1 >= 1 && $1 <= 65535 ))
+}
+
+prompt_for_ssh_port() {
+  local choice=""
+  if valid_ssh_port "${SSH_PORT}"; then
+    log_info "SSH port: ${SSH_PORT}"
+    return
+  fi
+  if [[ "${NETWORK_ACCESS_MODE}" == "tailscale-ssh" ]]; then
+    echo "Tailscale SSH only answers on tailnet port 22; another port runs sshd next to it." >/dev/tty
+  fi
+  while true; do
+    read -rp "SSH port for sshd [22]: " choice </dev/tty || { log_error "Unable to read SSH port."; exit 1; }
+    choice="${choice//[[:space:]]/}"
+    choice="${choice:-22}"
+    if ! valid_ssh_port "${choice}"; then
+      echo "Please enter a port between 1 and 65535." >/dev/tty
+      continue
+    fi
+    if [[ "${choice}" != "22" ]] && command_exists ss && ss -Hltn "sport = :${choice}" 2>/dev/null | grep -q . \
+      && ! ss -Hltnp "sport = :${choice}" 2>/dev/null | grep -q '"sshd'; then
+      echo "Port ${choice} is already in use by another service." >/dev/tty
+      continue
+    fi
+    SSH_PORT="${choice}"
+    break
+  done
+  log_info "SSH port: ${SSH_PORT}"
 }
 
 prompt_for_ssh_key_source() {
@@ -284,6 +381,9 @@ collect_prompt_answers() {
   prompt_for_node_manager
   prompt_for_container_engine
   prompt_for_network_access_mode
+  prompt_for_public_ssh_lockdown
+  prompt_for_ssh_forwarding
+  prompt_for_ssh_port
   prompt_for_ssh_key_source
   prompt_for_vpn_usage
   prompt_for_vpn_provider

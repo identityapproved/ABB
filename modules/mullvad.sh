@@ -31,31 +31,34 @@ ensure_wireguard_kernel() {
 
 normalize_wireguard_profile() {
   local cfg="$1"
+  local port="${SSH_PORT:-22}"
   local need_postup=1 need_predown=1 tmp
-  if grep -Eq '^PostUp[[:space:]]*=[[:space:]]*ip rule add sport 22 lookup main' "${cfg}"; then
+  if grep -Eq "^PostUp[[:space:]]*=[[:space:]]*ip rule add sport ${port} lookup main" "${cfg}"; then
     need_postup=0
   fi
-  if grep -Eq '^PreDown[[:space:]]*=[[:space:]]*ip rule delete sport 22 lookup main' "${cfg}"; then
+  if grep -Eq "^PreDown[[:space:]]*=[[:space:]]*ip rule delete sport ${port} lookup main" "${cfg}"; then
     need_predown=0
   fi
   if ((need_postup == 0 && need_predown == 0)); then
     return
   fi
   tmp="$(mktemp)" || { log_warn "Unable to create temporary file while updating ${cfg}."; return; }
-  awk -v need_postup="${need_postup}" -v need_predown="${need_predown}" '
+  # Drops rules for a previous SSH_PORT so the SSH reply path follows the current port.
+  awk -v port="${port}" '
+    /^(PostUp|PreDown)[[:space:]]*=[[:space:]]*ip rule (add|delete) sport [0-9]+ lookup main[[:space:]]*$/ { next }
     {
       print
       if ($0 ~ /^\[Interface\]/ && inserted == 0) {
-        if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
-        if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
+        print "PostUp = ip rule add sport " port " lookup main"
+        print "PreDown = ip rule delete sport " port " lookup main"
         inserted = 1
       }
     }
     END {
-      if (inserted == 0 && (need_postup || need_predown)) {
+      if (inserted == 0) {
         print "[Interface]"
-        if (need_postup)  print "PostUp = ip rule add sport 22 lookup main"
-        if (need_predown) print "PreDown = ip rule delete sport 22 lookup main"
+        print "PostUp = ip rule add sport " port " lookup main"
+        print "PreDown = ip rule delete sport " port " lookup main"
       }
     }
   ' "${cfg}" > "${tmp}"

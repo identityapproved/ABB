@@ -3,8 +3,8 @@
 Current branch context:
 
 - main_branch: main
-- active_branch: fix/tmux-osc52-yank
-- last_checked: 2026-10-24
+- active_branch: main
+- last_checked: 2026-10-28
 
 ## Branch registry
 
@@ -22,8 +22,13 @@ Use this list to track branches and their intent/state.
 
 - branch: fix/tmux-osc52-yank
   purpose: replace the nonexistent ojroques/tmux-yank plugin with native copy-mode-vi yank binds over OSC 52
-  status: active
-  notes: created 2026-10-24
+  status: merged
+  notes: created 2026-10-24; fast-forwarded into main 2026-10-28
+
+- branch: feature/network-access-modes
+  purpose: selectable SSH transport/auth modes (plain-ssh, tailscale-sshd, tailscale-ssh), public lockdown, forwarding and port prompts; move the contabo VPS off Tailscale SSH via ABB
+  status: merged
+  notes: created 2026-10-28 from main; merged into main 2026-10-28
 
 ## Branch workflow notes
 
