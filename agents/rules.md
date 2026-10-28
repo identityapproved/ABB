@@ -12,7 +12,7 @@ Project rules live here and are referenced by AGENTS.md. Keep this file authorit
 - Do not use numbered lists unless explicitly asked.
 - When asked to update memory, store required rules, flow, tasks, history, updates, decisions, and progress in the memory files using best practices.
 - When the user says "update memory", update all AGENTS-related files to reflect the current state and rules.
-- Until the user says otherwise, treat publish as the main branch and keep main unchanged.
+- `main` is the integration branch; task branches merge into it (no `publish` branch exists; superseded 2026-10-28).
 
 ## Git Guard / Branch Manager
 
