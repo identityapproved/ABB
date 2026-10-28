@@ -205,7 +205,8 @@ ABB_SSH_PORTS=()
 ABB_SSH_PORT_CHANGE_PENDING="false"
 
 sshd_effective_ports() {
-  sshd -T 2>/dev/null | awk '$1 == "port" { print $2 }' | sort -un
+  # OpenSSH 10.x prints keywords CamelCase (Port, AllowUsers); match case-insensitively.
+  sshd -T 2>/dev/null | awk 'tolower($1) == "port" { print $2 }' | sort -un
 }
 
 join_by_comma() {
@@ -420,29 +421,44 @@ switch_tailscale_ssh_off_safely() {
   }
 
   if session_served_by_tailscaled; then
-    systemctl stop "${ABB_TS_SWITCH_UNIT}.timer" >/dev/null 2>&1 || true
-    systemd-run --quiet --unit="${ABB_TS_SWITCH_UNIT}" --on-active=20s "${ts_bin}" set --ssh=false || {
-      disarm_tailscale_revert
-      log_warn "Unable to schedule the switch; leaving Tailscale SSH on."
-      return 1
-    }
-    tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
-    cat >/dev/tty <<EOF
-This session runs over Tailscale SSH and will drop in about 20 seconds, when
-Tailscale SSH is turned off. Then reconnect through sshd:
-  ssh -v -p ${SSH_PORT:-22} ${NEW_USER}@${tailscale_ip:-<tailscale-ip>}
-and rerun 'sudo ./abb-setup.sh network-access' within 10 minutes to confirm.
-Without that, ${ABB_TS_REVERT_UNIT} turns Tailscale SSH back on.
-EOF
-    exit 0
+    schedule_tailscale_ssh_off "${ts_bin}"
+    return 1
   fi
 
-  "${ts_bin}" set --ssh=false || {
+  # tailscale refuses (lose-ssh) when this session is Tailscale SSH but the process chain hid it, e.g. inside tmux.
+  local out=""
+  if ! out="$("${ts_bin}" set --ssh=false 2>&1)"; then
+    if grep -q 'lose-ssh' <<<"${out}"; then
+      schedule_tailscale_ssh_off "${ts_bin}"
+    fi
     disarm_tailscale_revert
-    log_warn "tailscale set --ssh=false failed."
+    log_warn "tailscale set --ssh=false failed: ${out}"
+    return 1
+  fi
+  confirm_openssh_over_tailnet
+}
+
+schedule_tailscale_ssh_off() {
+  local ts_bin="$1" tailscale_ip=""
+
+  systemctl stop "${ABB_TS_SWITCH_UNIT}.timer" >/dev/null 2>&1 || true
+  systemctl reset-failed "${ABB_TS_SWITCH_UNIT}.service" >/dev/null 2>&1 || true
+  systemd-run --quiet --unit="${ABB_TS_SWITCH_UNIT}" --on-active=20s "${ts_bin}" set --ssh=false --accept-risk=lose-ssh || {
+    disarm_tailscale_revert
+    log_warn "Unable to schedule the switch; leaving Tailscale SSH on."
     return 1
   }
-  confirm_openssh_over_tailnet
+  tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+  cat >/dev/tty <<EOF
+This session runs over Tailscale SSH and will drop in about 20 seconds, when
+Tailscale SSH is turned off (tmux sessions keep running, the connection does not).
+Then reconnect through sshd:
+  ssh -v -p ${SSH_PORT:-22} ${NEW_USER}@${tailscale_ip:-<tailscale-ip>}
+It must show "remote software version OpenSSH_". Then rerun
+'sudo ./abb-setup.sh network-access' within 10 minutes to confirm.
+Without that, ${ABB_TS_REVERT_UNIT} turns Tailscale SSH back on.
+EOF
+  exit 0
 }
 
 initialize_tailscale_session() {
@@ -518,7 +534,7 @@ sshd_supports_dropin_dir() {
 
 sshd_effective_value() {
   local key="$1"
-  sshd -T 2>/dev/null | awk -v key="${key}" '$1 == key { print $2; exit }'
+  sshd -T 2>/dev/null | awk -v key="${key}" 'tolower($1) == tolower(key) { print $2; exit }'
 }
 
 sshd_forwarding_value() {

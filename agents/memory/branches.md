@@ -30,6 +30,11 @@ Use this list to track branches and their intent/state.
   status: merged
   notes: created 2026-10-28 from main; merged into main 2026-10-28
 
+- branch: fix/network-access-sshd-parse
+  purpose: parse OpenSSH 10.x CamelCase `sshd -T` keywords; detect a Tailscale SSH session from tailscale's own lose-ssh refusal (tmux hides the process chain) and schedule the switch with --accept-risk=lose-ssh
+  status: merged
+  notes: found on the first VPS run 2026-10-28; fast-forwarded into main the same day
+
 ## Branch workflow notes
 
 - Record new task branches here when created.
