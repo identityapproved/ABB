@@ -2,4 +2,4 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-"$HOME/.codex/scripts/sanitize-paths.sh" "$root"
+"$HOME/.config/opencode/scripts/sanitize-paths.sh" --check --staged "$root"
