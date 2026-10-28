@@ -2,6 +2,9 @@
 
 ## 2026-10-28
 
+- Merged `testin` (8 commits, 2025-11-10) into main to keep its `wg-vpn` image fixes. They are old and unverified against current main and must be checked before a full or fresh ABB run (see `agents/tasks/active.md`). The `docker/compose/docker-compose.vpn.yml` they edited stays deleted, as main removed docker asset management on 2026-03-07. Container VPN on the VPS currently runs through gluetun.
+- `archive/failed/openvpndocker` was not merged.
+
 - Default access mode is now `tailscale-sshd`: the tailnet carries the traffic, OpenSSH authenticates. Reason: Tailworm (public 25.10.2026, unfixed as of 1.104.x) runs Tailscale SSH forwarding as root inside tailscaled. `tailscale-ssh` stays available behind a warning and a saved `TAILSCALE_SSH_RISK_ACCEPTED`; `plain-ssh` is unchanged.
 - Replaces the 2026-03-17 "always `tailscale up --ssh`" decision. Already-up nodes use `tailscale set --ssh=<bool>` rather than `tailscale up`, which demands every non-default flag again.
 - New saved answers: `PUBLIC_SSH_LOCKDOWN`, `SSH_FORWARDING` (default off), `SSH_PORT` (default 22). sshd gets `AllowUsers <managed user>` and explicit forwarding lines in `50-abb-hardening.conf`; the port lives in its own `40-abb-port.conf`.

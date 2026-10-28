@@ -22,10 +22,11 @@ if wg show "${INTERFACE}" >/dev/null 2>&1; then
   wg-quick down "${INTERFACE}" >/dev/null 2>&1 || true
 fi
 
-if wg-quick up "${INTERFACE}" >/dev/null 2>&1; then
+if output="$(wg-quick up "${INTERFACE}" 2>&1)"; then
   curl -fsS https://am.i.mullvad.net/json | jq '.ip, .mullvad_exit_ip_hostname' || true
   exit 0
 fi
 
-echo "[rotate] Failed to bring up ${INTERFACE}. Review wg-quick output above." >&2
+echo "[rotate] Failed to bring up ${INTERFACE} with profile $(basename "${profile}"). wg-quick output:"
+printf '%s\n' "${output}"
 exit 2
