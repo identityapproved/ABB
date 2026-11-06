@@ -4,7 +4,7 @@ final_verification() {
   log_info "Verification summary:"
 
   if command_exists pacman; then
-    if ! pacman -Q tree tealdeer ripgrep fd zsh bat htop iftop wireguard-tools openresolv >/dev/null 2>&1; then
+    if ! pacman -Q tree tealdeer ripgrep fd zsh bat htop iftop >/dev/null 2>&1; then
       log_warn "One or more core packages are missing. Review pacman output above."
     fi
   fi
@@ -62,6 +62,26 @@ final_verification() {
     sshd_hardening_is_effective || log_warn "sshd hardening (key-only, no root, AllowUsers ${NEW_USER}, forwarding $(sshd_forwarding_value)) is not fully effective."
     if tailscale_access_mode && [[ "${PUBLIC_SSH_LOCKDOWN}" == "true" ]]; then
       tailscale_lockdown_already_applied || log_warn "Public SSH lockdown expected but SSH is still reachable outside tailscale0."
+    fi
+  fi
+
+  if [[ "${USE_VPN}" == "true" ]] && command_exists pacman && ! pacman -Q wireguard-tools openresolv openvpn >/dev/null 2>&1; then
+    log_warn "VPN packages missing despite USE_VPN=true. Re-run 'abb-setup.sh vpn'."
+  fi
+
+  if [[ "${CONTAINER_ENGINE}" == "docker" ]] && command_exists firewall-cmd && ! firewall-cmd --permanent --info-policy=abb-docker-isolate >/dev/null 2>&1; then
+    log_warn "firewalld policy abb-docker-isolate missing; Docker containers can reach tailnet peers and Incus."
+  fi
+
+  if [[ "${INSTALL_INCUS}" == "true" ]]; then
+    if ! command_exists incus; then
+      log_warn "incus not detected despite selection."
+    else
+      systemd_available && ! systemctl is-active --quiet incus.socket && log_warn "incus.socket is not active."
+      id -nG "${NEW_USER}" | grep -qw incus-admin || log_warn "${NEW_USER} is not in incus-admin."
+      if command_exists firewall-cmd && ! firewall-cmd --permanent --zone=trusted --query-interface="${INCUS_BRIDGE}" >/dev/null 2>&1; then
+        log_warn "${INCUS_BRIDGE} is not in the firewalld trusted zone; containers will get no DHCP/DNS."
+      fi
     fi
   fi
 

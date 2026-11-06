@@ -127,8 +127,14 @@ run_mullvad_wg_script_once() {
   return 1
 }
 
+ensure_vpn_packages() {
+  pacman_install_packages wireguard-tools openresolv openvpn
+  append_installed_tool "wireguard-tools"
+  append_installed_tool "openresolv"
+  append_installed_tool "openvpn"
+}
+
 configure_mullvad_wireguard() {
-  pacman_install_packages openresolv wireguard-tools
   ensure_wireguard_kernel
   run_mullvad_wg_script_once || true
   copy_wireguard_profiles
@@ -136,7 +142,6 @@ configure_mullvad_wireguard() {
 }
 
 configure_protonvpn_wireguard() {
-  pacman_install_packages openresolv wireguard-tools
   install -d -m 0700 /etc/wireguard
   ensure_wireguard_kernel
   copy_wireguard_profiles
@@ -157,6 +162,7 @@ run_task_vpn() {
     log_info "VPN setup skipped because USE_VPN=${USE_VPN}."
     return 0
   fi
+  ensure_vpn_packages
 
   case "${VPN_PROVIDER}" in
     mullvad)
