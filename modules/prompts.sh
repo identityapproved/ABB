@@ -365,6 +365,15 @@ prompt_for_tools_install() {
   log_info "Tools installation enabled: ${INSTALL_TOOLS}"
 }
 
+prompt_for_incus_install() {
+  if [[ "${INSTALL_INCUS}" == "true" || "${INSTALL_INCUS}" == "false" ]]; then
+    log_info "Incus installation enabled: ${INSTALL_INCUS}"
+    return
+  fi
+  INSTALL_INCUS="$(prompt_yes_no "Install Incus for system containers (alongside any container engine)? " "no")"
+  log_info "Incus installation enabled: ${INSTALL_INCUS}"
+}
+
 prompt_for_wordlists_install() {
   if [[ "${INSTALL_WORDLISTS}" == "true" || "${INSTALL_WORDLISTS}" == "false" ]]; then
     log_info "Wordlist installation enabled: ${INSTALL_WORDLISTS}"
@@ -380,6 +389,7 @@ collect_prompt_answers() {
   prompt_for_hardening
   prompt_for_node_manager
   prompt_for_container_engine
+  prompt_for_incus_install
   prompt_for_network_access_mode
   prompt_for_public_ssh_lockdown
   prompt_for_ssh_forwarding

@@ -23,9 +23,6 @@ SYSTEM_PACKAGES=(
   tar
   nmap
   jq
-  wireguard-tools
-  openresolv
-  openvpn
   rsync
   yazi
   lazygit
@@ -72,6 +69,25 @@ ensure_node_manager() {
     log_warn "Unknown Node manager preference '${NODE_MANAGER}'; skipping installation."
     ;;
   esac
+}
+
+# Untrusted tools run in Docker; keep containers off the trusted zone (tailnet peers, Incus bridge).
+ensure_docker_isolation() {
+  local policy="abb-docker-isolate"
+  command_exists firewall-cmd || return 0
+  systemctl is-active --quiet firewalld.service || { log_warn "firewalld inactive; Docker isolation policy not applied."; return 0; }
+  firewall-cmd --permanent --info-policy="${policy}" >/dev/null 2>&1 && { log_info "Docker isolation policy present."; return 0; }
+  if ! firewall-cmd --permanent --get-zones | tr ' ' '\n' | grep -qx docker; then
+    log_warn "firewalld has no docker zone; restart Docker with firewalld running, then rerun utilities."
+    return 1
+  fi
+  firewall-cmd --permanent --new-policy="${policy}" >/dev/null &&
+    firewall-cmd --permanent --policy="${policy}" --add-ingress-zone=docker >/dev/null &&
+    firewall-cmd --permanent --policy="${policy}" --add-egress-zone=trusted >/dev/null &&
+    firewall-cmd --permanent --policy="${policy}" --set-target=DROP >/dev/null ||
+    { log_warn "Failed to create firewalld policy ${policy}."; return 1; }
+  firewall-cmd --reload >/dev/null 2>&1 || log_warn "Failed to reload firewalld."
+  log_info "Docker containers can no longer reach the trusted zone (tailscale0, incusbr0)."
 }
 
 install_container_engine() {
@@ -121,6 +137,7 @@ install_container_engine() {
         log_warn "Docker CLI or daemon unavailable. Reboot and rerun 'abb-setup.sh utilities' or 'abb-setup.sh all' when ready."
       fi
     fi
+    [[ "${SKIP_DOCKER_TASKS}" == "true" ]] || ensure_docker_isolation || true
     append_installed_tool "docker"
     append_installed_tool "docker-compose"
     append_installed_tool "lazydocker"
@@ -146,6 +163,7 @@ install_system_utilities() {
 
   ensure_node_manager
   install_container_engine
+  install_incus
 
   append_installed_tool "firewalld"
   append_installed_tool "fail2ban"
@@ -162,13 +180,9 @@ install_system_utilities() {
   append_installed_tool "tealdeer"
   append_installed_tool "htop"
   append_installed_tool "iftop"
-  append_installed_tool "wireguard-tools"
-  append_installed_tool "openresolv"
   append_installed_tool "rsync"
   append_installed_tool "yazi"
   append_installed_tool "lazygit"
-
-  log_info "WireGuard tooling installed. Run 'abb-setup.sh vpn' if you decide to configure a VPN provider."
 }
 
 run_task_utilities() {

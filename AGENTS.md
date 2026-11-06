@@ -22,6 +22,7 @@ Arch Linux (btw ^_^). ABB automates bug bounty VPS provisioning end-to-end. Leve
 - Skip SSH credential prompts. Contabo already injects keys.
 - Ask which editor to configure (`vim`, `neovim`, or `both`).
 - Ask which Node version manager to deploy (`nvm` or `fnm`).
+- Ask whether to install Incus for system containers. Default to `no`; independent of the Docker/Podman choice.
 - Ask for the access mode (`plain-ssh`, `tailscale-sshd`, `tailscale-ssh`), whether to close public SSH (tailscale modes), whether to allow SSH forwarding, and the SSH port.
 - Ask how ABB should seed `authorized_keys` for the managed user (`current-access`, `admin`, `paste`, or `skip`).
 - Ask whether VPN support should be configured at all. Default to `no`.
@@ -105,12 +106,15 @@ sudo pacman -Syu --noconfirm
 - Run `pipx ensurepath` for the managed user; record versions for logs.
 
 ## 8. System Utilities
-- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`, `wireguard-tools`, `openresolv`.
+- Install (via pacman): `tree`, `tldr` (use the `tealdeer` package), `ripgrep`, `fd`, `zsh`, `bat`, `htop`, `iftop`, `tmux`, `neovim`, `vim`, `curl`, `wget`, `unzip`, `tar`, `firewalld`, `fail2ban`, `zoxide`. VPN packages are not part of utilities.
 - Enable services as appropriate (`firewalld`, `fail2ban`). Avoid duplicates across the curated package list.
 - Install the requested Node manager (`nvm` or `fnm`) for the managed user.
+- With Docker and an active firewalld, add the permanent policy `abb-docker-isolate` (ingress zone `docker`, egress zone `trusted`, target DROP) so containers running untrusted tools cannot reach tailnet peers or Incus containers.
+- When Incus is selected (`modules/incus.sh`, after the container engine): install `incus`, root subuid/subgid ranges, `incus.socket`, `incus-admin` membership, `default` pool (btrfs or dir), `incusbr0` on `10.77.0.1/24` (NAT, no IPv6), default profile devices, `incusbr0` in the firewalld trusted zone, and `ip-forward-no-drop` in Docker's `daemon.json` when Docker is present. Every step is idempotent.
 
 ## 9. VPN
 - VPN support must be opt-in and default to `no`.
+- All VPN code lives in `modules/vpn.sh` (`vpn` task). It alone installs `wireguard-tools`, `openresolv` and `openvpn`, and only when `USE_VPN=true`.
 - Verify the kernel is >=5.11 before configuring WireGuard-backed VPN access.
 - For Mullvad, download `mullvad-wg.sh` to a temporary location, execute it once to generate profiles, and remove the script immediately afterwards.
 - For ProtonVPN, prepare for manual WireGuard config import instead of forcing a desktop/client install path on a headless VPS.

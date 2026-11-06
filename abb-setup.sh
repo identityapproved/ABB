@@ -19,6 +19,8 @@ source "${MODULE_DIR}/pkgmgr.sh"
 source "${MODULE_DIR}/security.sh"
 # shellcheck source=modules/languages.sh
 source "${MODULE_DIR}/languages.sh"
+# shellcheck source=modules/incus.sh
+source "${MODULE_DIR}/incus.sh"
 # shellcheck source=modules/utilities.sh
 source "${MODULE_DIR}/utilities.sh"
 # shellcheck source=modules/network_access.sh
@@ -35,8 +37,8 @@ source "${MODULE_DIR}/monitoring.sh"
 source "${MODULE_DIR}/dotfiles.sh"
 # shellcheck source=modules/verify.sh
 source "${MODULE_DIR}/verify.sh"
-# shellcheck source=modules/mullvad.sh
-source "${MODULE_DIR}/mullvad.sh"
+# shellcheck source=modules/vpn.sh
+source "${MODULE_DIR}/vpn.sh"
 
 LOG_FILE="${LOG_FILE_DEFAULT}"
 INSTALLED_TRACK_FILE=""
@@ -46,6 +48,7 @@ NEEDS_PENTEST_HARDENING="${NEEDS_PENTEST_HARDENING:-false}"
 PACKAGE_MANAGER="${PACKAGE_MANAGER:-}"
 NODE_MANAGER="${NODE_MANAGER:-}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
+INSTALL_INCUS="${INSTALL_INCUS:-}"
 NETWORK_ACCESS_MODE="${NETWORK_ACCESS_MODE:-}"
 SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-}"
 PUBLIC_SSH_LOCKDOWN="${PUBLIC_SSH_LOCKDOWN:-}"
@@ -70,7 +73,7 @@ Tasks:
   package-manager Install and record the preferred AUR helper before continuing with provisioning.
   security    Apply pacman updates, resolver hardening, and install AIDE/rkhunter.
   languages   Install language runtimes (Python/pipx, Go, Ruby, Rust) for the managed user.
-  utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.).
+  utilities   Install core system utilities (zsh, yay, tree, tldr, ripgrep, fd, firewalld, etc.) and optional Incus host setup.
   network-access Configure SSH access keys, fail2ban/firewalld SSH exposure, and optional Tailscale access.
   tools       Install pipx-managed apps, ProjectDiscovery tools via pdtm, Go recon utilities, and git-based tooling.
   ai-tools    Install optional AI tooling for the managed user.

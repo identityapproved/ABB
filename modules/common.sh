@@ -140,6 +140,7 @@ record_prompt_answers() {
     printf 'PACKAGE_MANAGER=%q\n' "${PACKAGE_MANAGER}"
     printf 'NODE_MANAGER=%q\n' "${NODE_MANAGER}"
     printf 'CONTAINER_ENGINE=%q\n' "${CONTAINER_ENGINE}"
+    printf 'INSTALL_INCUS=%q\n' "${INSTALL_INCUS}"
     printf 'NETWORK_ACCESS_MODE=%q\n' "${NETWORK_ACCESS_MODE}"
     printf 'SSH_KEY_SOURCE=%q\n' "${SSH_KEY_SOURCE}"
     printf 'PUBLIC_SSH_LOCKDOWN=%q\n' "${PUBLIC_SSH_LOCKDOWN}"
@@ -172,7 +173,7 @@ init_installed_tracker() {
 }
 
 ensure_user_context() {
-  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 network_access_missing=0 ssh_key_source_missing=0 vpn_usage_missing=0 vpn_provider_missing=0 monitoring_usage_missing=0 system_monitoring_missing=0 tools_missing=0 wordlists_missing=0
+  local user_home needs_flag_missing=0 node_manager_missing=0 container_engine_missing=0 incus_missing=0 network_access_missing=0 ssh_key_source_missing=0 vpn_usage_missing=0 vpn_provider_missing=0 monitoring_usage_missing=0 system_monitoring_missing=0 tools_missing=0 wordlists_missing=0
   load_previous_answers
   if [[ "${NEEDS_PENTEST_HARDENING}" != "true" && "${NEEDS_PENTEST_HARDENING}" != "false" ]]; then
     needs_flag_missing=1
@@ -182,6 +183,9 @@ ensure_user_context() {
   fi
   if [[ -z "${CONTAINER_ENGINE}" ]]; then
     container_engine_missing=1
+  fi
+  if [[ "${INSTALL_INCUS}" != "true" && "${INSTALL_INCUS}" != "false" ]]; then
+    incus_missing=1
   fi
   if network_access_answers_incomplete; then
     network_access_missing=1
@@ -207,7 +211,7 @@ ensure_user_context() {
   if [[ "${INSTALL_WORDLISTS}" != "true" && "${INSTALL_WORDLISTS}" != "false" ]]; then
     wordlists_missing=1
   fi
-  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${network_access_missing} -eq 1 || ${ssh_key_source_missing} -eq 1 || ${vpn_usage_missing} -eq 1 || ${vpn_provider_missing} -eq 1 || ${monitoring_usage_missing} -eq 1 || ${system_monitoring_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
+  if [[ -z "${NEW_USER}" || -z "${EDITOR_CHOICE}" || ${needs_flag_missing} -eq 1 || ${node_manager_missing} -eq 1 || ${container_engine_missing} -eq 1 || ${incus_missing} -eq 1 || ${network_access_missing} -eq 1 || ${ssh_key_source_missing} -eq 1 || ${vpn_usage_missing} -eq 1 || ${vpn_provider_missing} -eq 1 || ${monitoring_usage_missing} -eq 1 || ${system_monitoring_missing} -eq 1 || ${tools_missing} -eq 1 || ${wordlists_missing} -eq 1 ]]; then
     collect_prompt_answers
   fi
 
